@@ -9,17 +9,17 @@ import 'package:arrow_escape/data/level_generator/solver.dart';
 import 'package:arrow_escape/core/constants.dart';
 
 void main() {
-  test('Verify all 500 levels decoded from levels.bin', () {
+  test('Verify all levels decoded from levels.bin', () {
     final file = File('assets/levels.bin');
     expect(file.existsSync(), true, reason: 'levels.bin must exist');
 
     final bytes = file.readAsBytesSync();
     final decoder = LevelBinaryDecoder.fromBytes(bytes);
-    expect(decoder.levelCount, equals(500), reason: 'levels.bin must contain exactly 500 levels');
+    expect(decoder.levelCount, equals(AppConstants.totalLevels), reason: 'levels.bin must contain every level');
 
-    print('Verifying all 500 levels from levels.bin...');
+    print('Verifying all ${AppConstants.totalLevels} levels from levels.bin...');
 
-    for (int lvl = 1; lvl <= 500; lvl++) {
+    for (int lvl = 1; lvl <= AppConstants.totalLevels; lvl++) {
       final level = decoder.decodeLevelByNumber(lvl);
       expect(level, isNotNull, reason: 'Level $lvl failed to decode');
       expect(level!.levelNumber, equals(lvl), reason: 'Level $lvl has incorrect level number');
@@ -122,7 +122,7 @@ void main() {
       }
     }
 
-    print('All 500 levels decoded from levels.bin are 100% verified & correct!');
+    print('All ${AppConstants.totalLevels} levels decoded from levels.bin are 100% verified & correct!');
   });
 }
 

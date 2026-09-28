@@ -1,4 +1,4 @@
-package com.arrowx.escape
+package com.arrows.fluxylabs
 
 import android.os.Bundle
 import androidx.core.view.WindowCompat

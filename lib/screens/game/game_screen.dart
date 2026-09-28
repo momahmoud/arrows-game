@@ -18,9 +18,16 @@ import '../../data/repositories/level_repository.dart';
 import '../../ads/ad_manager.dart';
 import '../../game/arrow_puzzle_game.dart';
 import '../../game/game_state.dart';
+import '../../widgets/combo_banner.dart';
 import '../../widgets/lives_bar.dart';
+import '../../widgets/power_up_bar.dart';
 import '../../widgets/wavy_progress_bar.dart';
 import '../../widgets/arrow_line.dart';
+import '../../widgets/boss_intro_banner.dart';
+import '../../widgets/shape_reveal.dart';
+import '../../widgets/tutorial_hand.dart';
+import '../../core/board_style.dart';
+import '../../data/meta_rules.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/audio_manager.dart';
 
@@ -41,7 +48,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   bool _showingDeadlock = false;
   bool _inspectingDeadlock = false;
   int _lives = AppConstants.maxLives;
-  int? _loadedLevelNum;
+  Object? _loadKey;
+  bool _shapePreviewMode = false;
   bool _isLoadingLevel = false; // true while level is being generated async
 
   // Timer fields
@@ -51,6 +59,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   bool _isTimeoutState = false;
   bool _isGamePaused = false;
   bool _isAppBackgrounded = false;
+  bool _dailyChallenge = false;
+  bool _showBossIntro = false;
+  Timer? _introTimer;
 
   late final TransformationController _transformationController;
 
@@ -68,10 +79,21 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     super.didChangeDependencies();
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final previewLevel = args?['previewLevel'] as LevelModel?;
     final levelNum = args?['level'] as int? ?? 1;
-    if (_loadedLevelNum != levelNum) {
-      _loadedLevelNum = levelNum;
-      _loadLevelAsync(levelNum);
+    final loadKey = previewLevel ?? levelNum;
+    if (_loadKey != loadKey) {
+      _loadKey = loadKey;
+      _shapePreviewMode =
+          args?['shapePreview'] == true || previewLevel != null;
+      _dailyChallenge = args?['daily'] == true && previewLevel == null;
+      if (previewLevel != null) {
+        _level = previewLevel;
+        _initGame();
+        setState(() => _isLoadingLevel = false);
+      } else {
+        _loadLevelAsync(levelNum);
+      }
     }
   }
 
@@ -124,14 +146,34 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     _inspectingDeadlock = false;
     _transformationController.value = Matrix4.identity();
     _gameState?.removeListener(_onGameStateChanged);
+    final progress = context.read<ProgressRepository>();
+    final startingPowerUps = {
+      for (final type in PowerUpType.values)
+        type: AppConstants.powerUpsPerLevel + progress.bonusPowerUp(type),
+    };
     _gameState = GameState(
       level: _level,
       onLevelComplete: _onLevelComplete,
       onGameOver: _onGameOver,
       onLifeLost: _onLifeLost,
       onDeadlock: _onDeadlock,
+      onArrowExited: _onArrowExited,
+      onBonusPowerUpUsed: progress.spendBonusPowerUp,
+      arrowSkin: progress.arrowSkin,
+      boardTheme: progress.boardTheme,
+      startingPowerUps: startingPowerUps,
     );
     _gameState!.addListener(_onGameStateChanged);
+    AudioManager.instance.setBoardFill(0);
+
+    _introTimer?.cancel();
+    final introType = AppConstants.levelTypeFor(_level.levelNumber);
+    _showBossIntro = introType.isSpecial && !_shapePreviewMode;
+    if (_showBossIntro) {
+      _introTimer = Timer(const Duration(milliseconds: 1700), () {
+        if (mounted) setState(() => _showBossIntro = false);
+      });
+    }
 
     _game = ArrowPuzzleGame(
       level: _level,
@@ -146,9 +188,124 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   void _onGameStateChanged() {
     if (!mounted) return;
+    final total = _level.totalArrows;
+    final left = _gameState?.arrowsRemaining ?? total;
+    final cleared = total == 0 ? 0.0 : (1 - left / total).clamp(0.0, 1.0);
+    AudioManager.instance.setBoardFill(cleared);
     setState(() {
       _lives = _gameState!.lives;
     });
+  }
+
+  void _showPowerUpSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.nunito()),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  bool get _adsEnabled =>
+      AppConstants.enableAdMob || AppConstants.enableUnityAds;
+
+  void _offerPowerUpRefill(PowerUpType type, String emptyMessage) {
+    if (!_adsEnabled || _shapePreviewMode) {
+      _showPowerUpSnack(emptyMessage);
+      return;
+    }
+    setState(() => _isGamePaused = true);
+    context.read<AdManager>().showRewardedWithLoader(
+      context,
+      onRewarded: () {
+        if (!mounted) return;
+        _gameState?.addPowerUp(type, AppConstants.powerUpsPerRewardedAd);
+        context.read<ProgressRepository>().addBonusPowerUp(
+              type,
+              AppConstants.powerUpsPerRewardedAd,
+            );
+        _showPowerUpSnack('+${AppConstants.powerUpsPerRewardedAd} added');
+      },
+      onDismissed: () {
+        if (mounted) setState(() => _isGamePaused = false);
+      },
+    );
+  }
+
+  void _useHintPowerUp() {
+    final gs = _gameState;
+    if (gs == null) return;
+    gs.setEraserArmed(false);
+    if (gs.powerUpCount(PowerUpType.hint) <= 0) {
+      _offerPowerUpRefill(PowerUpType.hint, 'No hints left');
+      return;
+    }
+    if (!gs.applyHint()) {
+      _showPowerUpSnack('No hint available');
+      return;
+    }
+    gs.consumePowerUp(PowerUpType.hint);
+    AudioManager.instance.playPowerUp('hint');
+    setState(() {});
+  }
+
+  void _useEraserPowerUp() {
+    final gs = _gameState;
+    if (gs == null) return;
+    if (gs.isEraserArmed) {
+      gs.setEraserArmed(false);
+      return;
+    }
+    if (gs.powerUpCount(PowerUpType.eraser) <= 0) {
+      _offerPowerUpRefill(PowerUpType.eraser, 'No erasers left');
+      return;
+    }
+    gs.setEraserArmed(true);
+    AudioManager.instance.playPowerUp('eraser');
+    _showPowerUpSnack('Tap an arrow to erase it');
+  }
+
+  void _useWandPowerUp() {
+    final gs = _gameState;
+    if (gs == null) return;
+    gs.setEraserArmed(false);
+    if (gs.powerUpCount(PowerUpType.wand) <= 0) {
+      _offerPowerUpRefill(PowerUpType.wand, 'No magic wands left');
+      return;
+    }
+    if (!gs.applyMagicWand()) {
+      _showPowerUpSnack('No clear move for wand');
+      return;
+    }
+    gs.consumePowerUp(PowerUpType.wand);
+    AudioManager.instance.playPowerUp('wand');
+    setState(() {});
+  }
+
+  void _useRulerPowerUp() {
+    final gs = _gameState;
+    if (gs == null) return;
+    gs.setEraserArmed(false);
+    if (gs.powerUpCount(PowerUpType.ruler) <= 0) {
+      _offerPowerUpRefill(PowerUpType.ruler, 'No rulers left');
+      return;
+    }
+    gs.consumePowerUp(PowerUpType.ruler);
+    AudioManager.instance.playPowerUp('ruler');
+    gs.applyRuler();
+    setState(() {});
+  }
+
+  void _onArrowExited(int combo) {
+    if (!mounted || !context.read<ProgressRepository>().vibrationEnabled) return;
+    const milestones = {3, 6, 10, 15};
+    if (milestones.contains(combo)) {
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.selectionClick();
+    }
   }
 
   void _onLifeLost() {
@@ -156,6 +313,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     setState(() => _lives = _gameState!.lives);
     if (context.read<ProgressRepository>().vibrationEnabled) {
       HapticFeedback.heavyImpact();
+      HapticFeedback.vibrate();
     }
   }
 
@@ -169,23 +327,45 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
     final progress = context.read<ProgressRepository>();
     final adManager = context.read<AdManager>();
+    final gs = _gameState!;
     final stars = ProgressRepository.calculateStars(
-        _gameState!.livesLost, _level.totalArrows, _gameState!.movesUsed);
+      livesLost: gs.livesLost,
+      powerUpsUsed: gs.powerUpsUsed,
+    );
     final score =
         AppConstants.baseScore + (_lives * AppConstants.bonusPerRemainingLife);
+    ChestReward? chest;
+    var dailyBonus = 0;
 
-    progress.recordLevelComplete(LevelResult(
-      levelNumber: _level.levelNumber,
-      stars: stars,
-      score: score,
-      movesUsed: _gameState!.movesUsed,
-      livesLost: _gameState!.livesLost,
-      completed: true,
-      completedAt: DateTime.now(),
-    ));
-
-    final levelType = AppConstants.levelTypeFor(_level.levelNumber);
-    adManager.onLevelComplete(_level.levelNumber, levelType.isSpecial);
+    if (!_shapePreviewMode) {
+      final firstClear = !progress.isLevelCompleted(_level.levelNumber);
+      progress.recordLevelComplete(LevelResult(
+        levelNumber: _level.levelNumber,
+        stars: stars,
+        score: score,
+        movesUsed: gs.movesUsed,
+        livesLost: gs.livesLost,
+        completed: true,
+        completedAt: DateTime.now(),
+      ));
+      progress.unlockShape(_level.maskShape);
+      if (firstClear && gs.hintsUsed == 0) {
+        progress.noteHintFreeClear(_level.levelNumber);
+      }
+      if (firstClear && stars == 3) {
+        progress.notePerfectClear(_level.levelNumber);
+      }
+      final levelType = AppConstants.levelTypeFor(_level.levelNumber);
+      if (firstClear && levelType == LevelType.boss) {
+        progress.noteBossClear(_level.levelNumber);
+      }
+      if (firstClear && levelType == LevelType.god) {
+        progress.noteGodClear(_level.levelNumber);
+      }
+      chest = progress.claimChest(_level.levelNumber);
+      if (_dailyChallenge) dailyBonus = progress.claimDailyChallenge();
+      adManager.onLevelComplete(_level.levelNumber, levelType.isSpecial);
+    }
 
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
@@ -198,7 +378,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             }
           });
         }
-        _showLevelCompleteDialog(stars, score);
+        _showLevelCompleteDialog(stars, score, chest, dailyBonus);
       }
     });
   }
@@ -300,6 +480,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   void _handleNextLevel() {
     Navigator.pop(context);
+    if (_shapePreviewMode) {
+      Navigator.pop(context);
+      return;
+    }
     Navigator.pushReplacementNamed(
       context,
       '/game',
@@ -332,7 +516,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _showLevelCompleteDialog(int stars, int score) async {
+  Future<void> _showLevelCompleteDialog(
+    int stars,
+    int score,
+    ChestReward? chest,
+    int dailyBonus,
+  ) async {
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -342,6 +531,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             level: _level,
             stars: stars,
             score: score,
+            chest: chest,
+            dailyBonus: dailyBonus,
             onNextLevel: _handleNextLevel,
             onMenu: _handleMenu,
             onDoubleCoins: _handleDoubleCoins,
@@ -503,6 +694,17 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
           Navigator.pop(context);
           Navigator.pushReplacementNamed(context, '/menu');
         },
+        coins: context.read<ProgressRepository>().coins,
+        onRefillWithCoins: () {
+          final progress = context.read<ProgressRepository>();
+          if (!progress.spendCoins(AppConstants.heartRefillCoinCost)) return;
+          Navigator.pop(context);
+          setState(() {
+            _showingGameOver = false;
+            _gameState!.refillLives();
+            _lives = _gameState!.lives;
+          });
+        },
       ),
     );
   }
@@ -512,6 +714,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     _transformationController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _levelTimer?.cancel();
+    _introTimer?.cancel();
     _gameState?.removeListener(_onGameStateChanged);
     _confettiController.dispose();
     super.dispose();
@@ -648,6 +851,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
 
     final levelType = AppConstants.levelTypeFor(_level.levelNumber);
+    final boardTheme = context.watch<ProgressRepository>().boardTheme;
 
     // Calculate level progress
     final totalArrows = _level.arrows.length;
@@ -660,8 +864,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(gradient: AppColors.bgGradient),
-        child: SafeArea(
+        decoration: BoxDecoration(
+          gradient: boardTheme == BoardTheme.classic
+              ? AppColors.bgGradient
+              : BoardStyle.playfield(boardTheme),
+        ),
+        child: Stack(
+          children: [
+            SafeArea(
           child: Column(
             children: [
               // ── Top Bar ─────────────────────────────────────────────────
@@ -767,11 +977,55 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                             ),
                           ),
                         ),
+                        Positioned(
+                          top: fadeH * 0.4,
+                          left: 0,
+                          right: 0,
+                          child: IgnorePointer(
+                            child: Center(
+                              child: ComboBanner(
+                                  combo: _gameState?.combo ?? 0),
+                            ),
+                          ),
+                        ),
+                        if (_level.levelNumber <= AppConstants.tutorialLevels &&
+                            (_gameState?.movesUsed ?? 1) == 0 &&
+                            !_showBossIntro)
+                          const Positioned(
+                            bottom: 28,
+                            child: TutorialHand(),
+                          ),
                       ],
                     );
                   },
                 ),
               ),
+
+              if (!_shapePreviewMode && _gameState != null)
+                ListenableBuilder(
+                  listenable: _gameState!,
+                  builder: (context, _) {
+                    final gs = _gameState!;
+                    final boardActive = !gs.isComplete &&
+                        !gs.isGameOver &&
+                        !_showingComplete &&
+                        !_showingGameOver &&
+                        !_isGamePaused;
+                    return PowerUpBar(
+                      hintCount: gs.powerUpCount(PowerUpType.hint),
+                      eraserCount: gs.powerUpCount(PowerUpType.eraser),
+                      wandCount: gs.powerUpCount(PowerUpType.wand),
+                      rulerCount: gs.powerUpCount(PowerUpType.ruler),
+                      eraserActive: gs.isEraserArmed,
+                      enabled: boardActive,
+                      canRefill: _adsEnabled,
+                      onHint: _useHintPowerUp,
+                      onEraser: _useEraserPowerUp,
+                      onWand: _useWandPowerUp,
+                      onRuler: _useRulerPowerUp,
+                    );
+                  },
+                ),
 
               // ── Banner Ad (centered and sized to avoid layout warnings) ──
               Container(
@@ -785,6 +1039,18 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               ),
             ],
           ),
+            ),
+            if (_showBossIntro)
+              Positioned.fill(
+                child: BossIntroBanner(
+                  type: levelType,
+                  onDismiss: () {
+                    _introTimer?.cancel();
+                    setState(() => _showBossIntro = false);
+                  },
+                ),
+              ),
+          ],
         ),
       ),
       floatingActionButton: _inspectingDeadlock
@@ -1660,6 +1926,8 @@ class _LevelCompleteDialog extends StatelessWidget {
   final LevelModel level;
   final int stars;
   final int score;
+  final ChestReward? chest;
+  final int dailyBonus;
   final VoidCallback onNextLevel;
   final VoidCallback onMenu;
   final VoidCallback onDoubleCoins;
@@ -1668,6 +1936,8 @@ class _LevelCompleteDialog extends StatelessWidget {
     required this.level,
     required this.stars,
     required this.score,
+    required this.chest,
+    required this.dailyBonus,
     required this.onNextLevel,
     required this.onMenu,
     required this.onDoubleCoins,
@@ -1697,16 +1967,8 @@ class _LevelCompleteDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              LucideIcons.partyPopper,
-              color: AppColors.primary,
-              size: 52,
-            ).animate().scale(
-                begin: const Offset(0, 0),
-                end: const Offset(1, 1),
-                duration: 400.ms,
-                curve: Curves.elasticOut),
-            const SizedBox(height: 12),
+            ShapeReveal(level: level),
+            const SizedBox(height: 8),
             Text('Level Complete!',
                 style: GoogleFonts.nunito(
                     fontSize: 26,
@@ -1739,6 +2001,20 @@ class _LevelCompleteDialog extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
+            SizedBox(
+              height: 28,
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  for (var i = 0; i < 6; i++)
+                    const Icon(LucideIcons.coins, color: Color(0xFFE2B93C), size: 16)
+                        .animate(delay: Duration(milliseconds: 90 * i))
+                        .moveY(begin: -8, end: 22, duration: 480.ms, curve: Curves.easeIn)
+                        .fadeOut(delay: 260.ms, duration: 200.ms),
+                ],
+              ),
+            ),
+
             // Score
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
@@ -1765,10 +2041,31 @@ class _LevelCompleteDialog extends StatelessWidget {
                 ],
               ),
             ),
+            if (dailyBonus > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Daily +$dailyBonus',
+                style: GoogleFonts.nunito(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.accentGold,
+                ),
+              ),
+            ],
+            if (chest != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Chest +${chest!.coins} coins · ${chest!.powerUp.name}',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFFE2B93C),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
 
             // Next Level button or Game Completed message
-            if (level.levelNumber == 500) ...[
+            if (level.levelNumber == AppConstants.totalLevels) ...[
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -1801,7 +2098,7 @@ class _LevelCompleteDialog extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Congratulations! You\'ve solved all 500 challenges. Stay tuned for more levels coming soon!',
+                      'Congratulations! You\'ve solved all ${AppConstants.totalLevels} challenges. Stay tuned for more levels coming soon!',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.nunito(
                         fontSize: 13,
@@ -1860,6 +2157,8 @@ class _GameOverDialog extends StatelessWidget {
   final VoidCallback onContinue;
   final VoidCallback onRestart;
   final VoidCallback onMenu;
+  final int coins;
+  final VoidCallback onRefillWithCoins;
 
   const _GameOverDialog({
     required this.level,
@@ -1868,7 +2167,11 @@ class _GameOverDialog extends StatelessWidget {
     required this.onContinue,
     required this.onRestart,
     required this.onMenu,
+    required this.coins,
+    required this.onRefillWithCoins,
   });
+
+  bool get _canAffordRefill => coins >= AppConstants.heartRefillCoinCost;
 
   bool get _showAds =>
       AppConstants.enableAdMob ||
@@ -1922,6 +2225,26 @@ class _GameOverDialog extends StatelessWidget {
                 icon: LucideIcons.clapperboard,
                 gradient: AppColors.successGradient,
                 onTap: onContinue,
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            if (!isTimeout) ...[
+              _DialogButton(
+                label: _canAffordRefill
+                    ? 'Refill Hearts · ${AppConstants.heartRefillCoinCost} coins'
+                    : 'Need ${AppConstants.heartRefillCoinCost} coins (you have $coins)',
+                icon: LucideIcons.coins,
+                gradient: _canAffordRefill
+                    ? AppColors.primaryGradient
+                    : AppColors.secondaryGradient,
+                textColor: _canAffordRefill
+                    ? Colors.white
+                    : AppColors.textSecondary,
+                iconColor: _canAffordRefill
+                    ? Colors.white
+                    : AppColors.textSecondary,
+                onTap: _canAffordRefill ? onRefillWithCoins : () {},
               ),
               const SizedBox(height: 10),
             ],

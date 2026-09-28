@@ -132,6 +132,42 @@ class LevelGeneratorV2 {
     return level ?? _fallback(levelNumber, gridSize, mask, type);
   }
 
+  /// Dev shape lab: fixed god-tier difficulty, chosen silhouette and grid size.
+  static LevelModel generateShapePreviewLevel({
+    required MaskShape maskShape,
+    LevelType type = LevelType.god,
+    int gridSize = 35,
+    int seedSalt = 0,
+  }) {
+    const levelNumber = 590;
+    final seed =
+        levelNumber * 103 + 51 + maskShape.index * 1009 + seedSalt * 7919;
+    final rng = Random(seed);
+    final mask = MaskGeneratorV2.shapeByName(maskShape.name, gridSize, rng);
+    final params = _paramsFor(levelNumber, type, gridSize, mask);
+
+    LevelModel? level;
+    final maxAttempts = 120;
+
+    for (int attempt = 0; attempt < maxAttempts && level == null; attempt++) {
+      level = _attempt(
+        levelNumber: levelNumber,
+        gridSize: gridSize,
+        mask: mask,
+        params: params,
+        type: type,
+        rng: rng,
+        maskShape: maskShape,
+        attempt: attempt,
+      );
+    }
+
+    final built = level ?? _fallback(levelNumber, gridSize, mask, type);
+    return built.copyWith(
+      patternName: 'Preview · ${maskShape.name}',
+    );
+  }
+
   // ── Tutorial level builders ──────────────────────────────────────────────────
 
   static LevelModel _buildTutorial1() {

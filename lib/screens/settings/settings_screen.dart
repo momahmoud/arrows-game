@@ -143,6 +143,15 @@ class SettingsScreen extends StatelessWidget {
                         ),
                       ),
                       Divider(color: AppColors.surfaceLight, height: 32),
+                      if (AppConstants.enableShapePreview)
+                        _SettingsTile(
+                          icon: Icons.category_outlined,
+                          label: 'Shape preview',
+                          trailing: Icon(Icons.chevron_right_rounded,
+                              color: AppColors.textSecondary),
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/shape_preview'),
+                        ),
                       _SettingsTile(
                         icon: Icons.privacy_tip_outlined,
                         label: 'Privacy Policy',

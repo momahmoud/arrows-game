@@ -1,12 +1,19 @@
-import 'ad_secrets_example.dart';
+import 'package:flutter/foundation.dart';
+
+import 'ad_secrets.dart';
 
 // Core game constants
 class AppConstants {
   AppConstants._();
 
+  /// Shape lab entry in Settings (debug/profile builds only unless overridden).
+  static const bool enableShapePreview =
+      bool.fromEnvironment('ENABLE_SHAPE_PREVIEW', defaultValue: false) ||
+          !kReleaseMode;
+
   // App identity
   static const String appName = 'Arrow Escape';
-  static const String packageId = 'com.arrowx.escape';
+  static const String packageId = 'com.arrows.fluxylabs';
 
   // Grid sizes: 10×10 minimum at level 1, up to 35×35 target (hard cap 40).
   // • Normal: 10×10 at level 4 → 35×35 around level 300+
@@ -15,9 +22,15 @@ class AppConstants {
   static const int startingGridSize = 10;
   static const int maxGridSize = 40;
   static const int tutorialLevels = 3;
+  static const int totalLevels = 1000;
 
   // Lives
   static const int maxLives = 3;
+
+  /// Starting inventory per power-up (hint, eraser, wand, ruler).
+  static const int powerUpsPerLevel = 1;
+  static const int powerUpsPerRewardedAd = 1;
+  static const int heartRefillCoinCost = 200;
 
   // Special level cadence
   static const int bossLevelEvery = 3; // Every 3rd level is BOSS
@@ -145,6 +158,10 @@ class AppConstants {
 
   /// True for god levels.
   static bool isGodLevel(int n) => levelTypeFor(n) == LevelType.god;
+
+  /// True only on streak beats worth a banner, not on every exit.
+  static bool isComboMilestone(int combo) =>
+      combo == 3 || combo == 6 || combo == 10 || (combo >= 15 && combo % 5 == 0);
 
   /// Canvas scale factor: higher scale factor zooms in default game canvas area.
   static double canvasScaleForType(LevelType type) {

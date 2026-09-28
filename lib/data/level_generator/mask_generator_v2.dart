@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../../core/constants.dart';
+import 'bitmap_animal_templates.dart';
 
 /// V2 Parametric mask generator for puzzle canvas shapes.
 ///
@@ -20,7 +21,42 @@ class MaskGeneratorV2 {
 
   static const List<String> bossShapeNames = [
     'cat', 'dog', 'frog', 'fox', 'tiger', 'panda',
-    'fish', 'butterfly', 'house', 'crown', 'saturn',
+    'fish', 'bird', 'butterfly', 'guitar', 'tree',
+    'owl', 'camel', 'lion', 'elephant', 'rabbit', 'duck',
+    'scorpion', 'horse', 'wolf', 'bear', 'pig', 'bee', 'snake',
+    'whale', 'dolphin', 'crab', 'penguin', 'cow', 'sheep',
+    'eagle', 'parrot', 'mouse', 'falcon', 'seaTurtle',
+    'gorilla', 'gecko', 'chick', 'androidBot', 'yarnCluster', 'apple',
+    'giraffe', 'zebra', 'deer', 'kangaroo', 'hippo', 'rhino', 'monkey',
+    'leopard', 'dinosaur', 'trex', 'dragon', 'octopus', 'shark', 'squid',
+    'lobster', 'tropicalFish', 'blowfish', 'seal', 'peacock', 'swan',
+    'rooster', 'turkey', 'dove', 'dodo', 'bat', 'hedgehog', 'squirrel',
+    'sloth', 'otter', 'llama', 'goat', 'bison', 'mammoth', 'poodle', 'ant',
+    'ladybug', 'snail', 'spider', 'cactus', 'mushroom', 'pear',
+    'strawberry', 'pineapple', 'banana', 'carrot', 'grapes', 'mapleLeaf',
+    'clover', 'tulip', 'sunflower', 'cupcake', 'teapot', 'trophy', 'bell',
+    'airplane', 'car', 'sailboat', 'balloon', 'lightBulb', 'ghost',
+    'spaceInvader',
+    'unicorn', 'mermaid', 'fairy', 'genie', 'wizard', 'ninja', 'ufo',
+    'phoenix', 'statueOfLiberty', 'circusTent', 'carouselHorse', 'volcano',
+    'helicopter', 'locomotive', 'motorcycle', 'skateboard', 'saxophone',
+    'trumpet', 'drum', 'microphone', 'headphones', 'joystick',
+    'puzzlePiece', 'chessPawn', 'hourglass', 'alarmClock', 'telescope',
+    'diyaLamp', 'kite', 'jellyfish', 'moose', 'goose', 'lotus', 'coral',
+    'tornado', 'fire', 'snowman', 'thumbsUp', 'peaceHand', 'pizza', 'donut',
+    'croissant', 'birthdayCake', 'sneaker', 'highHeel', 'topHat', 'dress',
+    'fly', 'worm', 'caterpillar', 'orangutan', 'skunk', 'raccoon', 'badger',
+    'beaver', 'guideDog', 'hatchingChick', 'crocodile', 'bactrianCamel',
+    'waterBuffalo', 'ox', 'ram', 'rat', 'catFace', 'donkey', 'crowBird',
+    'feather', 'nest', 'wing', 'sled', 'iceSkate', 'bowling', 'medal',
+    'yoyo', 'nestingDolls', 'scissors', 'axe', 'wrench', 'magnet',
+    'testTube', 'microscope', 'satellite', 'banjo', 'accordion', 'bone',
+    'tooth', 'flexedBiceps', 'wavingHand', 'loveYouHand', 'tshirt', 'cap',
+    'graduationCap', 'boot', 'ring', 'stormCloud', 'wave',
+    'classicalBuilding', 'tent', 'fountain', 'tractor', 'racingCar',
+    'canoe', 'ship', 'coffee', 'lemon', 'broccoli', 'corn', 'hotPepper',
+    'garlic', 'poultryLeg', 'candy', 'honeyPot', 'pretzel',
+    'house', 'crown', 'saturn',
     'trapezoid', 'parallelogram', 'pentagon', 'octagon',
     'gear', 'star4', 'shield', 'castle',
   ];
@@ -29,6 +65,15 @@ class MaskGeneratorV2 {
     'heart', 'star', 'diamond', 'hexagon', 'blob', 'circle',
     'flower', 'giftBox', 'shield', 'rocket', 'sun', 'cloud',
     'gem', 'snowflake', 'teddyBear', 'globe', 'cat', 'crown', 'castle',
+    'palmTree', 'dallah', 'falcon', 'fanoos', 'dates', 'minaret', 'dhow',
+    'seaTurtle', 'eagle', 'whale', 'lion', 'owl', 'dolphin', 'penguin',
+    'peacock', 'dragon', 'octopus', 'butterfly', 'swan', 'giraffe', 'dove',
+    'sunflower', 'mapleLeaf',
+    'unicorn', 'mermaid', 'phoenix', 'genie', 'fairy', 'wizard',
+    'statueOfLiberty', 'carouselHorse', 'lotus', 'diyaLamp', 'jellyfish',
+    'ufo',
+    'bactrianCamel', 'crowBird', 'feather', 'wing', 'nestingDolls',
+    'classicalBuilding', 'ship', 'coffee', 'tent', 'pretzel',
   ];
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -150,6 +195,216 @@ class MaskGeneratorV2 {
       case 'snowflake':      return snowflakeMask(side);
       case 'teddyBear':      return teddyBearMask(side);
       case 'globe':          return globeMask(side);
+      case 'palmTree':       return palmTreeMask(side);
+      case 'dallah':         return dallahMask(side);
+      case 'falcon':         return falconMask(side);
+      case 'fanoos':         return fanoosMask(side);
+      case 'dates':          return datesMask(side);
+      case 'minaret':        return minaretMask(side);
+      case 'dhow':           return dhowMask(side);
+      case 'seaTurtle':      return seaTurtleMask(side);
+      case 'owl':            return owlMask(side);
+      case 'camel':          return camelMask(side);
+      case 'lion':           return lionMask(side);
+      case 'elephant':       return elephantMask(side);
+      case 'rabbit':         return rabbitMask(side);
+      case 'duck':           return duckMask(side);
+      case 'scorpion':       return scorpionMask(side);
+      case 'horse':          return horseMask(side);
+      case 'wolf':           return wolfMask(side);
+      case 'bear':           return bearMask(side);
+      case 'pig':            return pigMask(side);
+      case 'bee':            return beeMask(side);
+      case 'snake':          return snakeMask(side);
+      case 'whale':          return whaleMask(side);
+      case 'dolphin':        return dolphinMask(side);
+      case 'crab':           return crabMask(side);
+      case 'penguin':        return penguinMask(side);
+      case 'cow':            return cowMask(side);
+      case 'sheep':          return sheepMask(side);
+      case 'eagle':          return eagleMask(side);
+      case 'parrot':         return parrotMask(side);
+      case 'mouse':          return mouseMask(side);
+      case 'gorilla':        return gorillaMask(side);
+      case 'gecko':          return geckoMask(side);
+      case 'chick':          return chickMask(side);
+      case 'androidBot':     return androidBotMask(side);
+      case 'yarnCluster':    return yarnClusterMask(side);
+      case 'apple':          return appleMask(side);
+      case 'giraffe':     return giraffeMask(side);
+      case 'zebra':       return zebraMask(side);
+      case 'deer':        return deerMask(side);
+      case 'kangaroo':    return kangarooMask(side);
+      case 'hippo':       return hippoMask(side);
+      case 'rhino':       return rhinoMask(side);
+      case 'monkey':      return monkeyMask(side);
+      case 'leopard':     return leopardMask(side);
+      case 'dinosaur':    return dinosaurMask(side);
+      case 'trex':        return trexMask(side);
+      case 'dragon':      return dragonMask(side);
+      case 'octopus':     return octopusMask(side);
+      case 'shark':       return sharkMask(side);
+      case 'squid':       return squidMask(side);
+      case 'lobster':     return lobsterMask(side);
+      case 'tropicalFish': return tropicalFishMask(side);
+      case 'blowfish':    return blowfishMask(side);
+      case 'seal':        return sealMask(side);
+      case 'peacock':     return peacockMask(side);
+      case 'swan':        return swanMask(side);
+      case 'rooster':     return roosterMask(side);
+      case 'turkey':      return turkeyMask(side);
+      case 'dove':        return doveMask(side);
+      case 'dodo':        return dodoMask(side);
+      case 'bat':         return batMask(side);
+      case 'hedgehog':    return hedgehogMask(side);
+      case 'squirrel':    return squirrelMask(side);
+      case 'sloth':       return slothMask(side);
+      case 'otter':       return otterMask(side);
+      case 'llama':       return llamaMask(side);
+      case 'goat':        return goatMask(side);
+      case 'bison':       return bisonMask(side);
+      case 'mammoth':     return mammothMask(side);
+      case 'poodle':      return poodleMask(side);
+      case 'ant':         return antMask(side);
+      case 'ladybug':     return ladybugMask(side);
+      case 'snail':       return snailMask(side);
+      case 'spider':      return spiderMask(side);
+      case 'cactus':      return cactusMask(side);
+      case 'mushroom':    return mushroomMask(side);
+      case 'pear':        return pearMask(side);
+      case 'strawberry':  return strawberryMask(side);
+      case 'pineapple':   return pineappleMask(side);
+      case 'banana':      return bananaMask(side);
+      case 'carrot':      return carrotMask(side);
+      case 'grapes':      return grapesMask(side);
+      case 'mapleLeaf':   return mapleLeafMask(side);
+      case 'clover':      return cloverMask(side);
+      case 'tulip':       return tulipMask(side);
+      case 'sunflower':   return sunflowerMask(side);
+      case 'cupcake':     return cupcakeMask(side);
+      case 'teapot':      return teapotMask(side);
+      case 'trophy':      return trophyMask(side);
+      case 'bell':        return bellMask(side);
+      case 'airplane':    return airplaneMask(side);
+      case 'car':         return carMask(side);
+      case 'sailboat':    return sailboatMask(side);
+      case 'balloon':     return balloonMask(side);
+      case 'lightBulb':   return lightBulbMask(side);
+      case 'ghost':       return ghostMask(side);
+      case 'spaceInvader': return spaceInvaderMask(side);
+      case 'unicorn':     return unicornMask(side);
+      case 'mermaid':     return mermaidMask(side);
+      case 'fairy':       return fairyMask(side);
+      case 'genie':       return genieMask(side);
+      case 'wizard':      return wizardMask(side);
+      case 'ninja':       return ninjaMask(side);
+      case 'ufo':         return ufoMask(side);
+      case 'phoenix':     return phoenixMask(side);
+      case 'statueOfLiberty': return statueOfLibertyMask(side);
+      case 'circusTent':  return circusTentMask(side);
+      case 'carouselHorse': return carouselHorseMask(side);
+      case 'volcano':     return volcanoMask(side);
+      case 'helicopter':  return helicopterMask(side);
+      case 'locomotive':  return locomotiveMask(side);
+      case 'motorcycle':  return motorcycleMask(side);
+      case 'skateboard':  return skateboardMask(side);
+      case 'saxophone':   return saxophoneMask(side);
+      case 'trumpet':     return trumpetMask(side);
+      case 'drum':        return drumMask(side);
+      case 'microphone':  return microphoneMask(side);
+      case 'headphones':  return headphonesMask(side);
+      case 'joystick':    return joystickMask(side);
+      case 'puzzlePiece': return puzzlePieceMask(side);
+      case 'chessPawn':   return chessPawnMask(side);
+      case 'hourglass':   return hourglassMask(side);
+      case 'alarmClock':  return alarmClockMask(side);
+      case 'telescope':   return telescopeMask(side);
+      case 'diyaLamp':    return diyaLampMask(side);
+      case 'kite':        return kiteMask(side);
+      case 'jellyfish':   return jellyfishMask(side);
+      case 'moose':       return mooseMask(side);
+      case 'goose':       return gooseMask(side);
+      case 'lotus':       return lotusMask(side);
+      case 'coral':       return coralMask(side);
+      case 'tornado':     return tornadoMask(side);
+      case 'fire':        return fireMask(side);
+      case 'snowman':     return snowmanMask(side);
+      case 'thumbsUp':    return thumbsUpMask(side);
+      case 'peaceHand':   return peaceHandMask(side);
+      case 'pizza':       return pizzaMask(side);
+      case 'donut':       return donutMask(side);
+      case 'croissant':   return croissantMask(side);
+      case 'birthdayCake': return birthdayCakeMask(side);
+      case 'sneaker':     return sneakerMask(side);
+      case 'highHeel':    return highHeelMask(side);
+      case 'topHat':      return topHatMask(side);
+      case 'dress':       return dressMask(side);
+      case 'fly':         return flyMask(side);
+      case 'worm':        return wormMask(side);
+      case 'caterpillar': return caterpillarMask(side);
+      case 'orangutan':   return orangutanMask(side);
+      case 'skunk':       return skunkMask(side);
+      case 'raccoon':     return raccoonMask(side);
+      case 'badger':      return badgerMask(side);
+      case 'beaver':      return beaverMask(side);
+      case 'guideDog':    return guideDogMask(side);
+      case 'hatchingChick': return hatchingChickMask(side);
+      case 'crocodile':   return crocodileMask(side);
+      case 'bactrianCamel': return bactrianCamelMask(side);
+      case 'waterBuffalo': return waterBuffaloMask(side);
+      case 'ox':          return oxMask(side);
+      case 'ram':         return ramMask(side);
+      case 'rat':         return ratMask(side);
+      case 'catFace':     return catFaceMask(side);
+      case 'donkey':      return donkeyMask(side);
+      case 'crowBird':    return crowBirdMask(side);
+      case 'feather':     return featherMask(side);
+      case 'nest':        return nestMask(side);
+      case 'wing':        return wingMask(side);
+      case 'sled':        return sledMask(side);
+      case 'iceSkate':    return iceSkateMask(side);
+      case 'bowling':     return bowlingMask(side);
+      case 'medal':       return medalMask(side);
+      case 'yoyo':        return yoyoMask(side);
+      case 'nestingDolls': return nestingDollsMask(side);
+      case 'scissors':    return scissorsMask(side);
+      case 'axe':         return axeMask(side);
+      case 'wrench':      return wrenchMask(side);
+      case 'magnet':      return magnetMask(side);
+      case 'testTube':    return testTubeMask(side);
+      case 'microscope':  return microscopeMask(side);
+      case 'satellite':   return satelliteMask(side);
+      case 'banjo':       return banjoMask(side);
+      case 'accordion':   return accordionMask(side);
+      case 'bone':        return boneMask(side);
+      case 'tooth':       return toothMask(side);
+      case 'flexedBiceps': return flexedBicepsMask(side);
+      case 'wavingHand':  return wavingHandMask(side);
+      case 'loveYouHand': return loveYouHandMask(side);
+      case 'tshirt':      return tshirtMask(side);
+      case 'cap':         return capMask(side);
+      case 'graduationCap': return graduationCapMask(side);
+      case 'boot':        return bootMask(side);
+      case 'ring':        return ringMask(side);
+      case 'stormCloud':  return stormCloudMask(side);
+      case 'wave':        return waveMask(side);
+      case 'classicalBuilding': return classicalBuildingMask(side);
+      case 'tent':        return tentMask(side);
+      case 'fountain':    return fountainMask(side);
+      case 'tractor':     return tractorMask(side);
+      case 'racingCar':   return racingCarMask(side);
+      case 'canoe':       return canoeMask(side);
+      case 'ship':        return shipMask(side);
+      case 'coffee':      return coffeeMask(side);
+      case 'lemon':       return lemonMask(side);
+      case 'broccoli':    return broccoliMask(side);
+      case 'corn':        return cornMask(side);
+      case 'hotPepper':   return hotPepperMask(side);
+      case 'garlic':      return garlicMask(side);
+      case 'poultryLeg':  return poultryLegMask(side);
+      case 'candy':       return candyMask(side);
+      case 'honeyPot':    return honeyPotMask(side);
+      case 'pretzel':     return pretzelMask(side);
 
       default: return squareMask(side);
     }
@@ -275,6 +530,40 @@ class MaskGeneratorV2 {
     return regions.first;
   }
 
+  /// Resamples a `#`/`.` template onto a [side]×[side] cell mask.
+  /// Trims empty margin, then scales uniformly (centered) so wide or tall
+  /// silhouettes keep their proportions instead of being stretched square.
+  static Set<String> _bitmapMask(int side, List<String> template) {
+    final mask = <String>{};
+    final th = template.length;
+    final tw = template.first.length;
+    var minR = th, maxR = -1, minC = tw, maxC = -1;
+    for (int r = 0; r < th; r++) {
+      for (int c = 0; c < tw; c++) {
+        if (template[r][c] != '#') continue;
+        if (r < minR) minR = r;
+        if (r > maxR) maxR = r;
+        if (c < minC) minC = c;
+        if (c > maxC) maxC = c;
+      }
+    }
+    if (maxR < minR) return mask;
+    final bh = maxR - minR + 1;
+    final bw = maxC - minC + 1;
+    final span = max(bh, bw);
+    final offR = (span - bh) / 2;
+    final offC = (span - bw) / 2;
+    for (int r = 0; r < side; r++) {
+      for (int c = 0; c < side; c++) {
+        final tr = ((r + 0.5) / side * span - offR).floor();
+        final tc = ((c + 0.5) / side * span - offC).floor();
+        if (tr < 0 || tr >= bh || tc < 0 || tc >= bw) continue;
+        if (template[minR + tr][minC + tc] == '#') mask.add('$r,$c');
+      }
+    }
+    return _clean(mask, side);
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   //  ORIGINAL V1 SHAPES (preserved exactly)
   // ═══════════════════════════════════════════════════════════════════════════
@@ -366,85 +655,32 @@ class MaskGeneratorV2 {
     return _clean(mask, side);
   }
 
-  static Set<String> catMask(int side) {
-    final mask = <String>{}; final s = side.toDouble();
-    _ellipse(mask, side, s*0.5, s*0.56, s*0.42, s*0.40);
-    _triangle(mask, side, s*0.18, s*0.28, s*0.38, s*0.28, s*0.27, s*0.05);
-    _triangle(mask, side, s*0.62, s*0.28, s*0.82, s*0.28, s*0.73, s*0.05);
-    return _clean(mask, side);
-  }
+  static Set<String> catMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.cat32);
 
-  static Set<String> dogMask(int side) {
-    final mask = <String>{}; final s = side.toDouble();
-    _ellipse(mask, side, s*0.5, s*0.48, s*0.37, s*0.36);
-    _ellipse(mask, side, s*0.18, s*0.55, s*0.14, s*0.26);
-    _ellipse(mask, side, s*0.82, s*0.55, s*0.14, s*0.26);
-    _ellipse(mask, side, s*0.5, s*0.74, s*0.18, s*0.11);
-    return _clean(mask, side);
-  }
+  static Set<String> dogMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.dog32);
 
-  static Set<String> frogMask(int side) {
-    final mask = <String>{}; final s = side.toDouble();
-    _ellipse(mask, side, s*0.5, s*0.60, s*0.44, s*0.34);
-    _ellipse(mask, side, s*0.28, s*0.28, s*0.13, s*0.12);
-    _ellipse(mask, side, s*0.72, s*0.28, s*0.13, s*0.12);
-    _ellipse(mask, side, s*0.18, s*0.82, s*0.16, s*0.12);
-    _ellipse(mask, side, s*0.82, s*0.82, s*0.16, s*0.12);
-    return _clean(mask, side);
-  }
+  static Set<String> frogMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.frog32);
 
-  static Set<String> foxMask(int side) {
-    final mask = <String>{}; final s = side.toDouble();
-    _ellipse(mask, side, s*0.5, s*0.55, s*0.34, s*0.38);
-    _triangle(mask, side, s*0.10, s*0.42, s*0.38, s*0.30, s*0.22, s*0.04);
-    _triangle(mask, side, s*0.62, s*0.30, s*0.90, s*0.42, s*0.78, s*0.04);
-    _ellipse(mask, side, s*0.5, s*0.76, s*0.14, s*0.10);
-    return _clean(mask, side);
-  }
+  static Set<String> foxMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.fox32);
 
-  static Set<String> tigerMask(int side) {
-    final mask = <String>{}; final s = side.toDouble();
-    _ellipse(mask, side, s*0.5, s*0.54, s*0.44, s*0.40);
-    _ellipse(mask, side, s*0.22, s*0.20, s*0.11, s*0.10);
-    _ellipse(mask, side, s*0.78, s*0.20, s*0.11, s*0.10);
-    return _clean(mask, side);
-  }
+  static Set<String> tigerMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.tiger32);
 
-  static Set<String> pandaMask(int side) {
-    final mask = <String>{}; final s = side.toDouble();
-    _ellipse(mask, side, s*0.5, s*0.54, s*0.40, s*0.40);
-    _ellipse(mask, side, s*0.26, s*0.16, s*0.14, s*0.13);
-    _ellipse(mask, side, s*0.74, s*0.16, s*0.14, s*0.13);
-    return _clean(mask, side);
-  }
+  static Set<String> pandaMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.panda32);
 
-  static Set<String> fishMask(int side) {
-    final mask = <String>{}; final s = side.toDouble();
-    _ellipse(mask, side, s*0.42, s*0.5, s*0.38, s*0.24);
-    _triangle(mask, side, s*0.78, s*0.32, s*0.98, s*0.18, s*0.88, s*0.50);
-    _triangle(mask, side, s*0.78, s*0.68, s*0.98, s*0.82, s*0.88, s*0.50);
-    return _clean(mask, side);
-  }
+  static Set<String> fishMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.fish32);
 
-  static Set<String> birdMask(int side) {
-    final mask = <String>{}; final s = side.toDouble();
-    _ellipse(mask, side, s*0.5, s*0.52, s*0.26, s*0.20);
-    _ellipse(mask, side, s*0.21, s*0.48, s*0.24, s*0.14);
-    _ellipse(mask, side, s*0.79, s*0.48, s*0.24, s*0.14);
-    _triangle(mask, side, s*0.38, s*0.70, s*0.62, s*0.70, s*0.50, s*0.90);
-    _ellipse(mask, side, s*0.50, s*0.31, s*0.12, s*0.12);
-    return _clean(mask, side);
-  }
+  static Set<String> birdMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.bird32);
 
-  static Set<String> butterflyMask(int side) {
-    final mask = <String>{}; final s = side.toDouble();
-    _ellipse(mask, side, s*0.26, s*0.33, s*0.24, s*0.28);
-    _ellipse(mask, side, s*0.74, s*0.33, s*0.24, s*0.28);
-    _ellipse(mask, side, s*0.28, s*0.67, s*0.20, s*0.22);
-    _ellipse(mask, side, s*0.72, s*0.67, s*0.20, s*0.22);
-    _ellipse(mask, side, s*0.50, s*0.50, s*0.055, s*0.40);
-    return _clean(mask, side);
-  }
+  static Set<String> butterflyMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.butterfly32);
 
   static Set<String> guitarMask(int side) {
     final mask = <String>{}; final s = side.toDouble();
@@ -946,19 +1182,598 @@ class MaskGeneratorV2 {
     return _clean(mask, side);
   }
 
-  /// Teddy bear (body + head + ears + paws)
-  static Set<String> teddyBearMask(int side) {
-    final mask = <String>{}; final s = side.toDouble();
-    _ellipse(mask, side, s*0.50, s*0.62, s*0.34, s*0.32); // body
-    _ellipse(mask, side, s*0.50, s*0.28, s*0.22, s*0.22); // head
-    _ellipse(mask, side, s*0.26, s*0.18, s*0.11, s*0.10); // left ear
-    _ellipse(mask, side, s*0.74, s*0.18, s*0.11, s*0.10); // right ear
-    _ellipse(mask, side, s*0.24, s*0.72, s*0.12, s*0.10); // left arm
-    _ellipse(mask, side, s*0.76, s*0.72, s*0.12, s*0.10); // right arm
-    _ellipse(mask, side, s*0.36, s*0.90, s*0.12, s*0.08); // left foot
-    _ellipse(mask, side, s*0.64, s*0.90, s*0.12, s*0.08); // right foot
-    return _clean(mask, side);
-  }
+  /// Teddy bear — round head + ears (reference level 620 style).
+  static Set<String> teddyBearMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.teddyBear24);
+
+  /// Palm tree — dense crown + trunk (24×24 bitmap, Siham reference silhouette).
+  static const List<String> _palmTreeTemplate24 = [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '......##.........##.....',
+    '.....####.......####....',
+    '....######.....######...',
+    '...########...########..',
+    '..##########.##########.',
+    '.######################.',
+    '..####################..',
+    '...##################...',
+    '.....##############.....',
+    '.......############.....',
+    '..........######........',
+    '..........######........',
+    '..........######........',
+    '..........######........',
+    '..........######........',
+    '..........######........',
+    '..........######........',
+    '..........####..........',
+    '........................',
+    '........................',
+  ];
+
+  static Set<String> palmTreeMask(int side) =>
+      _bitmapMask(side, _palmTreeTemplate24);
+
+  static const List<String> _dallahTemplate24 = [
+    '........................',
+    '........................',
+    '...........##...........',
+    '..........####..........',
+    '.........######.........',
+    '........########........',
+    '.......##########.......',
+    '........########........',
+    '.........######.........',
+    '.......##########.......',
+    '..##############........',
+    '.##################.....',
+    '.##################.....',
+    '..##############........',
+    '.......##########.......',
+    '........########........',
+    '.........######.........',
+    '..........####..........',
+    '...........##...........',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+  ];
+
+
+  static const List<String> _fanoosTemplate24 = [
+    '........................',
+    '........................',
+    '........................',
+    '...........###..........',
+    '..........#####.........',
+    '.........#######........',
+    '.........#######........',
+    '........#########.......',
+    '.......###########......',
+    '.......##########.......',
+    '.......##########.......',
+    '.......###########......',
+    '......#############.....',
+    '......#############.....',
+    '......#############.....',
+    '......#############.....',
+    '......#############.....',
+    '.......###########......',
+    '........#########.......',
+    '........#########.......',
+    '.......###########......',
+    '........#########.......',
+    '.........#######........',
+    '........................',
+  ];
+
+  static const List<String> _datesTemplate24 = [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '..........#####.........',
+    '.........#######........',
+    '........#########.......',
+    '.......###########......',
+    '......#############.....',
+    '......#############.....',
+    '......#############.....',
+    '.......###########......',
+    '........#########.......',
+    '.........#######........',
+    '..........#####.........',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+  ];
+
+  static const List<String> _minaretTemplate24 = [
+    '........................',
+    '........................',
+    '...........##...........',
+    '..........####..........',
+    '.........######.........',
+    '........########........',
+    '........########........',
+    '.......##########.......',
+    '......############......',
+    '......############......',
+    '.......##########.......',
+    '........########........',
+    '........########........',
+    '........########........',
+    '........########........',
+    '........########........',
+    '........########........',
+    '........########........',
+    '........########........',
+    '.........######.........',
+    '.........######.........',
+    '..........####..........',
+    '........................',
+    '........................',
+  ];
+
+  static const List<String> _dhowTemplate24 = [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '.......#############....',
+    '........###########.....',
+    '........###########.....',
+    '.........#########......',
+    '.........#########......',
+    '..........#######.......',
+    '..........#######.......',
+    '...........#####........',
+    '...........#####........',
+    '............###.........',
+    '...........####.........',
+    '...........###..........',
+    '......##############....',
+    '......##############....',
+    '......##############....',
+    '......##############....',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+  ];
+
+  static Set<String> dallahMask(int side) =>
+      _bitmapMask(side, _dallahTemplate24);
+  static Set<String> falconMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.falcon32);
+  static Set<String> fanoosMask(int side) =>
+      _bitmapMask(side, _fanoosTemplate24);
+  static Set<String> datesMask(int side) =>
+      _bitmapMask(side, _datesTemplate24);
+  static Set<String> minaretMask(int side) =>
+      _bitmapMask(side, _minaretTemplate24);
+  static Set<String> dhowMask(int side) =>
+      _bitmapMask(side, _dhowTemplate24);
+
+
+  static Set<String> seaTurtleMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.seaTurtle32);
+
+  static Set<String> owlMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.owl32);
+  static Set<String> camelMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.camel32);
+  static Set<String> lionMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.lion32);
+  static Set<String> elephantMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.elephant32);
+  static Set<String> rabbitMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.rabbit32);
+  static Set<String> duckMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.duck32);
+  static Set<String> scorpionMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.scorpion32);
+  static Set<String> horseMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.horse32);
+  static Set<String> wolfMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.wolf32);
+  static Set<String> bearMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.bear32);
+  static Set<String> pigMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.pig32);
+  static Set<String> beeMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.bee32);
+  static Set<String> snakeMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.snake32);
+  static Set<String> whaleMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.whale32);
+  static Set<String> dolphinMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.dolphin32);
+  static Set<String> crabMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.crab32);
+  static Set<String> penguinMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.penguin32);
+  static Set<String> cowMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.cow32);
+  static Set<String> sheepMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.sheep32);
+  static Set<String> eagleMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.eagle32);
+  static Set<String> parrotMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.parrot32);
+  static Set<String> mouseMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.mouse32);
+  static Set<String> gorillaMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.gorilla32);
+  static Set<String> geckoMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.gecko32);
+  static Set<String> chickMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.chick32);
+  static Set<String> androidBotMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.androidBot24);
+  static Set<String> yarnClusterMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.yarnCluster24);
+  static Set<String> appleMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.apple24);
+  static Set<String> giraffeMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.giraffe32);
+  static Set<String> zebraMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.zebra32);
+  static Set<String> deerMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.deer32);
+  static Set<String> kangarooMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.kangaroo32);
+  static Set<String> hippoMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.hippo32);
+  static Set<String> rhinoMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.rhino32);
+  static Set<String> monkeyMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.monkey32);
+  static Set<String> leopardMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.leopard32);
+  static Set<String> dinosaurMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.dinosaur32);
+  static Set<String> trexMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.trex32);
+  static Set<String> dragonMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.dragon32);
+  static Set<String> octopusMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.octopus32);
+  static Set<String> sharkMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.shark32);
+  static Set<String> squidMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.squid32);
+  static Set<String> lobsterMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.lobster32);
+  static Set<String> tropicalFishMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.tropicalFish32);
+  static Set<String> blowfishMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.blowfish32);
+  static Set<String> sealMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.seal32);
+  static Set<String> peacockMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.peacock32);
+  static Set<String> swanMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.swan32);
+  static Set<String> roosterMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.rooster32);
+  static Set<String> turkeyMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.turkey32);
+  static Set<String> doveMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.dove32);
+  static Set<String> dodoMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.dodo32);
+  static Set<String> batMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.bat32);
+  static Set<String> hedgehogMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.hedgehog32);
+  static Set<String> squirrelMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.squirrel32);
+  static Set<String> slothMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.sloth32);
+  static Set<String> otterMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.otter32);
+  static Set<String> llamaMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.llama32);
+  static Set<String> goatMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.goat32);
+  static Set<String> bisonMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.bison32);
+  static Set<String> mammothMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.mammoth32);
+  static Set<String> poodleMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.poodle32);
+  static Set<String> antMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.ant32);
+  static Set<String> ladybugMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.ladybug32);
+  static Set<String> snailMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.snail32);
+  static Set<String> spiderMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.spider32);
+  static Set<String> cactusMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.cactus32);
+  static Set<String> mushroomMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.mushroom32);
+  static Set<String> pearMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.pear32);
+  static Set<String> strawberryMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.strawberry32);
+  static Set<String> pineappleMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.pineapple32);
+  static Set<String> bananaMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.banana32);
+  static Set<String> carrotMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.carrot32);
+  static Set<String> grapesMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.grapes32);
+  static Set<String> mapleLeafMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.mapleLeaf32);
+  static Set<String> cloverMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.clover32);
+  static Set<String> tulipMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.tulip32);
+  static Set<String> sunflowerMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.sunflower32);
+  static Set<String> cupcakeMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.cupcake32);
+  static Set<String> teapotMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.teapot32);
+  static Set<String> trophyMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.trophy32);
+  static Set<String> bellMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.bell32);
+  static Set<String> airplaneMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.airplane32);
+  static Set<String> carMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.car32);
+  static Set<String> sailboatMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.sailboat32);
+  static Set<String> balloonMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.balloon32);
+  static Set<String> lightBulbMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.lightBulb32);
+  static Set<String> ghostMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.ghost32);
+  static Set<String> spaceInvaderMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.spaceInvader32);
+  static Set<String> unicornMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.unicorn32);
+  static Set<String> mermaidMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.mermaid32);
+  static Set<String> fairyMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.fairy32);
+  static Set<String> genieMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.genie32);
+  static Set<String> wizardMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.wizard32);
+  static Set<String> ninjaMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.ninja32);
+  static Set<String> ufoMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.ufo32);
+  static Set<String> phoenixMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.phoenix32);
+  static Set<String> statueOfLibertyMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.statueOfLiberty32);
+  static Set<String> circusTentMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.circusTent32);
+  static Set<String> carouselHorseMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.carouselHorse32);
+  static Set<String> volcanoMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.volcano32);
+  static Set<String> helicopterMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.helicopter32);
+  static Set<String> locomotiveMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.locomotive32);
+  static Set<String> motorcycleMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.motorcycle32);
+  static Set<String> skateboardMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.skateboard32);
+  static Set<String> saxophoneMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.saxophone32);
+  static Set<String> trumpetMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.trumpet32);
+  static Set<String> drumMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.drum32);
+  static Set<String> microphoneMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.microphone32);
+  static Set<String> headphonesMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.headphones32);
+  static Set<String> joystickMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.joystick32);
+  static Set<String> puzzlePieceMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.puzzlePiece32);
+  static Set<String> chessPawnMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.chessPawn32);
+  static Set<String> hourglassMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.hourglass32);
+  static Set<String> alarmClockMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.alarmClock32);
+  static Set<String> telescopeMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.telescope32);
+  static Set<String> diyaLampMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.diyaLamp32);
+  static Set<String> kiteMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.kite32);
+  static Set<String> jellyfishMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.jellyfish32);
+  static Set<String> mooseMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.moose32);
+  static Set<String> gooseMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.goose32);
+  static Set<String> lotusMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.lotus32);
+  static Set<String> coralMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.coral32);
+  static Set<String> tornadoMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.tornado32);
+  static Set<String> fireMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.fire32);
+  static Set<String> snowmanMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.snowman32);
+  static Set<String> thumbsUpMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.thumbsUp32);
+  static Set<String> peaceHandMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.peaceHand32);
+  static Set<String> pizzaMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.pizza32);
+  static Set<String> donutMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.donut32);
+  static Set<String> croissantMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.croissant32);
+  static Set<String> birthdayCakeMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.birthdayCake32);
+  static Set<String> sneakerMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.sneaker32);
+  static Set<String> highHeelMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.highHeel32);
+  static Set<String> topHatMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.topHat32);
+  static Set<String> dressMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.dress32);
+  static Set<String> flyMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.fly32);
+  static Set<String> wormMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.worm32);
+  static Set<String> caterpillarMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.caterpillar32);
+  static Set<String> orangutanMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.orangutan32);
+  static Set<String> skunkMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.skunk32);
+  static Set<String> raccoonMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.raccoon32);
+  static Set<String> badgerMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.badger32);
+  static Set<String> beaverMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.beaver32);
+  static Set<String> guideDogMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.guideDog32);
+  static Set<String> hatchingChickMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.hatchingChick32);
+  static Set<String> crocodileMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.crocodile32);
+  static Set<String> bactrianCamelMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.bactrianCamel32);
+  static Set<String> waterBuffaloMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.waterBuffalo32);
+  static Set<String> oxMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.ox32);
+  static Set<String> ramMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.ram32);
+  static Set<String> ratMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.rat32);
+  static Set<String> catFaceMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.catFace32);
+  static Set<String> donkeyMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.donkey32);
+  static Set<String> crowBirdMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.crowBird32);
+  static Set<String> featherMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.feather32);
+  static Set<String> nestMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.nest32);
+  static Set<String> wingMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.wing32);
+  static Set<String> sledMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.sled32);
+  static Set<String> iceSkateMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.iceSkate32);
+  static Set<String> bowlingMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.bowling32);
+  static Set<String> medalMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.medal32);
+  static Set<String> yoyoMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.yoyo32);
+  static Set<String> nestingDollsMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.nestingDolls32);
+  static Set<String> scissorsMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.scissors32);
+  static Set<String> axeMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.axe32);
+  static Set<String> wrenchMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.wrench32);
+  static Set<String> magnetMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.magnet32);
+  static Set<String> testTubeMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.testTube32);
+  static Set<String> microscopeMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.microscope32);
+  static Set<String> satelliteMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.satellite32);
+  static Set<String> banjoMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.banjo32);
+  static Set<String> accordionMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.accordion32);
+  static Set<String> boneMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.bone32);
+  static Set<String> toothMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.tooth32);
+  static Set<String> flexedBicepsMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.flexedBiceps32);
+  static Set<String> wavingHandMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.wavingHand32);
+  static Set<String> loveYouHandMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.loveYouHand32);
+  static Set<String> tshirtMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.tshirt32);
+  static Set<String> capMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.cap32);
+  static Set<String> graduationCapMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.graduationCap32);
+  static Set<String> bootMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.boot32);
+  static Set<String> ringMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.ring32);
+  static Set<String> stormCloudMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.stormCloud32);
+  static Set<String> waveMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.wave32);
+  static Set<String> classicalBuildingMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.classicalBuilding32);
+  static Set<String> tentMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.tent32);
+  static Set<String> fountainMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.fountain32);
+  static Set<String> tractorMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.tractor32);
+  static Set<String> racingCarMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.racingCar32);
+  static Set<String> canoeMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.canoe32);
+  static Set<String> shipMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.ship32);
+  static Set<String> coffeeMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.coffee32);
+  static Set<String> lemonMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.lemon32);
+  static Set<String> broccoliMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.broccoli32);
+  static Set<String> cornMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.corn32);
+  static Set<String> hotPepperMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.hotPepper32);
+  static Set<String> garlicMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.garlic32);
+  static Set<String> poultryLegMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.poultryLeg32);
+  static Set<String> candyMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.candy32);
+  static Set<String> honeyPotMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.honeyPot32);
+  static Set<String> pretzelMask(int side) =>
+      _bitmapMask(side, BitmapAnimalTemplates.pretzel32);
 
   /// Globe (circle + 3 latitude line strips)
   static Set<String> globeMask(int side) {

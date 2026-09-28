@@ -23,10 +23,10 @@ if (localPropertiesFile.exists()) {
 
 val admobAppId = keystoreProperties.getProperty("admobAppId")
     ?: localProperties.getProperty("admobAppId")
-    ?: "ca-app-pub-3044335875753764~1764036598"
+    ?: "ca-app-pub-8247997383766310~5228865197"
 
 android {
-    namespace = "com.arrowx.escape"
+    namespace = "com.arrows.fluxylabs"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -36,7 +36,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.arrowx.escape"
+        applicationId = "com.arrows.fluxylabs"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

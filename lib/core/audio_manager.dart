@@ -8,6 +8,7 @@ class AudioManager {
 
   bool _soundEnabled = true;
   bool _musicEnabled = true;
+  double _musicVolume = 0.35;
 
   bool get soundEnabled => _soundEnabled;
   bool get musicEnabled => _musicEnabled;
@@ -21,6 +22,11 @@ class AudioManager {
   bool _clickPoolInitialized = false;
   final List<AudioPool> _exitPools = [];
   bool _exitPoolsInitialized = false;
+
+  // AudioPool can't change pitch, so pitched SFX rotate through these players.
+  final List<AudioPlayer> _pitchedPlayers = [];
+  int _pitchedIndex = 0;
+  static const int _pitchedPlayerCount = 3;
 
   Future<void> initialize() async {
     try {
@@ -49,6 +55,12 @@ class AudioManager {
         _exitPools.add(pool);
       }
       _exitPoolsInitialized = true;
+
+      for (int i = 0; i < _pitchedPlayerCount; i++) {
+        final player = AudioPlayer()..audioCache = FlameAudio.audioCache;
+        await player.setReleaseMode(ReleaseMode.stop);
+        _pitchedPlayers.add(player);
+      }
     } catch (e) {
       debugPrint('Error initializing FlameAudio: $e');
     }
@@ -67,11 +79,31 @@ class AudioManager {
   }
 
   Future<void> playMenuMusic() async {
+    _musicVolume = 0.35;
     await playBgMusic();
+    await _setMusicVolume(0.35);
   }
 
   Future<void> playGameMusic() async {
     await playBgMusic();
+    await setBoardFill(0);
+  }
+
+  /// Raises the bed as arrows leave, so an emptying board feels louder.
+  Future<void> setBoardFill(double clearedFraction) async {
+    final volume = 0.2 + clearedFraction.clamp(0.0, 1.0) * 0.5;
+    if ((volume - _musicVolume).abs() < 0.02) return;
+    _musicVolume = volume;
+    await _setMusicVolume(volume);
+  }
+
+  Future<void> _setMusicVolume(double volume) async {
+    if (!_musicEnabled) return;
+    try {
+      await FlameAudio.bgm.audioPlayer.setVolume(volume);
+    } catch (e) {
+      debugPrint('Error setting music volume: $e');
+    }
   }
 
   Future<void> stopMusic() async {
@@ -101,8 +133,14 @@ class AudioManager {
     await playClick();
   }
 
-  Future<void> playArrowExit() async {
+  /// Rises in pitch with [combo] so streaks sound like a climbing scale.
+  Future<void> playArrowExit({int combo = 0}) async {
     if (!_soundEnabled) return;
+    if (combo >= 2) {
+      final step = (combo.clamp(2, 10) - 1).toDouble();
+      await _playPitched(_exitSounds.first, 1.0 + step * 0.06, 0.8);
+      return;
+    }
     try {
       final poolIndex = _exitSoundIndex;
       _exitSoundIndex = (_exitSoundIndex + 1) % _exitSounds.length;
@@ -117,7 +155,42 @@ class AudioManager {
     }
   }
 
-  Future<void> playArrowBlock() async {}
+  Future<void> playArrowBlock() async {
+    if (!_soundEnabled) return;
+    await _playPitched('click.ogg', 0.55, 1.0);
+  }
+
+  /// Each power-up gets its own pitch so they don't share one click.
+  Future<void> playPowerUp(String id) async {
+    if (!_soundEnabled) return;
+    switch (id) {
+      case 'hint':
+        await _playPitched('click.ogg', 1.4, 0.85);
+      case 'eraser':
+        await _playPitched('click.ogg', 0.58, 0.95);
+      case 'wand':
+        await _playPitched('swoosh_18.mp3', 1.55, 0.75);
+      case 'ruler':
+        await _playPitched('swoosh_18.mp3', 0.85, 0.7);
+      default:
+        await playClick();
+    }
+  }
+
+  Future<void> _playPitched(String file, double rate, double volume) async {
+    if (_pitchedPlayers.isEmpty) return;
+    try {
+      final player = _pitchedPlayers[_pitchedIndex];
+      _pitchedIndex = (_pitchedIndex + 1) % _pitchedPlayers.length;
+      await player.stop();
+      await player.setSource(AssetSource(file));
+      await player.setVolume(volume);
+      await player.setPlaybackRate(rate);
+      await player.resume();
+    } catch (e) {
+      debugPrint('Error playing pitched sound $file: $e');
+    }
+  }
 
   Future<void> playLevelComplete() async {}
 
@@ -143,6 +216,10 @@ class AudioManager {
   }
 
   void dispose() {
+    for (final p in _pitchedPlayers) {
+      p.dispose();
+    }
+    _pitchedPlayers.clear();
     try {
       FlameAudio.bgm.dispose();
     } catch (e) {

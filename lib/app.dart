@@ -11,6 +11,12 @@ import 'screens/level_select/level_select_screen.dart';
 import 'screens/game/game_screen.dart';
 import 'screens/game_over/game_over_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/shape_preview/shape_preview_screen.dart';
+import 'screens/album/shape_album_screen.dart';
+import 'screens/daily/daily_challenge_screen.dart';
+import 'screens/shop/coin_shop_screen.dart';
+import 'screens/wheel/lucky_wheel_screen.dart';
+import 'screens/achievements/achievements_screen.dart';
 
 class ArrowPuzzleApp extends StatelessWidget {
   const ArrowPuzzleApp({super.key});
@@ -65,6 +71,12 @@ class ArrowPuzzleApp extends StatelessWidget {
         '/game': (_) => const GameScreen(),
         '/game_over': (_) => const GameOverScreen(),
         '/settings': (_) => const SettingsScreen(),
+        '/shape_preview': (_) => const ShapePreviewScreen(),
+        '/album': (_) => const ShapeAlbumScreen(),
+        '/daily': (_) => const DailyChallengeScreen(),
+        '/shop': (_) => const CoinShopScreen(),
+        '/wheel': (_) => const LuckyWheelScreen(),
+        '/achievements': (_) => const AchievementsScreen(),
       },
     );
   }

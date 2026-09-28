@@ -11,6 +11,7 @@ import '../../data/repositories/level_repository.dart';
 import '../../data/models/level.dart';
 import '../../widgets/maze_background.dart';
 import '../../widgets/unified_banner_ad.dart';
+import '../../widgets/meta_shortcuts.dart';
 import '../../core/audio_manager.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -301,7 +302,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
               // ── Level Slider / Timeline ───────────────────────────────────
               _buildLevelTimeline(progress),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 16),
+              const MetaShortcuts(),
+              const SizedBox(height: 20),
 
               // ── Big Play Button ───────────────────────────────────────────
               _buildBigPlayButton(context, progress),
@@ -330,7 +333,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 
   Widget _buildLevelTimeline(ProgressRepository progress) {
     final currentLevel = progress.currentLevel;
-    const totalLevels = 500;
+    const totalLevels = AppConstants.totalLevels;
     const itemWidth = 60.0;
 
     return SizedBox(

@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-
 import '../../core/app_colors.dart';
 import '../../core/constants.dart';
 import '../../data/repositories/progress_repository.dart';
@@ -16,7 +15,7 @@ class LevelSelectScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = context.watch<ProgressRepository>();
-    const totalVisible = 500; // Show first 500 levels
+    const totalVisible = AppConstants.totalLevels;
 
     return Scaffold(
       body: Container(
@@ -69,7 +68,8 @@ class LevelSelectScreen extends StatelessWidget {
                   itemCount: totalVisible,
                   itemBuilder: (context, index) {
                     final levelNum = index + 1;
-                    final isUnlocked = progress.isLevelUnlocked(levelNum);
+                    final isUnlocked =
+                        true; //progress.isLevelUnlocked(levelNum);
                     final stars = progress.getStarsForLevel(levelNum);
                     final levelType = AppConstants.levelTypeFor(levelNum);
 
@@ -163,7 +163,8 @@ class _LevelCell extends StatelessWidget {
             else if (levelType == LevelType.boss)
               const Icon(LucideIcons.zap, color: Color(0xFF8E44AD), size: 12)
             else if (levelType == LevelType.tutorial)
-              Icon(LucideIcons.bookOpen, color: AppColors.accentGreen, size: 12),
+              Icon(LucideIcons.bookOpen,
+                  color: AppColors.accentGreen, size: 12),
 
             if (!isUnlocked)
               Icon(Icons.lock_outline_rounded,

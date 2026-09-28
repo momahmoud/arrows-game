@@ -1,8 +1,11 @@
 import 'package:flutter/foundation.dart';
 import '../data/models/arrow.dart';
 import '../data/models/level.dart';
+import '../core/board_style.dart';
 import '../core/constants.dart';
 import '../core/audio_manager.dart';
+
+enum PowerUpType { hint, eraser, wand, ruler }
 
 /// Manages the current game state: lives, moves, arrows remaining.
 class GameState extends ChangeNotifier {
@@ -25,11 +28,30 @@ class GameState extends ChangeNotifier {
   // Track consumed orphan dots per arrow ID during exit animation
   final Map<String, List<OrphanDot>> _consumedDotsByArrow = {};
 
+  String? _hintArrowId;
+  Set<String> _rulerHighlightIds = {};
+  bool _eraserArmed = false;
+  int _combo = 0;
+  Set<String> _blockerIds = {};
+  int _powerUpsUsed = 0;
+  int _hintsUsed = 0;
+
+  final Map<PowerUpType, int> _powerUps = _freshPowerUps();
+  final Map<PowerUpType, int> _bonusAtStart = {};
+
+  static Map<PowerUpType, int> _freshPowerUps() => {
+        for (final t in PowerUpType.values) t: AppConstants.powerUpsPerLevel,
+      };
+
   // ── Callbacks ─────────────────────────────────────────────────────────────────
   final void Function() onLevelComplete;
   final void Function() onGameOver;
   final void Function() onLifeLost;
   final void Function() onDeadlock;
+  final void Function(int combo)? onArrowExited;
+  final void Function(PowerUpType type)? onBonusPowerUpUsed;
+  final ArrowSkin arrowSkin;
+  final BoardTheme boardTheme;
 
   GameState({
     required LevelModel level,
@@ -37,10 +59,25 @@ class GameState extends ChangeNotifier {
     required this.onGameOver,
     required this.onLifeLost,
     required this.onDeadlock,
+    this.onArrowExited,
+    this.onBonusPowerUpUsed,
+    this.arrowSkin = ArrowSkin.classic,
+    this.boardTheme = BoardTheme.classic,
+    Map<PowerUpType, int>? startingPowerUps,
   }) {
     _currentLevel = level;
     _arrows = level.arrows.map((a) => a.copyWith()).toList();
     _orphanDots = {for (final od in level.orphanDots) od.key: od.type};
+    if (startingPowerUps != null) {
+      for (final type in PowerUpType.values) {
+        _powerUps[type] =
+            startingPowerUps[type] ?? AppConstants.powerUpsPerLevel;
+      }
+    }
+    for (final type in PowerUpType.values) {
+      _bonusAtStart[type] =
+          (powerUpCount(type) - AppConstants.powerUpsPerLevel).clamp(0, 9999);
+    }
   }
 
   // ── Getters ───────────────────────────────────────────────────────────────────
@@ -55,6 +92,51 @@ class GameState extends ChangeNotifier {
   LevelModel get level => _currentLevel;
   /// Live orphan dots remaining (consumed dots are absent from this map).
   Map<String, OrphanDotType> get orphanDots => _orphanDots;
+  String? get hintArrowId => _hintArrowId;
+  Set<String> get rulerHighlightIds => _rulerHighlightIds;
+  bool get isEraserArmed => _eraserArmed;
+
+  /// Consecutive successful exits since the last blocked move.
+  int get combo => _combo;
+
+  /// Power-ups spent this attempt. Restarts clear the count.
+  int get powerUpsUsed => _powerUpsUsed;
+
+  /// Hints spent this attempt.
+  int get hintsUsed => _hintsUsed;
+
+  /// Arrows that stopped the last blocked move; cleared after the shake.
+  Set<String> get blockerIds => _blockerIds;
+  int powerUpCount(PowerUpType type) => _powerUps[type] ?? 0;
+
+  bool consumePowerUp(PowerUpType type) {
+    final count = powerUpCount(type);
+    if (count <= 0) return false;
+    final next = count - 1;
+    _powerUps[type] = next;
+    _powerUpsUsed++;
+    if (type == PowerUpType.hint) _hintsUsed++;
+    final bonus = _bonusAtStart[type] ?? 0;
+    if (next < bonus) {
+      _bonusAtStart[type] = next;
+      onBonusPowerUpUsed?.call(type);
+    }
+    notifyListeners();
+    return true;
+  }
+
+  void addPowerUp(PowerUpType type, [int amount = 1]) {
+    _powerUps[type] = powerUpCount(type) + amount;
+    _bonusAtStart[type] = (_bonusAtStart[type] ?? 0) + amount;
+    notifyListeners();
+  }
+
+  /// While armed, the next tapped arrow is removed instead of moved.
+  void setEraserArmed(bool armed) {
+    if (_eraserArmed == armed) return;
+    _eraserArmed = armed;
+    notifyListeners();
+  }
 
   /// Called by the ArrowComponent when its exit animation completes.
   void handleArrowExitCompleted(String arrowId) {
@@ -161,7 +243,19 @@ class GameState extends ChangeNotifier {
       return TapResult.ignored;
     }
 
+    if (_eraserArmed) {
+      _eraserArmed = false;
+      if (!consumePowerUp(PowerUpType.eraser)) return TapResult.ignored;
+      _hintArrowId = null;
+      _rulerHighlightIds = {};
+      _arrows[index] = arrow.copyWith(state: ArrowState.sliding);
+      notifyListeners();
+      return TapResult.erased;
+    }
+
     _movesUsed++;
+    _hintArrowId = null;
+    _rulerHighlightIds = {};
 
     // ── Color group link logic: 2 arrows of the same color group exit together ──
     final grp = arrow.colorGroup;
@@ -175,7 +269,8 @@ class GameState extends ChangeNotifier {
         final exitInfo2 = _computeExitInfo(arrow2, arrow1.id);
 
         if (exitInfo1.blocked || exitInfo2.blocked) {
-          return _handleGroupBlocked(grp, groupArrows);
+          return _handleGroupBlocked(grp, groupArrows,
+              {exitInfo1.blockerId, exitInfo2.blockerId}.whereType<String>().toSet());
         } else {
           _recordConsumedDots(arrow1.id, exitInfo1.consumed);
           _recordConsumedDots(arrow2.id, exitInfo2.consumed);
@@ -190,7 +285,8 @@ class GameState extends ChangeNotifier {
     // ── Standard move check ─────────────────────────────────────────
     final exitInfo = _computeExitInfo(arrow);
     if (exitInfo.blocked) {
-      return _handleBlocked(index, arrow, arrowId);
+      return _handleBlocked(index, arrow, arrowId,
+          {if (exitInfo.blockerId != null) exitInfo.blockerId!});
     }
 
     // ── Clear: arrow exits ──────────────────────────────────────────
@@ -198,27 +294,40 @@ class GameState extends ChangeNotifier {
     _recordConsumedDots(arrowId, exitInfo.consumed);
     // Consume orphan dots along the exit path
     for (final k in exitInfo.consumed) _orphanDots.remove(k);
+    _registerExit();
     notifyListeners();
-
-    // Play exit sound
-    AudioManager.instance.playArrowExit();
 
     return TapResult.exited;
   }
 
-  TapResult _handleBlocked(int index, ArrowModel arrow, String arrowId) {
+  void _registerExit() {
+    _combo++;
+    AudioManager.instance.playArrowExit(combo: _combo);
+    onArrowExited?.call(_combo);
+  }
+
+  void _registerBlock(Set<String> blockerIds) {
+    _combo = 0;
+    _blockerIds = blockerIds;
+    AudioManager.instance.playArrowBlock();
+  }
+
+  TapResult _handleBlocked(
+      int index, ArrowModel arrow, String arrowId, Set<String> blockerIds) {
     _arrows[index] = arrow.copyWith(state: ArrowState.blocked);
+    _registerBlock(blockerIds);
     _lives--;
     _livesLost++;
     onLifeLost();
 
     // Reset arrow state after animation
     Future.delayed(AppConstants.arrowShakeDuration, () {
+      _blockerIds = {};
       final idx = _arrows.indexWhere((a) => a.id == arrowId);
       if (idx != -1) {
         _arrows[idx] = _arrows[idx].copyWith(state: ArrowState.idle);
-        notifyListeners();
       }
+      notifyListeners();
     });
 
     if (_lives <= 0) {
@@ -232,7 +341,8 @@ class GameState extends ChangeNotifier {
     return TapResult.blocked;
   }
 
-  TapResult _handleGroupBlocked(int grp, List<ArrowModel> groupArrows) {
+  TapResult _handleGroupBlocked(
+      int grp, List<ArrowModel> groupArrows, Set<String> blockerIds) {
     // Both arrows enter the blocked state, a life is lost.
     for (final arrow in groupArrows) {
       final index = _arrows.indexWhere((a) => a.id == arrow.id);
@@ -240,12 +350,14 @@ class GameState extends ChangeNotifier {
         _arrows[index] = arrow.copyWith(state: ArrowState.blocked);
       }
     }
+    _registerBlock(blockerIds);
     _lives--;
     _livesLost++;
     onLifeLost();
 
     // Reset both after animation
     Future.delayed(AppConstants.arrowShakeDuration, () {
+      _blockerIds = {};
       for (final arrow in groupArrows) {
         final idx = _arrows.indexWhere((a) => a.id == arrow.id);
         if (idx != -1) {
@@ -271,10 +383,8 @@ class GameState extends ChangeNotifier {
         _arrows[index] = arrow.copyWith(state: ArrowState.sliding);
       }
     }
+    _registerExit();
     notifyListeners();
-
-    // Play exit sound
-    AudioManager.instance.playArrowExit();
 
     return TapResult.exited;
   }
@@ -311,7 +421,7 @@ class GameState extends ChangeNotifier {
           currentDir = ArrowDirection.right;
         }
       } else {
-        bool hit = false;
+        var hit = false;
         for (final other in _arrows) {
           if (other.id == arrow.id) continue;
           if (ignoreId != null && other.id == ignoreId) continue;
@@ -319,9 +429,8 @@ class GameState extends ChangeNotifier {
           for (final pt in other.path) {
             if (pt[0] == nr && pt[1] == nc) { hit = true; break; }
           }
-          if (hit) break;
+          if (hit) return _ExitInfo(true, const [], other.id);
         }
-        if (hit) return _ExitInfo(true, []);
       }
 
       d = currentDir.delta;
@@ -337,6 +446,19 @@ class GameState extends ChangeNotifier {
     _arrows = _currentLevel.arrows.map((a) => a.copyWith(state: ArrowState.idle)).toList();
     _orphanDots = {for (final od in _currentLevel.orphanDots) od.key: od.type};
     _consumedDotsByArrow.clear();
+    _eraserArmed = false;
+    _hintArrowId = null;
+    _rulerHighlightIds = {};
+    _combo = 0;
+    _blockerIds = {};
+    _powerUpsUsed = 0;
+    _hintsUsed = 0;
+    _powerUps
+      ..clear()
+      ..addAll({
+        for (final type in PowerUpType.values)
+          type: AppConstants.powerUpsPerLevel + (_bonusAtStart[type] ?? 0),
+      });
     _lives = AppConstants.maxLives;
     _movesUsed = 0;
     _livesLost = 0;
@@ -344,6 +466,53 @@ class GameState extends ChangeNotifier {
     _isGameOver = false;
     _isDeadlocked = false;
     _clearedColorGroups.clear();
+    notifyListeners();
+  }
+
+  String? _nextSolutionArrowId() {
+    final remaining = _arrows
+        .where((a) => a.state == ArrowState.idle)
+        .map((a) => a.id)
+        .toSet();
+    for (final id in _currentLevel.solutionOrder) {
+      if (remaining.contains(id)) return id;
+    }
+    for (final arrow in _arrows) {
+      if (arrow.state == ArrowState.idle && !isArrowBlocked(arrow.id)) {
+        return arrow.id;
+      }
+    }
+    return null;
+  }
+
+  bool applyHint() {
+    final id = _nextSolutionArrowId();
+    if (id == null) return false;
+    _hintArrowId = id;
+    notifyListeners();
+    return true;
+  }
+
+  bool applyMagicWand() {
+    final id = _nextSolutionArrowId();
+    if (id == null || isArrowBlocked(id)) return false;
+    _eraserArmed = false;
+    tapArrow(id);
+    return true;
+  }
+
+  void applyRuler() {
+    _rulerHighlightIds = {
+      for (final arrow in _arrows)
+        if (arrow.state == ArrowState.idle && !isArrowBlocked(arrow.id))
+          arrow.id,
+    };
+    notifyListeners();
+  }
+
+  void refillLives() {
+    _lives = AppConstants.maxLives;
+    _isGameOver = false;
     notifyListeners();
   }
 
@@ -369,11 +538,12 @@ class GameState extends ChangeNotifier {
   }
 }
 
-enum TapResult { exited, blocked, locked, ignored }
+enum TapResult { exited, blocked, locked, ignored, erased }
 
 /// Exit path analysis result for one arrow.
 class _ExitInfo {
   final bool blocked;
   final List<String> consumed; // orphan dot keys consumed along this path
-  const _ExitInfo(this.blocked, [this.consumed = const []]);
+  final String? blockerId;
+  const _ExitInfo(this.blocked, [this.consumed = const [], this.blockerId]);
 }

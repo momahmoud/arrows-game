@@ -3,11 +3,11 @@ import 'dart:typed_data';
 import 'models/arrow.dart';
 import 'models/level.dart';
 
-// ─── Binary Format Spec (v2) ──────────────────────────────────────────────────
+// ─── Binary Format Spec (v3) ──────────────────────────────────────────────────
 //
 // HEADER         (8 bytes)
 //   4 bytes  magic: 0x4C 0x56 0x4C 0x42  ('LVLB')
-//   2 bytes  version: uint16 = 2
+//   2 bytes  version: uint16 = 3  (v2 files are still readable)
 //   2 bytes  levelCount: uint16
 //
 // INDEX TABLE    (levelCount × 4 bytes)
@@ -17,7 +17,7 @@ import 'models/level.dart';
 //   For each level:
 //     2 bytes  levelNumber (uint16)
 //     1 byte   gridSize
-//     1 byte   maskShape index
+//     2 bytes  maskShape index (uint16; 1 byte in v2)
 //     1 byte   difficulty index
 //     1 byte   patternName length (in bytes)
 //     N bytes  patternName (UTF-8)
@@ -32,8 +32,7 @@ import 'models/level.dart';
 //       pathStepCount bytes: step direction (0=up,1=down,2=left,3=right)
 //
 //     2 bytes  solutionOrderCount (uint16)
-//     [SOLUTION ORDER] × solutionOrderCount bytes: arrow index (uint8)
-//       NOTE: if arrowCount > 255 this would need uint16 — but in practice max is ~200
+//     [SOLUTION ORDER] × solutionOrderCount: arrow index (uint16; uint8 in v2)
 //
 //     ceil(gridSize²/8) bytes: mask bitmask, row-major, MSB first
 //
@@ -46,7 +45,8 @@ import 'models/level.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _kMagic = [0x4C, 0x56, 0x4C, 0x42]; // 'LVLB'
-const _kVersion = 2;
+const _kVersion = 3;
+const _kLegacyVersion = 2;
 
 // ─── Encoder ─────────────────────────────────────────────────────────────────
 
@@ -95,7 +95,7 @@ Uint8List _encodeLevel(LevelModel level) {
 
   buf.writeUint16(level.levelNumber);
   buf.writeUint8(level.gridSize);
-  buf.writeUint8(level.maskShape.index);
+  buf.writeUint16(level.maskShape.index);
   buf.writeUint8(level.difficulty.index);
   buf.writeString(level.patternName);
   buf.writeUint16(level.arrows.length);
@@ -127,7 +127,7 @@ Uint8List _encodeLevel(LevelModel level) {
   }
   buf.writeUint16(level.solutionOrder.length);
   for (final id in level.solutionOrder) {
-    buf.writeUint8(arrowIdToIndex[id] ?? 0);
+    buf.writeUint16(arrowIdToIndex[id] ?? 0);
   }
 
   // Mask as bitmask (row-major, MSB first within each byte)
@@ -178,9 +178,10 @@ class LevelBinaryDecoder {
   final int _levelCount;
   final int _indexTableStart;
   final int _dataStart;
+  final int _version;
 
-  LevelBinaryDecoder._(
-      this._data, this._levelCount, this._indexTableStart, this._dataStart);
+  LevelBinaryDecoder._(this._data, this._levelCount, this._indexTableStart,
+      this._dataStart, this._version);
 
   /// Parse the header and construct the decoder. Throws on magic/version mismatch.
   factory LevelBinaryDecoder.fromBytes(Uint8List bytes) {
@@ -192,13 +193,14 @@ class LevelBinaryDecoder {
       }
     }
     final version = data.getUint16(4, Endian.little);
-    if (version != _kVersion) {
+    if (version != _kVersion && version != _kLegacyVersion) {
       throw FormatException('Unsupported levels.bin version: $version');
     }
     final levelCount = data.getUint16(6, Endian.little);
     const indexTableStart = 8;
     final dataStart = indexTableStart + levelCount * 4;
-    return LevelBinaryDecoder._(data, levelCount, indexTableStart, dataStart);
+    return LevelBinaryDecoder._(
+        data, levelCount, indexTableStart, dataStart, version);
   }
 
   int get levelCount => _levelCount;
@@ -225,8 +227,10 @@ class LevelBinaryDecoder {
   LevelModel _decodeLevel(_ByteReader r) {
     final levelNumber = r.readUint16();
     final gridSize = r.readUint8();
-    final maskShape = MaskShape.values[
-        r.readUint8().clamp(0, MaskShape.values.length - 1)];
+    final shapeIndex =
+        _version == _kLegacyVersion ? r.readUint8() : r.readUint16();
+    final maskShape =
+        MaskShape.values[shapeIndex.clamp(0, MaskShape.values.length - 1)];
     final difficulty = Difficulty.values[
         r.readUint8().clamp(0, Difficulty.values.length - 1)];
     final patternName = r.readString();
@@ -283,7 +287,8 @@ class LevelBinaryDecoder {
     final solCount = r.readUint16();
     final solutionOrder = <String>[];
     for (int i = 0; i < solCount; i++) {
-      final arrowIdx = r.readUint8();
+      final arrowIdx =
+          _version == _kLegacyVersion ? r.readUint8() : r.readUint16();
       solutionOrder.add('a_${levelNumber}_$arrowIdx');
     }
 

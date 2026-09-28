@@ -1,13 +1,17 @@
+import 'dart:math';
+
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/board_style.dart';
 import '../../core/constants.dart';
 import '../../core/app_colors.dart';
 import '../../data/models/arrow.dart';
 import '../../data/models/level.dart';
 import '../game_state.dart';
+import 'grid_component.dart';
 
 /// Renders a multi-cell arrow that winds through the grid.
 ///
@@ -45,6 +49,23 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
   bool _isExiting = false;
   double _exitProgress = 0.0;
   double _exitDuration = 0.35;
+
+  // ── Erase (eraser power-up) ─────────────────────────────────────────────────────
+  static const double _kEraseDuration = 0.3;
+  bool _isErasing = false;
+  double _eraseProgress = 0.0;
+
+  // ── Juice ───────────────────────────────────────────────────────────────────────
+  static const double _kPressedScale = 0.92;
+  double _pressScale = 1.0;
+  bool _exitBurstDone = false;
+  int _exitCombo = 0;
+  double _blockerFlash = 0;
+
+  GridComponent? get _grid {
+    final p = parent;
+    return p is GridComponent ? p : null;
+  }
 
   /// Pre-built deflected exit track (farthest → head), null = straight exit
   List<Offset>? _deflectedExtension;
@@ -96,7 +117,7 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
 
   @override
   bool containsLocalPoint(Vector2 point) {
-    if (_isExiting) return false;
+    if (_isExiting || _isErasing) return false;
     final margin = cellSize * 0.25;
     for (final pt in arrowModel.path) {
       final cellLeft = pt[1] * cellSize - margin;
@@ -148,12 +169,23 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
         break;
       case TapResult.blocked:
         _playBlockAnimation();
+        _grid?.shake();
+        final head = arrowModel.path.first;
+        _grid?.spawnFloatingText(
+          Offset((head[1] + 0.5) * cellSize, (head[0] + 0.5) * cellSize),
+          '-1 ♥',
+          const Color(0xFFFF5252),
+        );
         break;
       case TapResult.locked:
         _playLockedAnimation();
         break;
       case TapResult.ignored:
         _isAnimating = false;
+        break;
+      case TapResult.erased:
+        _isErasing = true;
+        _eraseProgress = 0.0;
         break;
     }
   }
@@ -164,6 +196,8 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     _exitDuration = 0.4 + arrowModel.path.length * 0.08;
     _exitProgress = 0.0;
     _isExiting = true;
+    _exitBurstDone = false;
+    _exitCombo = gameState.combo;
     _deflectedExtension = _buildDeflectedExtension();
     _invalidateCache();
   }
@@ -340,6 +374,12 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
   void update(double dt) {
     super.update(dt);
 
+    if (gameState.blockerIds.contains(arrowModel.id)) {
+      _blockerFlash += dt * 16;
+    } else if (_blockerFlash != 0) {
+      _blockerFlash = 0;
+    }
+
     // ── Long-press accumulator ──────────────────────────────────────────────
     if (_isTouchDown && !_isAnimating && !_isExiting) {
       _longPressAccum += dt;
@@ -352,8 +392,22 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
       _previewPhase = (_previewPhase + dt * 1.4) % 1.0; // march speed
     }
 
+    final pressTarget =
+        (_isTouchDown && !_isAnimating && !_isExiting) ? _kPressedScale : 1.0;
+    _pressScale += (pressTarget - _pressScale) * (dt * 18).clamp(0.0, 1.0);
+
+    if (_isErasing) {
+      _eraseProgress += dt / _kEraseDuration;
+      if (_eraseProgress >= 1.0) {
+        removeFromParent();
+        gameState.handleArrowExitCompleted(arrowModel.id);
+      }
+      return;
+    }
+
     if (_isExiting) {
       _exitProgress += dt / _exitDuration;
+      if (!_exitBurstDone) _checkExitBurst();
       if (_exitProgress >= 1.0) {
         removeFromParent();
         gameState.handleArrowExitCompleted(arrowModel.id);
@@ -409,12 +463,53 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     }
   }
 
+  /// Fires the particle burst (and combo label) once the head crosses the
+  /// edge of the visible shape, so it lands where the player is looking.
+  void _checkExitBurst() {
+    final track = _cachedTrack;
+    final dist = _cachedDist;
+    final grid = _grid;
+    if (track == null || dist == null || grid == null) return;
+    final headDist = _cachedHeadDist!;
+    final tailDist = _cachedTailDist!;
+    final traveled = (_exitProgress * tailDist).clamp(0.0, tailDist);
+    final headPos = _lerp(track, dist, (headDist - traveled).clamp(0.0, headDist));
+    final bounds = grid.boardRect;
+    if (bounds.inflate(cellSize * 0.3).contains(headPos)) return;
+
+    _exitBurstDone = true;
+    final at = Offset(
+      headPos.dx.clamp(bounds.left, bounds.right),
+      headPos.dy.clamp(bounds.top, bounds.bottom),
+    );
+    final color = _color();
+    grid.spawnExitBurst(at, color);
+    if (AppConstants.isComboMilestone(_exitCombo)) {
+      grid.spawnFloatingText(
+        at,
+        _exitCombo >= 15 ? 'Perfect!' : 'x$_exitCombo',
+        const Color(0xFFFFC107),
+      );
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   //  RENDER
   // ═══════════════════════════════════════════════════════════════════════════
 
   @override
   void render(Canvas canvas) {
+    if (!_isErasing) {
+      _renderArrow(canvas);
+      return;
+    }
+    final fade = 1.0 - _eraseProgress.clamp(0.0, 1.0);
+    canvas.saveLayer(null, Paint()..color = Colors.white.withValues(alpha: fade));
+    _renderArrow(canvas);
+    canvas.restore();
+  }
+
+  void _renderArrow(Canvas canvas) {
     if (arrowModel.path.isEmpty) return;
 
     // ── 1. Resolve pathPx ─────────────────────────────────────────────────────
@@ -479,6 +574,10 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
 
       pts = _slice(track, dist, animHead, animTail);
 
+      if (_isExiting) {
+        _drawExitTrail(canvas, track, dist, animTail, tailDist);
+      }
+
       // Draw consumed orphan dots that the arrow head hasn't reached yet
       if (_isExiting) {
         final consumedDots = gameState.getConsumedDotsForArrow(arrowModel.id);
@@ -509,6 +608,16 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     final sw = cellSize * 0.2; // Slightly sleek & clean arrow body thickness
 
     canvas.save();
+    if (_pressScale < 0.999 || _isBlockedAnimating) {
+      final c = _pathCenter(pathPx);
+      canvas.translate(c.dx, c.dy);
+      if (_pressScale < 0.999) canvas.scale(_pressScale);
+      if (_isBlockedAnimating && _blockDuration > 0) {
+        final damp = 1 - (_blockTime / _blockDuration).clamp(0.0, 1.0);
+        canvas.rotate(sin(_blockTime * 42) * 0.08 * damp);
+      }
+      canvas.translate(-c.dx, -c.dy);
+    }
 
     // ── 6. Draw body ──────────────────────────────────────────────────────
     final Path bodyPath;
@@ -525,6 +634,20 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
       bodyPath = _cachedBodyPath!;
     }
 
+    if (gameState.blockerIds.contains(arrowModel.id)) {
+      final pulse = (sin(_blockerFlash) + 1) / 2;
+      canvas.drawPath(
+        bodyPath,
+        Paint()
+          ..color = const Color(0xFFFF1744).withValues(alpha: 0.35 + 0.5 * pulse)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = sw * 2.8
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0),
+      );
+    }
+
     final bodyPaint = Paint()
       ..color = mainColor
       ..style = PaintingStyle.stroke
@@ -536,6 +659,8 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     // ── 7. Draw arrowhead at the head end (pts.first) ──────────────────────────────
     _drawHead(canvas, pts, mainColor, sw);
 
+    canvas.restore();
+
     // ── 8. Long-press preview overlay ────────────────────────────────────────────
     if (_isPreviewMode) {
       final preview = _previewPath;
@@ -544,8 +669,49 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
         _drawPreviewPath(canvas, preview, isBlocked);
       }
     }
+  }
 
-    canvas.restore();
+  Offset _pathCenter(List<Offset> pathPx) {
+    double minX = pathPx.first.dx, maxX = minX;
+    double minY = pathPx.first.dy, maxY = minY;
+    for (final p in pathPx) {
+      if (p.dx < minX) minX = p.dx;
+      if (p.dx > maxX) maxX = p.dx;
+      if (p.dy < minY) minY = p.dy;
+      if (p.dy > maxY) maxY = p.dy;
+    }
+    return Offset((minX + maxX) / 2, (minY + maxY) / 2);
+  }
+
+  /// Glowing streak over the cells the tail just vacated, brightest nearest
+  /// the tail so it reads as motion toward the exit.
+  void _drawExitTrail(Canvas canvas, List<Offset> track, List<double> dist,
+      double animTail, double tailDist) {
+    final trailLen = cellSize * 2.4;
+    final end = (animTail + trailLen).clamp(animTail, tailDist);
+    if (end - animTail < 0.5) return;
+    final color = _color();
+    const segments = 3;
+    final segLen = (end - animTail) / segments;
+    for (int i = 0; i < segments; i++) {
+      final from = animTail + segLen * i;
+      final seg = _slice(track, dist, from, from + segLen);
+      if (seg.length < 2) continue;
+      final path = Path()..moveTo(seg.first.dx, seg.first.dy);
+      for (int j = 1; j < seg.length; j++) {
+        path.lineTo(seg[j].dx, seg[j].dy);
+      }
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = color.withValues(alpha: 0.38 * (1 - i / segments))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = cellSize * (0.34 - i * 0.07)
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0),
+      );
+    }
   }
 
   // ── Arrowhead ─────────────────────────────────────────────────────────────
@@ -727,10 +893,26 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     if (arrowModel.state == ArrowState.blocked || _isBlockedAnimating) {
       return const Color(0xFFCC2200); // Vibrant red error color on block
     }
-    if (arrowModel.colorGroup != null) {
-      return AppColors.getGroupColor(arrowModel.colorGroup!);
+    if (gameState.blockerIds.contains(arrowModel.id)) {
+      final pulse = (sin(_blockerFlash) + 1) / 2;
+      return Color.lerp(const Color(0xFFFF1744), const Color(0xFFFF8A80), pulse)!;
     }
-    return AppColors.arrowUp;
+    if (gameState.hintArrowId == arrowModel.id) {
+      return const Color(0xFFFFD54F);
+    }
+    if (gameState.rulerHighlightIds.contains(arrowModel.id)) {
+      return const Color(0xFF69F0AE);
+    }
+    final paired = arrowModel.colorGroup != null;
+    final base = paired
+        ? AppColors.getGroupColor(arrowModel.colorGroup!)
+        : AppColors.arrowUp;
+    return BoardStyle.tintArrow(
+      gameState.arrowSkin,
+      base,
+      salt: arrowModel.id.hashCode,
+      paired: paired,
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

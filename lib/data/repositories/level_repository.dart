@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/constants.dart';
 import '../models/level.dart';
 import '../level_generator/level_generator_v2.dart';
 import '../level_binary_codec.dart';
@@ -44,7 +45,7 @@ class LevelRepository {
       // Wipe old memory & disk cache so updated pregenerated levels take effect!
       _cache.clear();
       if (_prefs != null) {
-        for (int i = 1; i <= 500; i++) {
+        for (int i = 1; i <= AppConstants.totalLevels; i++) {
           _prefs!.remove('cached_level_$i');
         }
       }
@@ -210,5 +211,5 @@ class LevelRepository {
     }
   }
 
-  static int get totalLevels => 500;
+  static int get totalLevels => AppConstants.totalLevels;
 }
