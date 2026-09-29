@@ -24,10 +24,11 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="${admobAppId}"/>
 
-        <!-- AppLovin SDK Key (replace with your key before publishing) -->
+        <!-- AppLovin SDK Key (replace with your key before publishing)
         <meta-data
             android:name="applovin.sdk.key"
             android:value="YOUR_APPLOVIN_SDK_KEY"/>
+        -->
 
         <!-- Disable Ad Manager if not using it -->
         <meta-data

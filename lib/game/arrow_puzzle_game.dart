@@ -18,12 +18,16 @@ class ArrowPuzzleGame extends FlameGame {
   final void Function() onGameOver;
   final void Function() onLifeLost;
 
+  /// Localized label for the top combo milestone popup on the board.
+  final String comboPerfectLabel;
+
   ArrowPuzzleGame({
     required this.level,
     required this.gameState,
     required this.onLevelComplete,
     required this.onGameOver,
     required this.onLifeLost,
+    this.comboPerfectLabel = 'Perfect!',
   });
 
   @override

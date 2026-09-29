@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../core/app_fonts.dart';
 
 import '../data/models/level.dart';
-import '../data/shape_catalog.dart';
+import '../l10n/l10n.dart';
 
 /// Fills the level silhouette in and shows its name when the board clears.
 class ShapeReveal extends StatefulWidget {
@@ -35,7 +35,7 @@ class _ShapeRevealState extends State<ShapeReveal>
 
   @override
   Widget build(BuildContext context) {
-    final name = ShapeCatalog.displayName(widget.level.maskShape);
+    final name = context.l10n.shapeName(widget.level.maskShape);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -56,7 +56,7 @@ class _ShapeRevealState extends State<ShapeReveal>
         const SizedBox(height: 8),
         Text(
           name,
-          style: GoogleFonts.nunito(
+          style: AppFonts.style(
             fontSize: 18,
             fontWeight: FontWeight.w900,
             color: const Color(0xFF5E6B56),

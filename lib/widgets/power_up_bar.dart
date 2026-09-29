@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../core/app_fonts.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../core/app_colors.dart';
@@ -156,7 +156,7 @@ class _PowerUpButton extends StatelessWidget {
                   ),
                   child: Text(
                     count > 0 ? '$count' : '+',
-                    style: GoogleFonts.nunito(
+                    style: AppFonts.style(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,

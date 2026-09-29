@@ -1,4 +1,5 @@
 import 'models/level.dart';
+import 'shape_names_ar.dart';
 
 enum ShapeCategory {
   geometric('Shapes'),
@@ -64,7 +65,11 @@ class ShapeCatalog {
     'raccoon', 'badger', 'beaver', 'fly', 'worm', 'caterpillar', 'falcon',
   };
 
-  static String displayName(MaskShape shape) {
+  static String displayName(MaskShape shape, {String languageCode = 'en'}) {
+    if (languageCode == 'ar') {
+      final ar = shapeNamesAr[shape.name];
+      if (ar != null) return ar;
+    }
     final raw = shape.name.replaceAllMapped(
       RegExp(r'([a-z])([A-Z])'),
       (m) => '${m[1]} ${m[2]}',

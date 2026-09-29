@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_colors.dart';
@@ -7,12 +7,14 @@ import '../../core/constants.dart';
 import '../../data/repositories/progress_repository.dart';
 import '../../core/audio_manager.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../../l10n/l10n.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   static const String _privacyPolicyUrl =
-      'https://gxdevs.blogspot.com/2026/07/arrow-escape-privacy-policy.html';
+      'https://momahmoud.github.io/Fluxy-Labs/privacy-policy';
+  static const String _systemLanguage = 'system';
   static const String _playStoreUrl =
       'https://play.google.com/store/apps/details?id=${AppConstants.packageId}';
 
@@ -55,8 +57,8 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text('Settings',
-                        style: GoogleFonts.nunito(
+                    Text(context.l10n.settings,
+                        style: AppFonts.style(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                             color: AppColors.textPrimary)),
@@ -65,126 +67,173 @@ class SettingsScreen extends StatelessWidget {
               ),
 
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      _SettingsTile(
-                        icon: Icons.volume_up_outlined,
-                        label: 'Sound Effects',
-                        trailing: Switch(
-                          value: progress.soundEnabled,
-                          onChanged: (val) {
-                            AudioManager.instance.playClick();
-                            progress.setSoundEnabled(val);
-                          },
-                          activeThumbColor: AppColors.primary,
-                        ),
-                      ),
-                      _SettingsTile(
-                        icon: Icons.music_note_outlined,
-                        label: 'Background Music',
-                        trailing: Switch(
-                          value: progress.musicEnabled,
-                          onChanged: (val) {
-                            AudioManager.instance.playClick();
-                            progress.setMusicEnabled(val);
-                          },
-                          activeThumbColor: AppColors.primary,
-                        ),
-                      ),
-                      _SettingsTile(
-                        icon: Icons.vibration_rounded,
-                        label: 'Haptic Feedback',
-                        trailing: Switch(
-                          value: progress.vibrationEnabled,
-                          onChanged: (val) {
-                            AudioManager.instance.playClick();
-                            progress.setVibrationEnabled(val);
-                          },
-                          activeThumbColor: AppColors.primary,
-                        ),
-                      ),
-                      _SettingsTile(
-                        icon: Icons.brightness_medium_outlined,
-                        label: 'Theme Mode',
-                        trailing: DropdownButtonHideUnderline(
-                          child: DropdownButton<ThemeMode>(
-                            value: progress.themeMode,
-                            dropdownColor: AppColors.surface,
-                            icon: Icon(Icons.arrow_drop_down,
-                                color: AppColors.textPrimary),
-                            style: GoogleFonts.nunito(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                child: CustomScrollView(
+                  slivers: [
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          children: [
+                            _SettingsTile(
+                              icon: Icons.volume_up_outlined,
+                              label: context.l10n.soundEffects,
+                              trailing: Switch(
+                                value: progress.soundEnabled,
+                                onChanged: (val) {
+                                  AudioManager.instance.playClick();
+                                  progress.setSoundEnabled(val);
+                                },
+                                activeThumbColor: AppColors.primary,
+                              ),
                             ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: ThemeMode.system,
-                                child: Text('System'),
+                            _SettingsTile(
+                              icon: Icons.music_note_outlined,
+                              label: context.l10n.backgroundMusic,
+                              trailing: Switch(
+                                value: progress.musicEnabled,
+                                onChanged: (val) {
+                                  AudioManager.instance.playClick();
+                                  progress.setMusicEnabled(val);
+                                },
+                                activeThumbColor: AppColors.primary,
                               ),
-                              DropdownMenuItem(
-                                value: ThemeMode.light,
-                                child: Text('Light'),
+                            ),
+                            _SettingsTile(
+                              icon: Icons.vibration_rounded,
+                              label: context.l10n.hapticFeedback,
+                              trailing: Switch(
+                                value: progress.vibrationEnabled,
+                                onChanged: (val) {
+                                  AudioManager.instance.playClick();
+                                  progress.setVibrationEnabled(val);
+                                },
+                                activeThumbColor: AppColors.primary,
                               ),
-                              DropdownMenuItem(
-                                value: ThemeMode.dark,
-                                child: Text('Dark'),
+                            ),
+                            _SettingsTile(
+                              icon: Icons.brightness_medium_outlined,
+                              label: context.l10n.themeMode,
+                              trailing: DropdownButtonHideUnderline(
+                                child: DropdownButton<ThemeMode>(
+                                  value: progress.themeMode,
+                                  dropdownColor: AppColors.surface,
+                                  icon: Icon(Icons.arrow_drop_down,
+                                      color: AppColors.textPrimary),
+                                  style: AppFonts.style(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                  items: [
+                                    DropdownMenuItem(
+                                      value: ThemeMode.system,
+                                      child: Text(context.l10n.themeSystem),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: ThemeMode.light,
+                                      child: Text(context.l10n.themeLight),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: ThemeMode.dark,
+                                      child: Text(context.l10n.themeDark),
+                                    ),
+                                  ],
+                                  onChanged: (ThemeMode? val) {
+                                    if (val != null) {
+                                      AudioManager.instance.playClick();
+                                      progress.setThemeMode(val);
+                                    }
+                                  },
+                                ),
                               ),
-                            ],
-                            onChanged: (ThemeMode? val) {
-                              if (val != null) {
-                                AudioManager.instance.playClick();
-                                progress.setThemeMode(val);
-                              }
-                            },
-                          ),
+                            ),
+                            _SettingsTile(
+                              icon: Icons.language_rounded,
+                              label: context.l10n.language,
+                              trailing: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value:
+                                      progress.languageCode ?? _systemLanguage,
+                                  dropdownColor: AppColors.surface,
+                                  icon: Icon(Icons.arrow_drop_down,
+                                      color: AppColors.textPrimary),
+                                  style: AppFonts.style(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                  items: [
+                                    DropdownMenuItem(
+                                      value: _systemLanguage,
+                                      child: Text(context.l10n.languageSystem),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'en',
+                                      child: Text(context.l10n.languageEnglish),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'ar',
+                                      child: Text(context.l10n.languageArabic),
+                                    ),
+                                  ],
+                                  onChanged: (String? val) {
+                                    if (val == null) return;
+                                    AudioManager.instance.playClick();
+                                    progress.setLanguageCode(
+                                        val == _systemLanguage ? null : val);
+                                  },
+                                ),
+                              ),
+                            ),
+                            Divider(color: AppColors.surfaceLight, height: 32),
+                            if (AppConstants.enableShapePreview)
+                              _SettingsTile(
+                                icon: Icons.category_outlined,
+                                label: context.l10n.shapePreview,
+                                trailing: Icon(Icons.chevron_right_rounded,
+                                    color: AppColors.textSecondary),
+                                onTap: () => Navigator.pushNamed(
+                                    context, '/shape_preview'),
+                              ),
+                            _SettingsTile(
+                              icon: Icons.privacy_tip_outlined,
+                              label: context.l10n.privacyPolicy,
+                              trailing: Icon(Icons.chevron_right_rounded,
+                                  color: AppColors.textSecondary),
+                              onTap: () => _launchUrl(_privacyPolicyUrl),
+                            ),
+                            _SettingsTile(
+                              icon: Icons.star_outline_rounded,
+                              label: context.l10n.rateApp,
+                              trailing: Icon(Icons.chevron_right_rounded,
+                                  color: AppColors.textSecondary),
+                              onTap: () => _launchUrl(_playStoreUrl),
+                            ),
+                            const Spacer(),
+                            FutureBuilder<PackageInfo>(
+                              future: PackageInfo.fromPlatform(),
+                              builder: (context, snapshot) {
+                                final version =
+                                    snapshot.data?.version ?? '1.0.4';
+                                final buildNumber =
+                                    snapshot.data?.buildNumber ?? '5';
+                                return Text(
+                                  '${AppConstants.appName} v$version+$buildNumber',
+                                  style: AppFonts.style(
+                                      color: AppColors.textMuted, fontSize: 12),
+                                );
+                              },
+                            ),
+                            Text(AppConstants.packageId,
+                                style: AppFonts.style(
+                                    color: AppColors.textMuted, fontSize: 11)),
+                            const SizedBox(height: 16),
+                          ],
                         ),
                       ),
-                      Divider(color: AppColors.surfaceLight, height: 32),
-                      if (AppConstants.enableShapePreview)
-                        _SettingsTile(
-                          icon: Icons.category_outlined,
-                          label: 'Shape preview',
-                          trailing: Icon(Icons.chevron_right_rounded,
-                              color: AppColors.textSecondary),
-                          onTap: () =>
-                              Navigator.pushNamed(context, '/shape_preview'),
-                        ),
-                      _SettingsTile(
-                        icon: Icons.privacy_tip_outlined,
-                        label: 'Privacy Policy',
-                        trailing: Icon(Icons.chevron_right_rounded,
-                            color: AppColors.textSecondary),
-                        onTap: () => _launchUrl(_privacyPolicyUrl),
-                      ),
-                      _SettingsTile(
-                        icon: Icons.star_outline_rounded,
-                        label: 'Rate the App',
-                        trailing: Icon(Icons.chevron_right_rounded,
-                            color: AppColors.textSecondary),
-                        onTap: () => _launchUrl(_playStoreUrl),
-                      ),
-                      const Spacer(),
-                      FutureBuilder<PackageInfo>(
-                        future: PackageInfo.fromPlatform(),
-                        builder: (context, snapshot) {
-                          final version = snapshot.data?.version ?? '1.0.4';
-                          final buildNumber = snapshot.data?.buildNumber ?? '5';
-                          return Text(
-                            '${AppConstants.appName} v$version+$buildNumber',
-                            style: GoogleFonts.nunito(
-                                color: AppColors.textMuted, fontSize: 12),
-                          );
-                        },
-                      ),
-                      Text(AppConstants.packageId,
-                          style: GoogleFonts.nunito(
-                              color: AppColors.textMuted, fontSize: 11)),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -237,7 +286,7 @@ class _SettingsTile extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Text(label,
-                style: GoogleFonts.nunito(
+                style: AppFonts.style(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary)),

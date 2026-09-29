@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -8,6 +8,7 @@ import '../../core/app_colors.dart';
 import '../../core/constants.dart';
 import '../../data/repositories/progress_repository.dart';
 import '../../core/audio_manager.dart';
+import '../../l10n/l10n.dart';
 
 class LevelSelectScreen extends StatelessWidget {
   const LevelSelectScreen({super.key});
@@ -45,8 +46,8 @@ class LevelSelectScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text('Select Level',
-                        style: GoogleFonts.nunito(
+                    Text(context.l10n.selectLevel,
+                        style: AppFonts.style(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                             color: AppColors.textPrimary)),
@@ -68,8 +69,7 @@ class LevelSelectScreen extends StatelessWidget {
                   itemCount: totalVisible,
                   itemBuilder: (context, index) {
                     final levelNum = index + 1;
-                    final isUnlocked =
-                        true; //progress.isLevelUnlocked(levelNum);
+                    final isUnlocked = progress.isLevelUnlocked(levelNum);
                     final stars = progress.getStarsForLevel(levelNum);
                     final levelType = AppConstants.levelTypeFor(levelNum);
 
@@ -175,7 +175,7 @@ class _LevelCell extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text('$levelNumber',
-                      style: GoogleFonts.nunito(
+                      style: AppFonts.style(
                         fontSize: levelNumber >= 100 ? 13 : 16,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,

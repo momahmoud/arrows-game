@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 import '../../widgets/maze_background.dart';
 import '../../core/app_colors.dart';
+import '../../l10n/l10n.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -81,8 +82,8 @@ class _SplashScreenState extends State<SplashScreen>
 
               // Tagline
               Text(
-                'Slide. Clear. Conquer.',
-                style: GoogleFonts.nunito(
+                context.l10n.splashTagline,
+                style: AppFonts.style(
                   fontSize: 16,
                   color: AppColors.textSecondary,
                   letterSpacing: 2,
@@ -147,11 +148,11 @@ class _SplashScreenState extends State<SplashScreen>
                             // Status label that changes with progress
                             Text(
                               progress < 0.5
-                                  ? 'Loading assets…'
+                                  ? context.l10n.splashLoadingAssets
                                   : progress < 0.9
-                                      ? 'Generating levels…'
-                                      : 'Almost ready…',
-                              style: GoogleFonts.nunito(
+                                      ? context.l10n.splashGeneratingLevels
+                                      : context.l10n.splashAlmostReady,
+                              style: AppFonts.style(
                                 fontSize: 12,
                                 color: AppColors.textSecondary.withValues(alpha: 0.8),
                                 fontWeight: FontWeight.w600,
@@ -189,7 +190,7 @@ class _SplashScreenState extends State<SplashScreen>
         const SizedBox(height: 16),
         Text(
           'Arrow Out',
-          style: GoogleFonts.nunito(
+          style: AppFonts.style(
             fontSize: 42,
             fontWeight: FontWeight.w900,
             color: AppColors.textPrimary,

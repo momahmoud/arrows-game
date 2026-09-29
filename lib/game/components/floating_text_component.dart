@@ -1,6 +1,8 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/app_fonts.dart';
+
 /// Short-lived label that pops in, drifts upward and fades out.
 class FloatingTextComponent extends PositionComponent {
   static const double _kLifetime = 0.85;
@@ -19,6 +21,7 @@ class FloatingTextComponent extends PositionComponent {
           text: TextSpan(
             text: text,
             style: TextStyle(
+              fontFamily: AppFonts.family,
               color: color,
               fontSize: fontSize,
               fontWeight: FontWeight.w900,

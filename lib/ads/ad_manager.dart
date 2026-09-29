@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../core/app_fonts.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'dart:async';
 import '../core/constants.dart';
 import '../core/app_colors.dart';
+import '../l10n/l10n.dart';
 
 /// Central ad orchestrator — manages banner, interstitial, and rewarded ads.
 /// Uses a waterfall fallback strategy: AdMob (Priority 1) -> Unity Ads (Priority 2).
@@ -292,8 +293,8 @@ class AdManager {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Loading Ad...',
-                    style: GoogleFonts.nunito(
+                    context.l10n.loadingAd,
+                    style: AppFonts.style(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,

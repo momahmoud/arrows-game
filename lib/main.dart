@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
-// import 'package:firebase_core/firebase_core.dart';
-// import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/constants.dart';
+import 'firebase_options.dart';
 
 import 'app.dart';
 import 'data/repositories/progress_repository.dart';
@@ -18,30 +19,24 @@ import 'core/audio_manager.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 0. Error handlers (Firebase disabled for now)
-  // try {
-  //   await Firebase.initializeApp();
-  //   FlutterError.onError = (FlutterErrorDetails details) {
-  //     FlutterError.presentError(details);
-  //     FirebaseCrashlytics.instance.recordFlutterFatalError(details);
-  //   };
-  //   PlatformDispatcher.instance.onError = (error, stack) {
-  //     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-  //     return true;
-  //   };
-  // } catch (e) {
-  //   debugPrint('Firebase/Crashlytics init error: $e');
-  // }
-
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
-    debugPrint('Flutter framework error: ${details.exception}');
-  };
-
-  PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint('Async platform error: $error');
-    return true;
-  };
+  // 0. Error handlers
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await FirebaseCrashlytics.instance
+        .setCrashlyticsCollectionEnabled(!kDebugMode);
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+      FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  } catch (e) {
+    debugPrint('Firebase/Crashlytics init error: $e');
+  }
 
   // 1. Initialize AudioManager safely
   try {

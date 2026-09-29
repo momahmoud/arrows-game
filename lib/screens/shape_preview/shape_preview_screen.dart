@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/constants.dart';
@@ -392,7 +392,7 @@ class _ShapePreviewScreenState extends State<ShapePreviewScreen> {
                     Expanded(
                       child: Text(
                         'Shape preview',
-                        style: GoogleFonts.nunito(
+                        style: AppFonts.style(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
                           color: AppColors.textPrimary,
@@ -487,7 +487,7 @@ class _ShapePreviewScreenState extends State<ShapePreviewScreen> {
                       children: [
                         Text(
                           'Grid ${_gridSize.round()}×${_gridSize.round()}',
-                          style: GoogleFonts.nunito(
+                          style: AppFonts.style(
                             fontWeight: FontWeight.w700,
                             color: AppColors.textSecondary,
                           ),
@@ -581,7 +581,7 @@ class _ShapeTile extends StatelessWidget {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.nunito(
+                style: AppFonts.style(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
@@ -591,7 +591,7 @@ class _ShapeTile extends StatelessWidget {
                 subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.nunito(
+                style: AppFonts.style(
                   fontSize: 11,
                   color: AppColors.textMuted,
                 ),

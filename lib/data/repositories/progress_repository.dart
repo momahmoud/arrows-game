@@ -31,6 +31,7 @@ class ProgressRepository extends ChangeNotifier {
   bool _musicEnabled = true;
   bool _vibrationEnabled = true;
   ThemeMode _themeMode = ThemeMode.system;
+  String? _languageCode; // null = follow device
 
   // 40x40 warning state
   bool _hasSeen40x40Warning = false;
@@ -73,6 +74,8 @@ class ProgressRepository extends ChangeNotifier {
   bool get musicEnabled => _musicEnabled;
   bool get vibrationEnabled => _vibrationEnabled;
   ThemeMode get themeMode => _themeMode;
+  String? get languageCode => _languageCode;
+  Locale? get locale => _languageCode == null ? null : Locale(_languageCode!);
   bool get hasSeen40x40Warning => _hasSeen40x40Warning;
   bool get hasSeenZoomHint => _hasSeenZoomHint;
 
@@ -139,6 +142,7 @@ class ProgressRepository extends ChangeNotifier {
         (e) => e.name == themeStr,
         orElse: () => ThemeMode.system,
       );
+      _languageCode = _prefs!.getString('languageCode');
 
       // Synchronize to AudioManager
       AudioManager.instance.setSoundEnabled(_soundEnabled);
@@ -369,6 +373,18 @@ class ProgressRepository extends ChangeNotifier {
   Future<void> setThemeMode(ThemeMode value) async {
     _themeMode = value;
     await _prefs?.setString('themeMode', value.name);
+    notifyListeners();
+  }
+
+  /// Pass null to follow the device language.
+  Future<void> setLanguageCode(String? code) async {
+    if (_languageCode == code) return;
+    _languageCode = code;
+    if (code == null) {
+      await _prefs?.remove('languageCode');
+    } else {
+      await _prefs?.setString('languageCode', code);
+    }
     notifyListeners();
   }
 

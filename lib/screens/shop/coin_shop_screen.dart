@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +9,7 @@ import '../../core/board_style.dart';
 import '../../data/meta_rules.dart';
 import '../../data/repositories/progress_repository.dart';
 import '../../game/game_state.dart';
+import '../../l10n/l10n.dart';
 
 class CoinShopScreen extends StatelessWidget {
   const CoinShopScreen({super.key});
@@ -35,8 +36,8 @@ class CoinShopScreen extends StatelessWidget {
                           color: AppColors.textPrimary),
                     ),
                     Text(
-                      'Shop',
-                      style: GoogleFonts.nunito(
+                      context.l10n.shop,
+                      style: AppFonts.style(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
                         color: AppColors.textPrimary,
@@ -47,7 +48,7 @@ class CoinShopScreen extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       '${progress.coins}',
-                      style: GoogleFonts.nunito(
+                      style: AppFonts.style(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
                         color: AppColors.textPrimary,
@@ -60,13 +61,13 @@ class CoinShopScreen extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   children: [
-                    _section('Power-ups'),
+                    _section(context.l10n.shopPowerUps),
                     for (final type in PowerUpType.values)
                       _ShopRow(
-                        title: _powerLabel(type),
-                        detail: 'Owned ${progress.bonusPowerUp(type)} extra',
+                        title: context.l10n.powerUp(type),
+                        detail: context.l10n.ownedExtra(progress.bonusPowerUp(type)),
                         price: MetaRules.powerUpCost(type),
-                        action: 'Buy',
+                        action: context.l10n.buy,
                         enabled: progress.coins >= MetaRules.powerUpCost(type),
                         onTap: () {
                           if (!progress.buyPowerUp(type)) {
@@ -76,14 +77,14 @@ class CoinShopScreen extends StatelessWidget {
                           AudioManager.instance.playClick();
                         },
                       ),
-                    _section('Hearts'),
+                    _section(context.l10n.shopHearts),
                     _ShopRow(
-                      title: 'Heart',
+                      title: context.l10n.heart,
                       detail: progress.livesAreFull
-                          ? 'Hearts are full'
+                          ? context.l10n.heartsFull
                           : '${progress.lives} / ${progress.maxLives}',
                       price: MetaRules.heartCost,
-                      action: 'Buy',
+                      action: context.l10n.buy,
                       enabled: !progress.livesAreFull &&
                           progress.coins >= MetaRules.heartCost,
                       onTap: () {
@@ -94,10 +95,10 @@ class CoinShopScreen extends StatelessWidget {
                         AudioManager.instance.playClick();
                       },
                     ),
-                    _section('Arrow skins'),
+                    _section(context.l10n.arrowSkins),
                     for (final offer in BoardStyle.offers.where((o) => o.isSkin))
                       _cosmetic(context, progress, offer),
-                    _section('Board themes'),
+                    _section(context.l10n.boardThemes),
                     for (final offer in BoardStyle.offers.where((o) => !o.isSkin))
                       _cosmetic(context, progress, offer),
                   ],
@@ -118,17 +119,22 @@ class CoinShopScreen extends StatelessWidget {
     final owned = progress.ownsCosmetic(offer.id);
     final equipped = progress.isCosmeticEquipped(offer);
     final free = BoardStyle.unlockedByProgress(offer, progress.highestUnlockedLevel);
+    final l10n = context.l10n;
     return _ShopRow(
-      title: offer.name,
+      title: l10n.cosmeticName(offer.id, offer.name),
       detail: equipped
-          ? 'Equipped'
+          ? l10n.equipped
           : owned
-              ? offer.blurb
+              ? l10n.cosmeticBlurb(offer.id, offer.blurb)
               : free
-                  ? 'Unlocked by progress'
-                  : 'Or reach level ${offer.unlockLevel}',
+                  ? l10n.unlockedByProgress
+                  : l10n.orReachLevel(offer.unlockLevel),
       price: owned ? 0 : offer.coinCost,
-      action: equipped ? 'On' : owned || free ? 'Equip' : 'Buy',
+      action: equipped
+          ? l10n.equippedShort
+          : owned || free
+              ? l10n.equip
+              : l10n.buy,
       enabled: !equipped,
       onTap: () {
         final ok = owned || free
@@ -148,7 +154,7 @@ class CoinShopScreen extends StatelessWidget {
       padding: const EdgeInsets.only(top: 14, bottom: 6),
       child: Text(
         title,
-        style: GoogleFonts.nunito(
+        style: AppFonts.style(
           fontSize: 15,
           fontWeight: FontWeight.w900,
           color: AppColors.textPrimary,
@@ -160,24 +166,12 @@ class CoinShopScreen extends StatelessWidget {
   void _broke(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Not enough coins', style: GoogleFonts.nunito()),
+        content: Text(context.l10n.notEnoughCoins, style: AppFonts.style()),
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  String _powerLabel(PowerUpType type) {
-    switch (type) {
-      case PowerUpType.hint:
-        return 'Hint';
-      case PowerUpType.eraser:
-        return 'Eraser';
-      case PowerUpType.wand:
-        return 'Magic wand';
-      case PowerUpType.ruler:
-        return 'Ruler';
-    }
-  }
 }
 
 class _ShopRow extends StatelessWidget {
@@ -214,14 +208,14 @@ class _ShopRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.nunito(
+                  style: AppFonts.style(
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
                   ),
                 ),
                 Text(
                   detail,
-                  style: GoogleFonts.nunito(
+                  style: AppFonts.style(
                     fontSize: 12,
                     color: AppColors.textMuted,
                   ),
@@ -234,7 +228,7 @@ class _ShopRow extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               '$price',
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w800),
+              style: AppFonts.style(fontWeight: FontWeight.w800),
             ),
             const SizedBox(width: 8),
           ],

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/constants.dart';
 import '../../ads/ad_manager.dart';
 import '../../core/audio_manager.dart';
+import '../../l10n/l10n.dart';
 
 /// Full-screen game over overlay (alternative to dialog — used as a route).
 class GameOverScreen extends StatelessWidget {
@@ -42,8 +44,8 @@ class GameOverScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 Text(
-                  'Out of Lives!',
-                  style: GoogleFonts.nunito(
+                  context.l10n.outOfLives,
+                  style: AppFonts.style(
                     fontSize: 34,
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
@@ -53,8 +55,8 @@ class GameOverScreen extends StatelessWidget {
                 const SizedBox(height: 8),
 
                 Text(
-                  'Level $levelNumber',
-                  style: GoogleFonts.nunito(
+                  context.l10n.levelNumber(levelNumber),
+                  style: AppFonts.style(
                     fontSize: 16,
                     color: AppColors.textSecondary,
                   ),
@@ -84,8 +86,8 @@ class GameOverScreen extends StatelessWidget {
 
                 _ActionButton(
                   icon: LucideIcons.clapperboard,
-                  label: 'Get 1 More Life & Continue',
-                  subtitle: 'Watch an ad to get 1 more life',
+                  label: context.l10n.getOneMoreLife,
+                  subtitle: context.l10n.watchAdForLife,
                   gradient: AppColors.successGradient,
                   onTap: () {
                     bool rewarded = false;
@@ -103,8 +105,8 @@ class GameOverScreen extends StatelessWidget {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Ad not completed. Try watching again or restart level.',
-                                style: GoogleFonts.nunito(
+                                context.l10n.adNotCompletedRestartLevel,
+                                style: AppFonts.style(
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
                                 ),
@@ -128,8 +130,8 @@ class GameOverScreen extends StatelessWidget {
                 // Restart level (full lives)
                 _ActionButton(
                   icon: LucideIcons.rotateCcw,
-                  label: 'Restart Level',
-                  subtitle: 'Start over with 3 lives',
+                  label: context.l10n.restartLevel,
+                  subtitle: context.l10n.startOverWithLives(AppConstants.maxLives),
                   gradient: LinearGradient(
                       colors: [AppColors.surfaceLight, AppColors.surface]),
                   onTap: () {
@@ -146,8 +148,8 @@ class GameOverScreen extends StatelessWidget {
                     AudioManager.instance.playClick();
                     Navigator.pushReplacementNamed(context, '/menu');
                   },
-                  child: Text('Main Menu',
-                      style: GoogleFonts.nunito(
+                  child: Text(context.l10n.mainMenu,
+                      style: AppFonts.style(
                           color: AppColors.textSecondary, fontSize: 16)),
                 ).animate(delay: 700.ms).fadeIn(),
               ],
@@ -202,12 +204,12 @@ class _ActionButton extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: GoogleFonts.nunito(
+                    style: AppFonts.style(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                         color: Colors.white)),
                 Text(subtitle,
-                    style: GoogleFonts.nunito(
+                    style: AppFonts.style(
                         fontSize: 12, color: Colors.white60)),
               ],
             ),

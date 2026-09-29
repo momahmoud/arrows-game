@@ -6,7 +6,7 @@ import 'package:flame/game.dart' hide Matrix4;
 import 'package:provider/provider.dart';
 import '../../widgets/unified_banner_ad.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 import 'package:confetti/confetti.dart';
 
 import '../../core/app_colors.dart';
@@ -30,6 +30,7 @@ import '../../core/board_style.dart';
 import '../../data/meta_rules.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/audio_manager.dart';
+import '../../l10n/l10n.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -181,6 +182,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       onLevelComplete: _onLevelComplete,
       onGameOver: _onGameOver,
       onLifeLost: _onLifeLost,
+      comboPerfectLabel: context.l10n.comboPerfect,
     );
 
     _resetTimerForLevel();
@@ -201,7 +203,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: GoogleFonts.nunito()),
+        content: Text(message, style: AppFonts.style()),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
       ),
@@ -226,7 +228,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               type,
               AppConstants.powerUpsPerRewardedAd,
             );
-        _showPowerUpSnack('+${AppConstants.powerUpsPerRewardedAd} added');
+        _showPowerUpSnack(context.l10n.powerUpsAdded(AppConstants.powerUpsPerRewardedAd));
       },
       onDismissed: () {
         if (mounted) setState(() => _isGamePaused = false);
@@ -239,11 +241,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (gs == null) return;
     gs.setEraserArmed(false);
     if (gs.powerUpCount(PowerUpType.hint) <= 0) {
-      _offerPowerUpRefill(PowerUpType.hint, 'No hints left');
+      _offerPowerUpRefill(PowerUpType.hint, context.l10n.noHintsLeft);
       return;
     }
     if (!gs.applyHint()) {
-      _showPowerUpSnack('No hint available');
+      _showPowerUpSnack(context.l10n.noHintAvailable);
       return;
     }
     gs.consumePowerUp(PowerUpType.hint);
@@ -259,12 +261,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       return;
     }
     if (gs.powerUpCount(PowerUpType.eraser) <= 0) {
-      _offerPowerUpRefill(PowerUpType.eraser, 'No erasers left');
+      _offerPowerUpRefill(PowerUpType.eraser, context.l10n.noErasersLeft);
       return;
     }
     gs.setEraserArmed(true);
     AudioManager.instance.playPowerUp('eraser');
-    _showPowerUpSnack('Tap an arrow to erase it');
+    _showPowerUpSnack(context.l10n.tapArrowToErase);
   }
 
   void _useWandPowerUp() {
@@ -272,11 +274,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (gs == null) return;
     gs.setEraserArmed(false);
     if (gs.powerUpCount(PowerUpType.wand) <= 0) {
-      _offerPowerUpRefill(PowerUpType.wand, 'No magic wands left');
+      _offerPowerUpRefill(PowerUpType.wand, context.l10n.noWandsLeft);
       return;
     }
     if (!gs.applyMagicWand()) {
-      _showPowerUpSnack('No clear move for wand');
+      _showPowerUpSnack(context.l10n.noWandMove);
       return;
     }
     gs.consumePowerUp(PowerUpType.wand);
@@ -289,7 +291,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (gs == null) return;
     gs.setEraserArmed(false);
     if (gs.powerUpCount(PowerUpType.ruler) <= 0) {
-      _offerPowerUpRefill(PowerUpType.ruler, 'No rulers left');
+      _offerPowerUpRefill(PowerUpType.ruler, context.l10n.noRulersLeft);
       return;
     }
     gs.consumePowerUp(PowerUpType.ruler);
@@ -668,8 +670,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Ad not completed. Try watching again or restart.',
-                      style: GoogleFonts.nunito(
+                      context.l10n.adNotCompletedRestart,
+                      style: AppFonts.style(
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
                       ),
@@ -1065,8 +1067,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               backgroundColor: AppColors.primary,
               icon: const Icon(LucideIcons.menu, color: Colors.white),
               label: Text(
-                'Deadlock Options',
-                style: GoogleFonts.nunito(
+                context.l10n.deadlockOptions,
+                style: AppFonts.style(
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
                 ),
@@ -1081,9 +1083,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   void _showTutorialDialogIfNeeded(int levelNum) {
     if (levelNum == 1) {
       _showTutorialDialog(
-        title: 'How to Play',
+        title: context.l10n.tutorialHowToPlayTitle,
         description:
-            'Arrows slide in the direction they point. Tap an arrow to make it escape the grid! Arrows cannot pass through other arrows, so plan their escape order carefully.',
+            context.l10n.tutorialHowToPlayBody,
         icon: LucideIcons.playCircle,
         iconColor: const Color(0xFF4CAF50),
         animationWidget: _buildNormalArrowAnimation(),
@@ -1091,9 +1093,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       );
     } else if (levelNum == 2) {
       _showTutorialDialog(
-        title: 'Color Paired Arrows',
+        title: context.l10n.tutorialPairedTitle,
         description:
-            'Arrows with matching colors are paired together! Tap on either arrow in the pair, and both will slide out together simultaneously. Make sure both exit paths are clear!',
+            context.l10n.tutorialPairedBody,
         icon: LucideIcons.coins,
         iconColor: const Color(0xFFFF2D55),
         animationWidget: _buildColorLockAnimation(),
@@ -1101,9 +1103,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       );
     } else if (levelNum == 3) {
       _showTutorialDialog(
-        title: 'Deflector Dots',
+        title: context.l10n.tutorialDeflectorTitle,
         description:
-            'Gold deflector dots change the direction of exiting arrows! Trace the exit path through the deflector dots to make sure the arrow escapes successfully.',
+            context.l10n.tutorialDeflectorBody,
         icon: LucideIcons.rotateCw,
         iconColor: const Color(0xFFFFAA00),
         animationWidget: _buildDeflectorAnimation(),
@@ -1131,8 +1133,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Pinch to zoom in or out to see small arrows easily!',
-                    style: GoogleFonts.nunito(
+                    context.l10n.zoomHint,
+                    style: AppFonts.style(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -1186,9 +1188,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Massive Grid Alert!',
+                  context.l10n.massiveGridTitle,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.nunito(
+                  style: AppFonts.style(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
@@ -1196,9 +1198,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'You are about to play a massive 40×40 level! On grids of this size, deadlocks (where all remaining arrows are blocked) are very common.\n\nBe extremely careful about your tap order. If you get stuck, look out for the Deadlock dialog to restart!',
+                  context.l10n.massiveGridBody,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.nunito(
+                  style: AppFonts.style(
                     fontSize: 14,
                     color: AppColors.textSecondary,
                     height: 1.4,
@@ -1226,8 +1228,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                     ),
                     child: Center(
                       child: Text(
-                        'Got It!',
-                        style: GoogleFonts.nunito(
+                        context.l10n.gotIt,
+                        style: AppFonts.style(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
@@ -1292,8 +1294,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                         color: iconColor.withValues(alpha: 0.3), width: 1),
                   ),
                   child: Text(
-                    'TUTORIAL STEP $stepText',
-                    style: GoogleFonts.nunito(
+                    context.l10n.tutorialStep(stepText),
+                    style: AppFonts.style(
                       fontSize: 11,
                       fontWeight: FontWeight.w900,
                       color: iconColor,
@@ -1321,7 +1323,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.nunito(
+                  style: AppFonts.style(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
@@ -1331,7 +1333,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 Text(
                   description,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.nunito(
+                  style: AppFonts.style(
                     fontSize: 14,
                     color: AppColors.textSecondary,
                     height: 1.4,
@@ -1361,8 +1363,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                     ),
                     child: Center(
                       child: Text(
-                        'Start Tutorial',
-                        style: GoogleFonts.nunito(
+                        context.l10n.startTutorial,
+                        style: AppFonts.style(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
@@ -1410,8 +1412,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.primary, width: 1.5),
               ),
-              child: Icon(Icons.arrow_forward_rounded,
-                  color: AppColors.primary, size: 20),
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: Icon(Icons.arrow_forward_rounded,
+                    color: AppColors.primary, size: 20),
+              ),
             )
                 .animate(onPlay: (c) => c.repeat())
                 .scale(
@@ -1503,7 +1508,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                         color: color1.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text('PAIR',
+                      child: Text(context.l10n.pairBadge,
                           style: TextStyle(
                               fontSize: 9,
                               color: color1,
@@ -1538,8 +1543,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: color2, width: 2),
                       ),
-                      child: Icon(Icons.arrow_forward_rounded,
-                          color: color2, size: 20),
+                      child: Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Icon(Icons.arrow_forward_rounded,
+                            color: color2, size: 20),
+                      ),
                     )
                         .animate(onPlay: (c) => c.repeat())
                         .scale(
@@ -1558,7 +1566,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                         color: color2.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text('PAIR',
+                      child: Text(context.l10n.pairBadge,
                           style: TextStyle(
                               fontSize: 9,
                               color: color2,
@@ -1734,7 +1742,7 @@ class _TimerDisplay extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 _formatTime(timeRemaining),
-                style: GoogleFonts.nunito(
+                style: AppFonts.style(
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
                   color: color,
@@ -1816,8 +1824,10 @@ class _TopBar extends StatelessWidget {
                   color: AppColors.surfaceLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(LucideIcons.arrowLeft,
-                    color: AppColors.textPrimary, size: 18),
+                child: Icon(
+                    LucideIcons.arrowLeft,
+                    color: AppColors.textPrimary,
+                    size: 18),
               ),
             ),
           ),
@@ -1856,8 +1866,8 @@ class _TopBar extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            levelType.label.toUpperCase(),
-                            style: GoogleFonts.nunito(
+                            context.l10n.levelType(levelType).toUpperCase(),
+                            style: AppFonts.style(
                               fontSize: 9,
                               fontWeight: FontWeight.w900,
                               color: levelType == LevelType.god
@@ -1873,8 +1883,8 @@ class _TopBar extends StatelessWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                    'Level ${level.levelNumber}',
-                    style: GoogleFonts.nunito(
+                    context.l10n.levelNumber(level.levelNumber),
+                    style: AppFonts.style(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textPrimary,
@@ -1945,8 +1955,7 @@ class _LevelCompleteDialog extends StatelessWidget {
 
   bool get _showAds =>
       AppConstants.enableAdMob ||
-      AppConstants.enableUnityAds ||
-      AppConstants.enableAppLovin;
+      AppConstants.enableUnityAds; // || AppConstants.enableAppLovin
 
   @override
   Widget build(BuildContext context) {
@@ -1969,8 +1978,8 @@ class _LevelCompleteDialog extends StatelessWidget {
           children: [
             ShapeReveal(level: level),
             const SizedBox(height: 8),
-            Text('Level Complete!',
-                style: GoogleFonts.nunito(
+            Text(context.l10n.levelComplete,
+                style: AppFonts.style(
                     fontSize: 26,
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary)),
@@ -2034,7 +2043,7 @@ class _LevelCompleteDialog extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text('+$score',
-                      style: GoogleFonts.nunito(
+                      style: AppFonts.style(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
                           color: AppColors.accentGold)),
@@ -2044,8 +2053,8 @@ class _LevelCompleteDialog extends StatelessWidget {
             if (dailyBonus > 0) ...[
               const SizedBox(height: 8),
               Text(
-                'Daily +$dailyBonus',
-                style: GoogleFonts.nunito(
+                context.l10n.dailyBonus(dailyBonus),
+                style: AppFonts.style(
                   fontWeight: FontWeight.w800,
                   color: AppColors.accentGold,
                 ),
@@ -2054,9 +2063,9 @@ class _LevelCompleteDialog extends StatelessWidget {
             if (chest != null) ...[
               const SizedBox(height: 10),
               Text(
-                'Chest +${chest!.coins} coins · ${chest!.powerUp.name}',
+                context.l10n.chestReward(chest!.coins, context.l10n.powerUp(chest!.powerUp)),
                 textAlign: TextAlign.center,
-                style: GoogleFonts.nunito(
+                style: AppFonts.style(
                   fontWeight: FontWeight.w800,
                   color: const Color(0xFFE2B93C),
                 ),
@@ -2088,9 +2097,9 @@ class _LevelCompleteDialog extends StatelessWidget {
                         curve: Curves.easeInOut),
                     const SizedBox(height: 10),
                     Text(
-                      'You Finished the Game!',
+                      context.l10n.finishedGameTitle,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.nunito(
+                      style: AppFonts.style(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
                         color: AppColors.accentGold,
@@ -2098,9 +2107,9 @@ class _LevelCompleteDialog extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Congratulations! You\'ve solved all ${AppConstants.totalLevels} challenges. Stay tuned for more levels coming soon!',
+                      context.l10n.finishedGameBody(AppConstants.totalLevels),
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.nunito(
+                      style: AppFonts.style(
                         fontSize: 13,
                         color: AppColors.textSecondary,
                         height: 1.3,
@@ -2112,7 +2121,7 @@ class _LevelCompleteDialog extends StatelessWidget {
               const SizedBox(height: 20),
             ] else ...[
               _DialogButton(
-                label: 'Next Level',
+                label: context.l10n.nextLevel,
                 icon: Icons.play_arrow_rounded,
                 gradient: AppColors.primaryGradient,
                 onTap: onNextLevel,
@@ -2123,7 +2132,7 @@ class _LevelCompleteDialog extends StatelessWidget {
             // Double coins (rewarded ad)
             if (_showAds) ...[
               _DialogButton(
-                label: 'Double Coins',
+                label: context.l10n.doubleCoins,
                 icon: LucideIcons.clapperboard,
                 gradient: AppColors.secondaryGradient,
                 textColor: AppColors.textPrimary,
@@ -2138,8 +2147,8 @@ class _LevelCompleteDialog extends StatelessWidget {
                 AudioManager.instance.playClick();
                 onMenu();
               },
-              child: Text('Back to Menu',
-                  style: GoogleFonts.nunito(color: AppColors.textSecondary)),
+              child: Text(context.l10n.backToMenu,
+                  style: AppFonts.style(color: AppColors.textSecondary)),
             ),
           ],
         ),
@@ -2175,8 +2184,7 @@ class _GameOverDialog extends StatelessWidget {
 
   bool get _showAds =>
       AppConstants.enableAdMob ||
-      AppConstants.enableUnityAds ||
-      AppConstants.enableAppLovin;
+      AppConstants.enableUnityAds; // || AppConstants.enableAppLovin
 
   @override
   Widget build(BuildContext context) {
@@ -2203,8 +2211,8 @@ class _GameOverDialog extends StatelessWidget {
               size: 52,
             ).animate().shake(duration: 500.ms),
             const SizedBox(height: 12),
-            Text(isTimeout ? 'Out of Time!' : 'Out of Lives!',
-                style: GoogleFonts.nunito(
+            Text(isTimeout ? context.l10n.outOfTime : context.l10n.outOfLives,
+                style: AppFonts.style(
                     fontSize: 26,
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary)),
@@ -2213,15 +2221,15 @@ class _GameOverDialog extends StatelessWidget {
             if (_showAds) ...[
               Text(
                   isTimeout
-                      ? 'Watch an ad to get +$continueTime seconds and continue'
-                      : 'Watch an ad to get 1 more life and continue',
-                  style: GoogleFonts.nunito(
+                      ? context.l10n.watchAdForTime(continueTime)
+                      : context.l10n.watchAdForLifeContinue,
+                  style: AppFonts.style(
                       fontSize: 13, color: AppColors.textSecondary)),
               const SizedBox(height: 28),
               _DialogButton(
                 label: isTimeout
-                    ? 'Get +$continueTime Seconds & Continue'
-                    : 'Get 1 More Life & Continue',
+                    ? context.l10n.getMoreTime(continueTime)
+                    : context.l10n.getOneMoreLife,
                 icon: LucideIcons.clapperboard,
                 gradient: AppColors.successGradient,
                 onTap: onContinue,
@@ -2232,8 +2240,8 @@ class _GameOverDialog extends StatelessWidget {
             if (!isTimeout) ...[
               _DialogButton(
                 label: _canAffordRefill
-                    ? 'Refill Hearts · ${AppConstants.heartRefillCoinCost} coins'
-                    : 'Need ${AppConstants.heartRefillCoinCost} coins (you have $coins)',
+                    ? context.l10n.refillHearts(AppConstants.heartRefillCoinCost)
+                    : context.l10n.needCoins(AppConstants.heartRefillCoinCost, coins),
                 icon: LucideIcons.coins,
                 gradient: _canAffordRefill
                     ? AppColors.primaryGradient
@@ -2251,7 +2259,7 @@ class _GameOverDialog extends StatelessWidget {
 
             // Restart (all lives back)
             _DialogButton(
-              label: 'Restart Level',
+              label: context.l10n.restartLevel,
               icon: Icons.refresh_rounded,
               gradient: AppColors.secondaryGradient,
               textColor: AppColors.textPrimary,
@@ -2265,8 +2273,8 @@ class _GameOverDialog extends StatelessWidget {
                 AudioManager.instance.playClick();
                 onMenu();
               },
-              child: Text('Main Menu',
-                  style: GoogleFonts.nunito(color: AppColors.textSecondary)),
+              child: Text(context.l10n.mainMenu,
+                  style: AppFonts.style(color: AppColors.textSecondary)),
             ),
           ],
         ),
@@ -2317,9 +2325,9 @@ class _DeadlockDialog extends StatelessWidget {
             ).animate().shake(duration: 600.ms),
             const SizedBox(height: 12),
             Text(
-              'Deadlock Reached!',
+              context.l10n.deadlockTitle,
               textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(
+              style: AppFonts.style(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
                 color: AppColors.textPrimary,
@@ -2327,9 +2335,9 @@ class _DeadlockDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'All remaining arrows are blocked. This can happen if they are cleared in the wrong sequence.\n\n💡 Hint: Try to trace the paths and see which arrows must escape first to clear the way for others!',
+              context.l10n.deadlockBody,
               textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(
+              style: AppFonts.style(
                 fontSize: 14,
                 color: AppColors.textSecondary,
                 height: 1.4,
@@ -2339,7 +2347,7 @@ class _DeadlockDialog extends StatelessWidget {
 
             // Restart Level
             _DialogButton(
-              label: 'Restart Level',
+              label: context.l10n.restartLevel,
               icon: Icons.refresh_rounded,
               gradient: AppColors.primaryGradient,
               onTap: onRestart,
@@ -2348,7 +2356,7 @@ class _DeadlockDialog extends StatelessWidget {
 
             // Inspect Board
             _DialogButton(
-              label: 'Inspect Board',
+              label: context.l10n.inspectBoard,
               icon: LucideIcons.eye,
               gradient: AppColors.secondaryGradient,
               textColor: AppColors.textPrimary,
@@ -2363,8 +2371,8 @@ class _DeadlockDialog extends StatelessWidget {
                 onMenu();
               },
               child: Text(
-                'Back to Menu',
-                style: GoogleFonts.nunito(color: AppColors.textSecondary),
+                context.l10n.backToMenu,
+                style: AppFonts.style(color: AppColors.textSecondary),
               ),
             ),
           ],
@@ -2413,7 +2421,7 @@ class _DialogButton extends StatelessWidget {
               Icon(icon, color: iconColor, size: 20),
               const SizedBox(width: 8),
               Text(label,
-                  style: GoogleFonts.nunito(
+                  style: AppFonts.style(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: textColor)),
@@ -2453,8 +2461,8 @@ class _GameSettingsDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Settings',
-              style: GoogleFonts.nunito(
+              context.l10n.settings,
+              style: AppFonts.style(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
                 color: AppColors.textPrimary,
@@ -2465,7 +2473,7 @@ class _GameSettingsDialog extends StatelessWidget {
             // Sound Toggle
             _DialogSettingsTile(
               icon: LucideIcons.volume2,
-              label: 'Sound Effects',
+              label: context.l10n.soundEffects,
               value: progress.soundEnabled,
               onChanged: (val) => progress.setSoundEnabled(val),
             ),
@@ -2473,7 +2481,7 @@ class _GameSettingsDialog extends StatelessWidget {
             // Music Toggle
             _DialogSettingsTile(
               icon: LucideIcons.music,
-              label: 'Background Music',
+              label: context.l10n.backgroundMusic,
               value: progress.musicEnabled,
               onChanged: (val) => progress.setMusicEnabled(val),
             ),
@@ -2481,7 +2489,7 @@ class _GameSettingsDialog extends StatelessWidget {
             // Vibration Toggle
             _DialogSettingsTile(
               icon: LucideIcons.vibrate,
-              label: 'Vibration',
+              label: context.l10n.vibration,
               value: progress.vibrationEnabled,
               onChanged: (val) => progress.setVibrationEnabled(val),
             ),
@@ -2492,7 +2500,7 @@ class _GameSettingsDialog extends StatelessWidget {
 
             // Restart Button
             _DialogButton(
-              label: 'Restart Level',
+              label: context.l10n.restartLevel,
               icon: LucideIcons.rotateCcw,
               gradient: AppColors.primaryGradient,
               onTap: onRestart,
@@ -2506,8 +2514,8 @@ class _GameSettingsDialog extends StatelessWidget {
                 Navigator.pop(context);
               },
               child: Text(
-                'Resume Game',
-                style: GoogleFonts.nunito(
+                context.l10n.resumeGame,
+                style: AppFonts.style(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
@@ -2544,7 +2552,7 @@ class _DialogSettingsTile extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             label,
-            style: GoogleFonts.nunito(
+            style: AppFonts.style(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
@@ -2566,41 +2574,6 @@ class _DialogSettingsTile extends StatelessWidget {
 }
 
 // ── Themed level loading screens ─────────────────────────────────────────────
-
-// Loading message banks per level type
-const _bossLoadingMessages = [
-  'Cooking devil sauce…',
-  'Summoning the beast…',
-  'Sharpening the claws…',
-  'Brewing chaos in a cauldron…',
-  'Waking the dungeon keeper…',
-  'Forging traps from darkness…',
-  'Stirring the dark arts…',
-  'Luring the monster out…',
-  'Preparing your punishment…',
-  'Cranking up the difficulty…',
-];
-
-const _godLoadingMessages = [
-  'Consulting the ancient scrolls…',
-  'Aligning the stars…',
-  'Channelling cosmic energy…',
-  'Weaving reality into knots…',
-  'Asking the oracle for a riddle…',
-  'Distilling the essence of madness…',
-  'Folding space and time…',
-  'Summoning the elder puzzle gods…',
-  'Rewriting the laws of physics…',
-  'Manifesting pure enlightenment…',
-];
-
-const _normalLoadingMessages = [
-  'Generating puzzle…',
-  'Placing arrows…',
-  'Shuffling the grid…',
-  'Building your challenge…',
-  'Crafting the layout…',
-];
 
 /// Typewriter widget — types out one character at a time, then pauses,
 /// then cycles to the next message in the list.
@@ -2679,7 +2652,7 @@ class _TypewriterMessagesState extends State<_TypewriterMessages> {
       children: [
         Text(
           display,
-          style: GoogleFonts.nunito(
+          style: AppFonts.style(
             fontSize: widget.fontSize,
             fontWeight: FontWeight.w700,
             color: widget.color,
@@ -2875,8 +2848,8 @@ class _LevelLoadingScreenState extends State<_LevelLoadingScreen>
               ),
               const SizedBox(height: 28),
               Text(
-                'Level ${widget.levelNumber}',
-                style: GoogleFonts.nunito(
+                context.l10n.levelNumber(widget.levelNumber),
+                style: AppFonts.style(
                   fontSize: 28,
                   fontWeight: FontWeight.w900,
                   color: AppColors.textPrimary,
@@ -2885,7 +2858,7 @@ class _LevelLoadingScreenState extends State<_LevelLoadingScreen>
               ),
               const SizedBox(height: 16),
               _TypewriterMessages(
-                messages: _normalLoadingMessages,
+                messages: context.l10n.normalLoadingMessages,
                 color: AppColors.textSecondary,
               ),
               const SizedBox(height: 32),
@@ -2972,8 +2945,8 @@ class _BossLoadingScreenState extends State<_BossLoadingScreen>
                     const Icon(LucideIcons.swords, color: _bossGlow, size: 16),
                     const SizedBox(width: 8),
                     Text(
-                      'Boss',
-                      style: GoogleFonts.nunito(
+                      context.l10n.levelTypeBoss,
+                      style: AppFonts.style(
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
                         color: _bossGlow,
@@ -2991,8 +2964,8 @@ class _BossLoadingScreenState extends State<_BossLoadingScreen>
               AnimatedBuilder(
                 animation: _flame,
                 builder: (_, __) => Text(
-                  'Level ${widget.levelNumber}',
-                  style: GoogleFonts.nunito(
+                  context.l10n.levelNumber(widget.levelNumber),
+                  style: AppFonts.style(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
                     color: Color.lerp(_bossRed, _bossGlow, _flame.value),
@@ -3010,7 +2983,7 @@ class _BossLoadingScreenState extends State<_BossLoadingScreen>
 
               // Typewriter evil messages
               _TypewriterMessages(
-                messages: _bossLoadingMessages,
+                messages: context.l10n.bossLoadingMessages,
                 color: _bossGlow.withValues(alpha: 0.85),
                 fontSize: 15,
               ),
@@ -3118,8 +3091,8 @@ class _GodLoadingScreenState extends State<_GodLoadingScreen>
                     const Icon(LucideIcons.sparkles, color: _godGold, size: 16),
                     const SizedBox(width: 8),
                     Text(
-                      'God Mode',
-                      style: GoogleFonts.nunito(
+                      context.l10n.godMode,
+                      style: AppFonts.style(
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
                         color: _godGold,
@@ -3137,8 +3110,8 @@ class _GodLoadingScreenState extends State<_GodLoadingScreen>
               AnimatedBuilder(
                 animation: _glow,
                 builder: (_, __) => Text(
-                  'Level ${widget.levelNumber}',
-                  style: GoogleFonts.nunito(
+                  context.l10n.levelNumber(widget.levelNumber),
+                  style: AppFonts.style(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
                     color: Color.lerp(_godPurple, _godGlow, _glow.value),
@@ -3156,7 +3129,7 @@ class _GodLoadingScreenState extends State<_GodLoadingScreen>
 
               // Typewriter cosmic messages
               _TypewriterMessages(
-                messages: _godLoadingMessages,
+                messages: context.l10n.godLoadingMessages,
                 color: _godGlow.withValues(alpha: 0.85),
                 fontSize: 15,
               ),

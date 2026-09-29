@@ -1,0 +1,336 @@
+{
+  "@@locale": "en",
+  "appTitle": "Arrow Escape",
+  "splashTagline": "Slide. Clear. Conquer.",
+  "splashLoadingAssets": "Loading assets…",
+  "splashGeneratingLevels": "Generating levels…",
+  "splashAlmostReady": "Almost ready…",
+  "levelNumber": "Level {number}",
+  "@levelNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "mainMenu": "Main Menu",
+  "backToMenu": "Back to Menu",
+  "restartLevel": "Restart Level",
+  "settings": "Settings",
+  "soundEffects": "Sound Effects",
+  "backgroundMusic": "Background Music",
+  "hapticFeedback": "Haptic Feedback",
+  "vibration": "Vibration",
+  "themeMode": "Theme Mode",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "language": "Language",
+  "languageSystem": "System",
+  "languageEnglish": "English",
+  "languageArabic": "العربية",
+  "shapePreview": "Shape preview",
+  "privacyPolicy": "Privacy Policy",
+  "rateApp": "Rate the App",
+  "outOfLives": "Out of Lives!",
+  "outOfTime": "Out of Time!",
+  "getOneMoreLife": "Get 1 More Life & Continue",
+  "watchAdForLife": "Watch an ad to get 1 more life",
+  "watchAdForLifeContinue": "Watch an ad to get 1 more life and continue",
+  "watchAdForTime": "Watch an ad to get +{seconds} seconds and continue",
+  "@watchAdForTime": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "getMoreTime": "Get +{seconds} Seconds & Continue",
+  "@getMoreTime": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "adNotCompletedRestartLevel": "Ad not completed. Try watching again or restart level.",
+  "adNotCompletedRestart": "Ad not completed. Try watching again or restart.",
+  "startOverWithLives": "Start over with {count} lives",
+  "@startOverWithLives": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "loadingAd": "Loading Ad...",
+  "refillHearts": "Refill Hearts · {cost} coins",
+  "@refillHearts": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
+  "needCoins": "Need {cost} coins (you have {coins})",
+  "@needCoins": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      },
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "difficultyTutorial": "Tutorial",
+  "difficultyEasy": "Easy",
+  "difficultyMedium": "Medium",
+  "difficultyHard": "Hard",
+  "difficultyExpert": "Expert",
+  "difficultyMaster": "Master",
+  "difficultyLegend": "Legend",
+  "difficultySuperHard": "Super Hard",
+  "levelLocked": "Level {level} is locked!",
+  "@levelLocked": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "playNow": "Play Now",
+  "loading": "Loading…",
+  "levelWithDifficulty": "Level {level} • {difficulty}",
+  "@levelWithDifficulty": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      },
+      "difficulty": {
+        "type": "String"
+      }
+    }
+  },
+  "selectLevel": "Select Level",
+  "navAlbum": "Album",
+  "navDaily": "Daily",
+  "navShop": "Shop",
+  "navWheel": "Wheel",
+  "navAwards": "Awards",
+  "shapeAlbum": "Shape Album",
+  "shapesUncovered": "{count} uncovered",
+  "@shapesUncovered": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "categoryShapes": "Shapes",
+  "categoryAnimals": "Animals",
+  "categoryNature": "Nature",
+  "categoryFood": "Food",
+  "categoryObjects": "Objects",
+  "categoryMusic": "Music",
+  "categoryCharacters": "Characters",
+  "dailyChallenge": "Daily Challenge",
+  "dayStreak": "{days}-day streak",
+  "@dayStreak": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "dailyClaimed": "Today’s reward is already claimed",
+  "dailyGoal": "Clear level {level} for +{reward} coins",
+  "@dailyGoal": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      },
+      "reward": {
+        "type": "int"
+      }
+    }
+  },
+  "comeBackTomorrow": "Come back tomorrow",
+  "playTodaysLevel": "Play today’s level",
+  "dailyRewardsInfo": "Rewards climb with your streak, up to day 30.",
+  "shop": "Shop",
+  "shopPowerUps": "Power-ups",
+  "ownedExtra": "Owned {count} extra",
+  "@ownedExtra": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "buy": "Buy",
+  "shopHearts": "Hearts",
+  "heart": "Heart",
+  "heartsFull": "Hearts are full",
+  "arrowSkins": "Arrow skins",
+  "boardThemes": "Board themes",
+  "equipped": "Equipped",
+  "unlockedByProgress": "Unlocked by progress",
+  "orReachLevel": "Or reach level {level}",
+  "@orReachLevel": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "equippedShort": "On",
+  "equip": "Equip",
+  "notEnoughCoins": "Not enough coins",
+  "powerUpHint": "Hint",
+  "powerUpEraser": "Eraser",
+  "powerUpWand": "Magic wand",
+  "powerUpRuler": "Ruler",
+  "skinClassicName": "Classic arrows",
+  "skinClassicBlurb": "The original ink",
+  "skinNeonName": "Neon arrows",
+  "skinNeonBlurb": "Glow-stick colors",
+  "skinWoodName": "Wood arrows",
+  "skinWoodBlurb": "Carved timber",
+  "skinCandyName": "Candy arrows",
+  "skinCandyBlurb": "Sugar-bright",
+  "skinSpaceName": "Space arrows",
+  "skinSpaceBlurb": "Deep-orbit glow",
+  "themeClassicName": "Classic board",
+  "themeClassicBlurb": "Quiet paper",
+  "themeNeonName": "Neon board",
+  "themeNeonBlurb": "Night-market grid",
+  "themeWoodName": "Wood board",
+  "themeWoodBlurb": "Warm tabletop",
+  "themeCandyName": "Candy board",
+  "themeCandyBlurb": "Pastel sugar",
+  "themeSpaceName": "Space board",
+  "themeSpaceBlurb": "Starfield",
+  "luckyWheel": "Lucky Wheel",
+  "freeSpinToday": "One free spin today",
+  "spunToday": "Spun for today",
+  "youWon": "You won {prize}",
+  "@youWon": {
+    "placeholders": {
+      "prize": {
+        "type": "String"
+      }
+    }
+  },
+  "spin": "Spin",
+  "coinsAmount": "{count} coins",
+  "@coinsAmount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "achievements": "Achievements",
+  "achFirstClearTitle": "First Escape",
+  "achFirstClearDesc": "Clear a level",
+  "achHintless50Title": "No Hints Needed",
+  "achHintless50Desc": "Clear 50 levels without a hint",
+  "achPerfect10Title": "Flawless",
+  "achPerfect10Desc": "Earn 3 stars on 10 levels",
+  "achBossTitle": "Boss Breaker",
+  "achBossDesc": "Clear a boss level",
+  "achGodTitle": "Godslayer",
+  "achGodDesc": "Clear a god level",
+  "achCollectorTitle": "Curator",
+  "achCollectorDesc": "Uncover 10 shapes",
+  "achStreak7Title": "Week of Arrows",
+  "achStreak7Desc": "Keep a 7-day streak",
+  "achCoins500Title": "Coin Purse",
+  "achCoins500Desc": "Earn 500 coins",
+  "levelTypeTutorial": "Tutorial",
+  "levelTypeBoss": "Boss",
+  "levelTypeGod": "God",
+  "godMode": "God Mode",
+  "bossLevel": "BOSS LEVEL",
+  "godLevel": "GOD LEVEL",
+  "bossTagline": "A bigger silhouette awaits",
+  "godTagline": "One mistake echoes",
+  "daysLabel": "days",
+  "comboPerfect": "Perfect!",
+  "tapAnArrow": "Tap an arrow",
+  "powerUpsAdded": "+{count} added",
+  "@powerUpsAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noHintsLeft": "No hints left",
+  "noHintAvailable": "No hint available",
+  "noErasersLeft": "No erasers left",
+  "tapArrowToErase": "Tap an arrow to erase it",
+  "noWandsLeft": "No magic wands left",
+  "noWandMove": "No clear move for wand",
+  "noRulersLeft": "No rulers left",
+  "deadlockOptions": "Deadlock Options",
+  "tutorialHowToPlayTitle": "How to Play",
+  "tutorialHowToPlayBody": "Arrows slide in the direction they point. Tap an arrow to make it escape the grid! Arrows cannot pass through other arrows, so plan their escape order carefully.",
+  "tutorialPairedTitle": "Color Paired Arrows",
+  "tutorialPairedBody": "Arrows with matching colors are paired together! Tap on either arrow in the pair, and both will slide out together simultaneously. Make sure both exit paths are clear!",
+  "tutorialDeflectorTitle": "Deflector Dots",
+  "tutorialDeflectorBody": "Gold deflector dots change the direction of exiting arrows! Trace the exit path through the deflector dots to make sure the arrow escapes successfully.",
+  "zoomHint": "Pinch to zoom in or out to see small arrows easily!",
+  "massiveGridTitle": "Massive Grid Alert!",
+  "massiveGridBody": "You are about to play a massive 40×40 level! On grids of this size, deadlocks (where all remaining arrows are blocked) are very common.\n\nBe extremely careful about your tap order. If you get stuck, look out for the Deadlock dialog to restart!",
+  "gotIt": "Got It!",
+  "tutorialStep": "TUTORIAL STEP {step}",
+  "@tutorialStep": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "startTutorial": "Start Tutorial",
+  "pairBadge": "PAIR",
+  "levelComplete": "Level Complete!",
+  "dailyBonus": "Daily +{amount}",
+  "@dailyBonus": {
+    "placeholders": {
+      "amount": {
+        "type": "int"
+      }
+    }
+  },
+  "chestReward": "Chest +{coins} coins · {powerUp}",
+  "@chestReward": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      },
+      "powerUp": {
+        "type": "String"
+      }
+    }
+  },
+  "finishedGameTitle": "You Finished the Game!",
+  "finishedGameBody": "Congratulations! You've solved all {total} challenges. Stay tuned for more levels coming soon!",
+  "@finishedGameBody": {
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "nextLevel": "Next Level",
+  "doubleCoins": "Double Coins",
+  "deadlockTitle": "Deadlock Reached!",
+  "deadlockBody": "All remaining arrows are blocked. This can happen if they are cleared in the wrong sequence.\n\n💡 Hint: Try to trace the paths and see which arrows must escape first to clear the way for others!",
+  "inspectBoard": "Inspect Board",
+  "resumeGame": "Resume Game",
+  "loadingMessagesNormal": "Generating puzzle…|Placing arrows…|Shuffling the grid…|Building your challenge…|Crafting the layout…",
+  "loadingMessagesBoss": "Cooking devil sauce…|Summoning the beast…|Sharpening the claws…|Brewing chaos in a cauldron…|Waking the dungeon keeper…|Forging traps from darkness…|Stirring the dark arts…|Luring the monster out…|Preparing your punishment…|Cranking up the difficulty…",
+  "loadingMessagesGod": "Consulting the ancient scrolls…|Aligning the stars…|Channelling cosmic energy…|Weaving reality into knots…|Asking the oracle for a riddle…|Distilling the essence of madness…|Folding space and time…|Summoning the elder puzzle gods…|Rewriting the laws of physics…|Manifesting pure enlightenment…"
+}

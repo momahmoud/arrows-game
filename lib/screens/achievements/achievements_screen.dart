@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/audio_manager.dart';
 import '../../data/meta_rules.dart';
 import '../../data/repositories/progress_repository.dart';
+import '../../l10n/l10n.dart';
 
 class AchievementsScreen extends StatelessWidget {
   const AchievementsScreen({super.key});
@@ -31,8 +32,8 @@ class AchievementsScreen extends StatelessWidget {
                         color: AppColors.textPrimary),
                   ),
                   Text(
-                    'Achievements',
-                    style: GoogleFonts.nunito(
+                    context.l10n.achievements,
+                    style: AppFonts.style(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textPrimary,
@@ -70,15 +71,15 @@ class AchievementsScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  item.title,
-                                  style: GoogleFonts.nunito(
+                                  context.l10n.achievementTitle(item),
+                                  style: AppFonts.style(
                                     fontWeight: FontWeight.w900,
                                     color: AppColors.textPrimary,
                                   ),
                                 ),
                                 Text(
-                                  item.description,
-                                  style: GoogleFonts.nunito(
+                                  context.l10n.achievementDescription(item),
+                                  style: AppFonts.style(
                                     fontSize: 13,
                                     color: AppColors.textMuted,
                                   ),

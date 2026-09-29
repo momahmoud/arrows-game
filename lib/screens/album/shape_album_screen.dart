@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
@@ -7,6 +7,7 @@ import '../../core/audio_manager.dart';
 import '../../data/models/level.dart';
 import '../../data/repositories/progress_repository.dart';
 import '../../data/shape_catalog.dart';
+import '../../l10n/l10n.dart';
 
 class ShapeAlbumScreen extends StatelessWidget {
   const ShapeAlbumScreen({super.key});
@@ -22,8 +23,8 @@ class ShapeAlbumScreen extends StatelessWidget {
           child: Column(
             children: [
               _Header(
-                title: 'Shape Album',
-                subtitle: '${progress.unlockedShapeCount} uncovered',
+                title: context.l10n.shapeAlbum,
+                subtitle: context.l10n.shapesUncovered(progress.unlockedShapeCount),
               ),
               Expanded(
                 child: ListView(
@@ -34,8 +35,8 @@ class ShapeAlbumScreen extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(top: 12, bottom: 8),
                           child: Text(
-                            category.label,
-                            style: GoogleFonts.nunito(
+                            context.l10n.shapeCategory(category),
+                            style: AppFonts.style(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
                               color: AppColors.textPrimary,
@@ -79,7 +80,7 @@ class _ShapeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = ShapeCatalog.displayName(shape);
+    final name = context.l10n.shapeName(shape);
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -103,7 +104,7 @@ class _ShapeTile extends StatelessWidget {
             maxLines: 2,
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.nunito(
+            style: AppFonts.style(
               fontSize: 12,
               fontWeight: FontWeight.w800,
               color: owned ? AppColors.textPrimary : AppColors.textMuted,
@@ -140,7 +141,7 @@ class _Header extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.nunito(
+                  style: AppFonts.style(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
@@ -149,7 +150,7 @@ class _Header extends StatelessWidget {
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: GoogleFonts.nunito(
+                    style: AppFonts.style(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textMuted,

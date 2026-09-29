@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/app_colors.dart';
@@ -16,6 +16,7 @@ import '../../core/audio_manager.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_update/in_app_update.dart';
+import '../../l10n/l10n.dart';
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -126,10 +127,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 
   String _getDifficultyLabel(int levelNum) {
     final type = AppConstants.levelTypeFor(levelNum);
-    if (type == LevelType.god) return 'Super Hard';
-    if (type == LevelType.boss) return 'Hard';
+    if (type == LevelType.god) return context.l10n.difficultySuperHard;
+    if (type == LevelType.boss) return context.l10n.difficultyHard;
     final difficulty = Difficulty.forLevel(levelNum);
-    return difficulty.label;
+    return context.l10n.difficulty(difficulty);
   }
 
   @override
@@ -150,185 +151,188 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             SafeArea(
               child: Column(
                 children: [
-              // ── Top Bar ───────────────────────────────────────────────────
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Coins counter (replaced water drops with coins icon)
-                    Row(
+                  // ── Top Bar ───────────────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(
-                          LucideIcons.coins,
-                          color: Color(0xFFF1C40F), // Premium gold coin color
-                          size: 22,
+                        // Coins counter (replaced water drops with coins icon)
+                        Row(
+                          children: [
+                            const Icon(
+                              LucideIcons.coins,
+                              color:
+                                  Color(0xFFF1C40F), // Premium gold coin color
+                              size: 22,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${progress.coins}',
+                              style: AppFonts.style(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 6),
+
+                        Row(
+                          children: [
+                            // Level Select grid icon
+                            GestureDetector(
+                              onTap: () {
+                                AudioManager.instance.playClick();
+                                Navigator.pushNamed(context, '/levels');
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceLight,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  LucideIcons.layoutGrid,
+                                  color: AppColors.textPrimary,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+
+                            // Settings icon
+                            GestureDetector(
+                              onTap: () {
+                                AudioManager.instance.playClick();
+                                Navigator.pushNamed(context, '/settings');
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceLight,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.settings_outlined,
+                                  color: AppColors.textPrimary,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const Spacer(flex: 2),
+
+                  // ── Center Title "ARROW ESCAPE" (Long-press to toggle Demo Mode) ──
+                  GestureDetector(
+                    onLongPress: kReleaseMode
+                        ? null
+                        : () {
+                            HapticFeedback.heavyImpact();
+                            progress.toggleDemoMode();
+                            ScaffoldMessenger.of(context).clearSnackBars();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  progress.isDemoMode
+                                      ? '🚀 DEMO MODE ACTIVATED: Unlimited Lives, Unlimited Time & All Levels Unlocked!'
+                                      : 'DEMO MODE DEACTIVATED',
+                                  style: AppFonts.style(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                backgroundColor: progress.isDemoMode
+                                    ? const Color(0xFFE67E22)
+                                    : Colors.grey[800],
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          },
+                    child: Column(
+                      children: [
                         Text(
-                          '${progress.coins}',
-                          style: GoogleFonts.nunito(
-                            fontSize: 18,
+                          AppConstants.appName,
+                          style: AppFonts.style(
+                            fontSize: 40,
                             fontWeight: FontWeight.w900,
                             color: AppColors.textPrimary,
+                            letterSpacing: 2,
+                            shadows: [
+                              Shadow(
+                                color: AppColors.accentGold
+                                    .withValues(alpha: 0.15),
+                                offset: const Offset(0, 2),
+                                blurRadius: 4,
+                              ),
+                            ],
                           ),
                         ),
+                        if (progress.isDemoMode)
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE67E22),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'DEMO MODE ACTIVE',
+                              style: AppFonts.style(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
+                  ).animate().scale(
+                      begin: const Offset(0.9, 0.9),
+                      end: const Offset(1.0, 1.0),
+                      duration: 500.ms,
+                      curve: Curves.elasticOut),
 
-                    Row(
-                      children: [
-                        // Level Select grid icon
-                        GestureDetector(
-                          onTap: () {
-                            AudioManager.instance.playClick();
-                            Navigator.pushNamed(context, '/levels');
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceLight,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              LucideIcons.layoutGrid,
-                              color: AppColors.textPrimary,
-                              size: 22,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
+                  const Spacer(flex: 2),
 
-                        // Settings icon
-                        GestureDetector(
-                          onTap: () {
-                            AudioManager.instance.playClick();
-                            Navigator.pushNamed(context, '/settings');
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceLight,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.settings_outlined,
-                              color: AppColors.textPrimary,
-                              size: 22,
-                            ),
-                          ),
-                        ),
-                      ],
+                  // ── Level Slider / Timeline ───────────────────────────────────
+                  _buildLevelTimeline(progress),
+
+                  const SizedBox(height: 16),
+                  const MetaShortcuts(),
+                  const SizedBox(height: 20),
+
+                  // ── Big Play Button ───────────────────────────────────────────
+                  _buildBigPlayButton(context, progress),
+
+                  const Spacer(flex: 3),
+
+                  // ── Banner Ad ──────────────────────────────────────────────────
+                  Container(
+                    alignment: Alignment.center,
+                    width: double.infinity,
+                    height: 50,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: const UnifiedBannerAd(
+                      admobUnitId: AppConstants.admobBannerUnitId,
+                      unityPlacementId: AppConstants.unityBannerAdId,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-
-              const Spacer(flex: 2),
-
-              // ── Center Title "ARROW ESCAPE" (Long-press to toggle Demo Mode) ──
-              GestureDetector(
-                onLongPress: () {
-                  HapticFeedback.heavyImpact();
-                  progress.toggleDemoMode();
-                  ScaffoldMessenger.of(context).clearSnackBars();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        progress.isDemoMode
-                            ? '🚀 DEMO MODE ACTIVATED: Unlimited Lives, Unlimited Time & All Levels Unlocked!'
-                            : 'DEMO MODE DEACTIVATED',
-                        style: GoogleFonts.nunito(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      backgroundColor: progress.isDemoMode
-                          ? const Color(0xFFE67E22)
-                          : Colors.grey[800],
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                },
-                child: Column(
-                  children: [
-                    Text(
-                      AppConstants.appName,
-                      style: GoogleFonts.nunito(
-                        fontSize: 40,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
-                        letterSpacing: 2,
-                        shadows: [
-                          Shadow(
-                            color: AppColors.accentGold.withValues(alpha: 0.15),
-                            offset: const Offset(0, 2),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (progress.isDemoMode)
-                      Container(
-                        margin: const EdgeInsets.only(top: 4),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE67E22),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'DEMO MODE ACTIVE',
-                          style: GoogleFonts.nunito(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ).animate().scale(
-                  begin: const Offset(0.9, 0.9),
-                  end: const Offset(1.0, 1.0),
-                  duration: 500.ms,
-                  curve: Curves.elasticOut),
-
-
-              const Spacer(flex: 2),
-
-              // ── Level Slider / Timeline ───────────────────────────────────
-              _buildLevelTimeline(progress),
-
-              const SizedBox(height: 16),
-              const MetaShortcuts(),
-              const SizedBox(height: 20),
-
-              // ── Big Play Button ───────────────────────────────────────────
-              _buildBigPlayButton(context, progress),
-
-              const Spacer(flex: 3),
-
-              // ── Banner Ad ──────────────────────────────────────────────────
-              Container(
-                alignment: Alignment.center,
-                width: double.infinity,
-                height: 50,
-                margin: const EdgeInsets.only(bottom: 8),
-                child: const UnifiedBannerAd(
-                  admobUnitId: AppConstants.admobBannerUnitId,
-                  unityPlacementId: AppConstants.unityBannerAdId,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
-    ),
-  ),
-);
+      ),
+    );
   }
 
   Widget _buildLevelTimeline(ProgressRepository progress) {
@@ -378,8 +382,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             final isDark = AppColors.isDark;
 
             if (!isUnlocked) {
-              bubbleColor = isDark ? const Color(0xFF2A3027) : const Color(0xFFD3CFC9); // Dark green-gray vs Grey
-              textColor = isDark ? const Color(0xFF5E6B56) : const Color(0xFF8B7365).withValues(alpha: 0.5);
+              bubbleColor = isDark
+                  ? const Color(0xFF2A3027)
+                  : const Color(0xFFD3CFC9); // Dark green-gray vs Grey
+              textColor = isDark
+                  ? const Color(0xFF5E6B56)
+                  : const Color(0xFF8B7365).withValues(alpha: 0.5);
             } else if (type == LevelType.god) {
               bubbleColor = const Color(0xFFB33939); // Red for God levels
               textColor = Colors.white;
@@ -387,12 +395,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
               bubbleColor = const Color(0xFF8E44AD); // Purple for Boss levels
               textColor = Colors.white;
             } else {
-              bubbleColor = isCurrent 
-                  ? (isDark ? const Color(0xFFD48A55) : const Color(0xFFC08255)) 
-                  : (isDark ? const Color(0xFF3D473A) : const Color(0xFFE6DCC8));
-              textColor = isCurrent 
-                  ? Colors.white 
-                  : (isDark ? const Color(0xFFECF0EB) : const Color(0xFF8B7365));
+              bubbleColor = isCurrent
+                  ? (isDark ? const Color(0xFFD48A55) : const Color(0xFFC08255))
+                  : (isDark
+                      ? const Color(0xFF3D473A)
+                      : const Color(0xFFE6DCC8));
+              textColor = isCurrent
+                  ? Colors.white
+                  : (isDark
+                      ? const Color(0xFFECF0EB)
+                      : const Color(0xFF8B7365));
             }
 
             return Container(
@@ -409,7 +421,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                           height: 4,
                           color: lvl == 1
                               ? Colors.transparent
-                              : (isDark ? const Color(0xFF2A3027) : const Color(0xFFE5DEC9)),
+                              : (isDark
+                                  ? const Color(0xFF2A3027)
+                                  : const Color(0xFFE5DEC9)),
                         ),
                       ),
                       SizedBox(width: size),
@@ -418,7 +432,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                           height: 4,
                           color: lvl == totalLevels
                               ? Colors.transparent
-                              : (isDark ? const Color(0xFF2A3027) : const Color(0xFFE5DEC9)),
+                              : (isDark
+                                  ? const Color(0xFF2A3027)
+                                  : const Color(0xFFE5DEC9)),
                         ),
                       ),
                     ],
@@ -442,8 +458,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Level $lvl is locked!',
-                              style: GoogleFonts.nunito(
+                              context.l10n.levelLocked(lvl),
+                              style: AppFonts.style(
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
                               ),
@@ -486,11 +502,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                             fit: BoxFit.scaleDown,
                             child: Text(
                               '$lvl',
-                              style: GoogleFonts.nunito(
+                              style: AppFonts.style(
                                 fontSize: isCurrent
                                     ? (lvl >= 100 ? 14 : 18)
                                     : (lvl >= 100 ? 11 : 14),
-                                fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w700,
+                                fontWeight: isCurrent
+                                    ? FontWeight.w900
+                                    : FontWeight.w700,
                                 color: textColor,
                               ),
                             ),
@@ -542,9 +560,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       }
     }
 
-    final Color darkerColor = Color.lerp(baseColor, Colors.black, 0.25) ?? baseColor;
-    final Color color1 = _isNavigating ? Color.lerp(baseColor, Colors.black, 0.45)! : baseColor;
-    final Color color2 = _isNavigating ? Color.lerp(darkerColor, Colors.black, 0.45)! : darkerColor;
+    final Color darkerColor =
+        Color.lerp(baseColor, Colors.black, 0.25) ?? baseColor;
+    final Color color1 =
+        _isNavigating ? Color.lerp(baseColor, Colors.black, 0.45)! : baseColor;
+    final Color color2 = _isNavigating
+        ? Color.lerp(darkerColor, Colors.black, 0.45)!
+        : darkerColor;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -606,8 +628,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _isNavigating ? 'Loading…' : 'Play Now',
-                    style: GoogleFonts.nunito(
+                    _isNavigating ? context.l10n.loading : context.l10n.playNow,
+                    style: AppFonts.style(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
@@ -615,8 +637,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                     ),
                   ),
                   Text(
-                    'Level ${progress.currentLevel} • $diffLabel',
-                    style: GoogleFonts.nunito(
+                    context.l10n
+                        .levelWithDifficulty(progress.currentLevel, diffLabel),
+                    style: AppFonts.style(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: Colors.white.withValues(alpha: 0.85),
@@ -627,13 +650,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             ],
           ),
         ),
-      ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-       .scale(
-         begin: const Offset(1.0, 1.0),
-         end: const Offset(1.02, 1.02),
-         duration: 1.2.seconds,
-         curve: Curves.easeInOut,
-       ),
+      ).animate(onPlay: (controller) => controller.repeat(reverse: true)).scale(
+            begin: const Offset(1.0, 1.0),
+            end: const Offset(1.02, 1.02),
+            duration: 1.2.seconds,
+            curve: Curves.easeInOut,
+          ),
     );
   }
 }

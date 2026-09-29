@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../core/app_fonts.dart';
+import '../l10n/l10n.dart';
 
 /// Bouncing pointer shown on the first tutorial levels until the player moves.
 class TutorialHand extends StatelessWidget {
@@ -18,8 +19,8 @@ class TutorialHand extends StatelessWidget {
               .scaleXY(begin: 1, end: 0.92, duration: 650.ms),
           const SizedBox(height: 2),
           Text(
-            'Tap an arrow',
-            style: GoogleFonts.nunito(
+            context.l10n.tapAnArrow,
+            style: AppFonts.style(
               fontSize: 14,
               fontWeight: FontWeight.w800,
               color: const Color(0xFF3C4636),

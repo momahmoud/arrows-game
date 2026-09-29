@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/audio_manager.dart';
 import '../../data/meta_rules.dart';
 import '../../data/repositories/progress_repository.dart';
+import '../../l10n/l10n.dart';
 
 class DailyChallengeScreen extends StatelessWidget {
   const DailyChallengeScreen({super.key});
@@ -40,8 +41,8 @@ class DailyChallengeScreen extends StatelessWidget {
                         color: AppColors.textPrimary),
                   ),
                   Text(
-                    'Daily Challenge',
-                    style: GoogleFonts.nunito(
+                    context.l10n.dailyChallenge,
+                    style: AppFonts.style(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textPrimary,
@@ -51,8 +52,8 @@ class DailyChallengeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '${progress.streakDays}-day streak',
-                style: GoogleFonts.nunito(
+                context.l10n.dayStreak(progress.streakDays),
+                style: AppFonts.style(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
@@ -60,9 +61,9 @@ class DailyChallengeScreen extends StatelessWidget {
               ),
               Text(
                 done
-                    ? 'Today’s reward is already claimed'
-                    : 'Clear level $level for +$reward coins',
-                style: GoogleFonts.nunito(color: AppColors.textMuted),
+                    ? context.l10n.dailyClaimed
+                    : context.l10n.dailyGoal(level, reward),
+                style: AppFonts.style(color: AppColors.textMuted),
               ),
               const SizedBox(height: 16),
               _Calendar(
@@ -85,12 +86,12 @@ class DailyChallengeScreen extends StatelessWidget {
                           arguments: {'level': level, 'daily': true},
                         );
                       },
-                child: Text(done ? 'Come back tomorrow' : 'Play today’s level'),
+                child: Text(done ? context.l10n.comeBackTomorrow : context.l10n.playTodaysLevel),
               ),
               const SizedBox(height: 8),
               Text(
-                'Rewards climb with your streak, up to day 30.',
-                style: GoogleFonts.nunito(fontSize: 12, color: AppColors.textMuted),
+                context.l10n.dailyRewardsInfo,
+                style: AppFonts.style(fontSize: 12, color: AppColors.textMuted),
               ),
             ],
           ),
@@ -145,7 +146,7 @@ class _Calendar extends StatelessWidget {
           ),
           child: Text(
             '$day',
-            style: GoogleFonts.nunito(
+            style: AppFonts.style(
               fontWeight: FontWeight.w800,
               color: marked ? Colors.white : AppColors.textPrimary,
             ),

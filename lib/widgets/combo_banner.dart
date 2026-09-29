@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../core/app_fonts.dart';
 
 import '../core/constants.dart';
+import '../l10n/l10n.dart';
 
 /// Praise banner that pops over the board as the exit streak grows.
 class ComboBanner extends StatelessWidget {
@@ -10,9 +11,9 @@ class ComboBanner extends StatelessWidget {
 
   const ComboBanner({super.key, required this.combo});
 
-  static (String, Color)? _tierFor(int combo) {
+  static (String, Color)? _tierFor(int combo, String perfect) {
     if (!AppConstants.isComboMilestone(combo)) return null;
-    if (combo >= 15) return ('Perfect!', const Color(0xFFE040FB));
+    if (combo >= 15) return (perfect, const Color(0xFFE040FB));
     if (combo >= 10) return ('x$combo', const Color(0xFFFF6D00));
     if (combo >= 6) return ('x$combo', const Color(0xFF00C853));
     return ('x$combo', const Color(0xFF2979FF));
@@ -20,13 +21,13 @@ class ComboBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tier = _tierFor(combo);
+    final tier = _tierFor(combo, context.l10n.comboPerfect);
     if (tier == null) return const SizedBox.shrink();
     final (label, color) = tier;
 
     return Text(
       label,
-      style: GoogleFonts.nunito(
+      style: AppFonts.style(
         fontSize: combo >= 8 ? 34 : 40,
         fontWeight: FontWeight.w900,
         color: color,

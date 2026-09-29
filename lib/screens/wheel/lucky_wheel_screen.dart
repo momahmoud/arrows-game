@@ -1,13 +1,14 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/audio_manager.dart';
 import '../../data/meta_rules.dart';
 import '../../data/repositories/progress_repository.dart';
+import '../../l10n/l10n.dart';
 
 class LuckyWheelScreen extends StatefulWidget {
   const LuckyWheelScreen({super.key});
@@ -20,7 +21,7 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _spin;
   Animation<double>? _turn;
-  String? _result;
+  WheelSlice? _result;
   bool _busy = false;
 
   @override
@@ -58,7 +59,7 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
     if (!mounted) return;
     setState(() {
       _busy = false;
-      _result = slice.label;
+      _result = slice;
     });
     AudioManager.instance.playClick();
   }
@@ -84,16 +85,16 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
                 ),
               ),
               Text(
-                'Lucky Wheel',
-                style: GoogleFonts.nunito(
+                context.l10n.luckyWheel,
+                style: AppFonts.style(
                   fontSize: 26,
                   fontWeight: FontWeight.w900,
                   color: AppColors.textPrimary,
                 ),
               ),
               Text(
-                progress.canSpinWheel ? 'One free spin today' : 'Spun for today',
-                style: GoogleFonts.nunito(color: AppColors.textMuted),
+                progress.canSpinWheel ? context.l10n.freeSpinToday : context.l10n.spunToday,
+                style: AppFonts.style(color: AppColors.textMuted),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -115,7 +116,12 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
                         },
                         child: CustomPaint(
                           size: const Size.square(260),
-                          painter: _WheelPainter(),
+                          painter: _WheelPainter(
+                            labels: [
+                              for (final s in MetaRules.wheel)
+                                context.l10n.wheelSliceLabel(s),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -125,8 +131,8 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
               const SizedBox(height: 18),
               if (_result != null)
                 Text(
-                  'You won $_result',
-                  style: GoogleFonts.nunito(
+                  context.l10n.youWon(context.l10n.wheelPrize(_result!)),
+                  style: AppFonts.style(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
@@ -137,7 +143,7 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
                 padding: const EdgeInsets.all(20),
                 child: FilledButton(
                   onPressed: progress.canSpinWheel && !_busy ? _spinWheel : null,
-                  child: const Text('Spin'),
+                  child: Text(context.l10n.spin),
                 ),
               ),
             ],
@@ -149,6 +155,10 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
 }
 
 class _WheelPainter extends CustomPainter {
+  final List<String> labels;
+
+  _WheelPainter({required this.labels});
+
   static const _colors = [
     Color(0xFF5E6B56),
     Color(0xFF8E44AD),
@@ -172,8 +182,8 @@ class _WheelPainter extends CustomPainter {
       final angle = (i + 0.5) * sweep;
       final tp = TextPainter(
         text: TextSpan(
-          text: MetaRules.wheel[i].label,
-          style: GoogleFonts.nunito(
+          text: labels[i],
+          style: AppFonts.style(
             color: Colors.white,
             fontSize: 12,
             fontWeight: FontWeight.w900,
@@ -192,5 +202,6 @@ class _WheelPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _WheelPainter oldDelegate) =>
+      oldDelegate.labels.join() != labels.join();
 }

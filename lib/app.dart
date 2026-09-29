@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'core/app_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'core/app_colors.dart';
 import 'data/repositories/progress_repository.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/main_menu/main_menu_screen.dart';
 import 'screens/level_select/level_select_screen.dart';
@@ -38,27 +39,36 @@ class ArrowPuzzleApp extends StatelessWidget {
     ));
 
     return MaterialApp(
-      title: 'Arrow Escape',
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
+      locale: progress.locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      builder: (context, child) {
+        AppFonts.isArabic = Localizations.localeOf(context).languageCode == 'ar';
+        return child!;
+      },
       themeMode: themeMode,
       theme: ThemeData(
         useMaterial3: true,
+        fontFamily: AppFonts.family,
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           brightness: Brightness.light,
         ),
-        textTheme: GoogleFonts.nunitoTextTheme(
+        textTheme: AppFonts.textTheme(
           ThemeData.light().textTheme,
         ),
         scaffoldBackgroundColor: AppColors.background,
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
+        fontFamily: AppFonts.family,
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           brightness: Brightness.dark,
         ),
-        textTheme: GoogleFonts.nunitoTextTheme(
+        textTheme: AppFonts.textTheme(
           ThemeData.dark().textTheme,
         ),
         scaffoldBackgroundColor: AppColors.background,

@@ -10,6 +10,7 @@ import '../../core/constants.dart';
 import '../../core/app_colors.dart';
 import '../../data/models/arrow.dart';
 import '../../data/models/level.dart';
+import '../arrow_puzzle_game.dart';
 import '../game_state.dart';
 import 'grid_component.dart';
 
@@ -487,7 +488,9 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     if (AppConstants.isComboMilestone(_exitCombo)) {
       grid.spawnFloatingText(
         at,
-        _exitCombo >= 15 ? 'Perfect!' : 'x$_exitCombo',
+        _exitCombo >= 15
+            ? ((findGame() as ArrowPuzzleGame?)?.comboPerfectLabel ?? 'Perfect!')
+            : 'x$_exitCombo',
         const Color(0xFFFFC107),
       );
     }
