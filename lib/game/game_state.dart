@@ -320,7 +320,7 @@ class GameState extends ChangeNotifier {
       int index, ArrowModel arrow, String arrowId, Set<String> blockerIds) {
     _arrows[index] = arrow.copyWith(state: ArrowState.blocked);
     _registerBlock(blockerIds);
-    _lives--;
+    _lives = (_lives - 1).clamp(0, AppConstants.maxLives);
     _livesLost++;
     onLifeLost();
 
@@ -355,7 +355,7 @@ class GameState extends ChangeNotifier {
       }
     }
     _registerBlock(blockerIds);
-    _lives--;
+    _lives = (_lives - 1).clamp(0, AppConstants.maxLives);
     _livesLost++;
     onLifeLost();
 

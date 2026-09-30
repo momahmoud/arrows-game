@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../models/level.dart';
 import '../../core/board_style.dart';
 import '../../core/constants.dart';
+import '../../core/economy_config.dart';
 import '../../core/audio_manager.dart';
 import '../../game/game_state.dart';
 import '../meta_rules.dart';
@@ -55,6 +56,11 @@ class ProgressRepository extends ChangeNotifier {
   BoardTheme _boardTheme = BoardTheme.classic;
   String? _lastWheelDay;
   String? _lastDailyClaim;
+  String? _lastLoginClaim;
+  int _loginCycleDay = 0;
+  DateTime? _lastRewardedCoinAt;
+  bool _adsRemoved = false;
+  final Set<String> _storeTransactions = {};
   int _lifetimeCoins = 0;
 
   // ── Getters ──────────────────────────────────────────────────────────────────
@@ -87,6 +93,23 @@ class ProgressRepository extends ChangeNotifier {
   Set<String> get playedDays => Set.unmodifiable(_playedDays);
   bool get canSpinWheel => _lastWheelDay != _dayKey(DateTime.now());
   bool get dailyClaimedToday => _lastDailyClaim == _dayKey(DateTime.now());
+  bool get adsRemoved => _adsRemoved;
+  bool get canAffordHeartRefill =>
+      !livesAreFull && canAfford(EconomyConfig.heartRefillCost);
+
+  /// Next login gift, 1–7, if it has not been claimed today.
+  int? get pendingLoginDay {
+    final today = _dayKey(DateTime.now());
+    if (_lastLoginClaim == today) return null;
+    return _nextLoginDay();
+  }
+
+  bool get canClaimRewardedCoins {
+    final at = _lastRewardedCoinAt;
+    if (at == null) return true;
+    return DateTime.now().difference(at) >= EconomyConfig.rewardedAdCooldown;
+  }
+
   int bonusPowerUp(PowerUpType type) => _bonusPowerUps[type] ?? 0;
   bool hasShape(MaskShape shape) => _shapes.contains(shape.name);
 
@@ -124,11 +147,12 @@ class ProgressRepository extends ChangeNotifier {
   void _load() {
     if (_prefs == null) return;
     try {
-      _lives = _prefs!.getInt('lives') ?? AppConstants.maxLives;
+      _lives = (_prefs!.getInt('lives') ?? AppConstants.maxLives)
+          .clamp(0, AppConstants.maxLives);
       _currentLevel = _prefs!.getInt('currentLevel') ?? 1;
       _highestUnlockedLevel = _prefs!.getInt('highestUnlockedLevel') ?? 1;
       _totalScore = _prefs!.getInt('totalScore') ?? 0;
-      _coins = _prefs!.getInt('coins') ?? 0;
+      _coins = (_prefs!.getInt('coins') ?? 0).clamp(0, 1 << 30);
       _streakDays = _prefs!.getInt('streakDays') ?? 0;
 
       _soundEnabled = _prefs!.getBool('soundEnabled') ?? true;
@@ -157,6 +181,14 @@ class ProgressRepository extends ChangeNotifier {
       if (_lifetimeCoins < _coins) _lifetimeCoins = _coins;
       _lastWheelDay = _prefs!.getString('lastWheelDay');
       _lastDailyClaim = _prefs!.getString('lastDailyClaim');
+      _lastLoginClaim = _prefs!.getString('lastLoginClaim');
+      _loginCycleDay = _prefs!.getInt('loginCycleDay') ?? 0;
+      _adsRemoved = _prefs!.getBool('adsRemoved') ?? false;
+      final rewardedAt = _prefs!.getString('lastRewardedCoinAt');
+      if (rewardedAt != null) {
+        _lastRewardedCoinAt = DateTime.tryParse(rewardedAt);
+      }
+      _storeTransactions.addAll(_stringSet('storeTransactions'));
       _arrowSkin =
           _enumByName(ArrowSkin.values, _prefs!.getString('arrowSkin'));
       _boardTheme =
@@ -229,6 +261,15 @@ class ProgressRepository extends ChangeNotifier {
           _prefs!.setString('lastWheelDay', _lastWheelDay!),
         if (_lastDailyClaim != null)
           _prefs!.setString('lastDailyClaim', _lastDailyClaim!),
+        if (_lastLoginClaim != null)
+          _prefs!.setString('lastLoginClaim', _lastLoginClaim!),
+        _prefs!.setInt('loginCycleDay', _loginCycleDay),
+        _prefs!.setBool('adsRemoved', _adsRemoved),
+        _prefs!.setString(
+            'storeTransactions', jsonEncode(_storeTransactions.toList())),
+        if (_lastRewardedCoinAt != null)
+          _prefs!.setString(
+              'lastRewardedCoinAt', _lastRewardedCoinAt!.toIso8601String()),
         if (_lastPlayedDate != null)
           _prefs!
               .setString('lastPlayedDate', _lastPlayedDate!.toIso8601String()),
@@ -320,19 +361,34 @@ class ProgressRepository extends ChangeNotifier {
 
   // ── Level Progress ────────────────────────────────────────────────────────────
 
-  Future<void> recordLevelComplete(LevelResult result) async {
+  /// Records the clear. Coins are paid once: the daily reward on a daily
+  /// run, otherwise the first-clear reward. A replay updates stars only.
+  Future<int> recordLevelComplete(
+    LevelResult result, {
+    required LevelType levelType,
+    required bool perfect,
+    required bool daily,
+  }) async {
+    final firstClear = !_levelResults.containsKey(result.levelNumber);
     final existing = _levelResults[result.levelNumber];
     if (existing == null || result.stars > existing.stars) {
       _levelResults[result.levelNumber] = result;
     }
+    var granted = 0;
+    if (daily) {
+      granted = claimDailyChallenge(perfect: perfect);
+    } else if (firstClear) {
+      granted = EconomyConfig.levelCoins(type: levelType, perfect: perfect);
+      _grantCoins(granted);
+    }
     _totalScore += result.score;
-    _grantCoins(result.score);
     _currentLevel = result.levelNumber + 1;
     if (_currentLevel > _highestUnlockedLevel) {
       _highestUnlockedLevel = _currentLevel;
     }
     await _save();
     notifyListeners();
+    return granted;
   }
 
   Future<void> setCurrentLevel(int level) async {
@@ -341,18 +397,32 @@ class ProgressRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool canAfford(int amount) => amount > 0 && _coins >= amount;
+
   Future<void> addCoins(int amount) async {
+    if (amount <= 0) return;
     _grantCoins(amount);
     await _save();
     notifyListeners();
   }
 
   bool spendCoins(int amount) {
-    if (_coins < amount) return false;
+    if (amount <= 0 || _coins < amount) return false;
     _coins -= amount;
     _save();
     notifyListeners();
     return true;
+  }
+
+  /// +25 after a completed rewarded ad. Returns 0 when the cooldown is open
+  /// or the callback is a duplicate inside that window.
+  int claimRewardedCoins() {
+    if (!canClaimRewardedCoins) return 0;
+    _lastRewardedCoinAt = DateTime.now();
+    _grantCoins(EconomyConfig.rewardedAdCoins);
+    _save();
+    notifyListeners();
+    return EconomyConfig.rewardedAdCoins;
   }
 
   // ── Settings Setters ─────────────────────────────────────────────────────────
@@ -489,14 +559,24 @@ class ProgressRepository extends ChangeNotifier {
     return true;
   }
 
-  bool buyHeart() {
+  /// Pays for a full heart bar. Refuses when the saved hearts are already full.
+  bool refillHearts() {
     if (livesAreFull) return false;
-    if (!spendCoins(MetaRules.heartCost)) return false;
-    _lives = (_lives + 1).clamp(0, AppConstants.maxLives);
+    return payHeartRefill();
+  }
+
+  /// Charges the refill price and sets saved hearts to 3.
+  /// Used from a failed attempt, where the board hearts are empty even if
+  /// the saved counter is already full.
+  bool payHeartRefill() {
+    if (!spendCoins(EconomyConfig.heartRefillCost)) return false;
+    _lives = AppConstants.maxLives;
     _save();
     notifyListeners();
     return true;
   }
+
+  bool buyHeart() => refillHearts();
 
   ChestReward? claimChest(int level) {
     if (!MetaRules.isChestLevel(level) || !_claimedChests.add(level)) {
@@ -510,16 +590,72 @@ class ProgressRepository extends ChangeNotifier {
     return reward;
   }
 
-  int claimDailyChallenge() {
+  int claimDailyChallenge({bool perfect = false}) {
     final today = _dayKey(DateTime.now());
     if (_lastDailyClaim == today) return 0;
     _lastDailyClaim = today;
-    final reward =
-        MetaRules.dailyCoinReward(_streakDays == 0 ? 1 : _streakDays);
+    final reward = EconomyConfig.dailyChallengeCoins(perfect: perfect);
     _grantCoins(reward);
     _save();
     notifyListeners();
     return reward;
+  }
+
+  int _nextLoginDay() {
+    final today = _dayKey(DateTime.now());
+    if (_lastLoginClaim == null) return 1;
+    final last = DateTime.tryParse(_lastLoginClaim!);
+    if (last == null) return 1;
+    final lastDay = DateTime(last.year, last.month, last.day);
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
+    final gap = todayDate.difference(lastDay).inDays;
+    if (_lastLoginClaim == today || gap <= 0) return _loginCycleDay;
+    if (gap == 1) {
+      return _loginCycleDay >= EconomyConfig.loginRewards.length
+          ? 1
+          : _loginCycleDay + 1;
+    }
+    return 1;
+  }
+
+  /// Once per local calendar day. Missing a day starts the cycle again.
+  int claimLoginReward() {
+    if (_lastLoginClaim == _dayKey(DateTime.now())) return 0;
+    final day = _nextLoginDay();
+    final reward = EconomyConfig.loginCoins(day);
+    _loginCycleDay = day;
+    _lastLoginClaim = _dayKey(DateTime.now());
+    _grantCoins(reward);
+    _save();
+    notifyListeners();
+    return reward;
+  }
+
+  /// Grants a store purchase once per [transactionId]. Returns coins added.
+  /// An empty or unknown purchase adds nothing. Cancelled purchases never
+  /// reach this method.
+  int grantStorePurchase({
+    required String productId,
+    required String transactionId,
+  }) {
+    if (transactionId.isEmpty) return 0;
+    if (!_storeTransactions.add(transactionId)) return 0;
+    if (EconomyConfig.isRemoveAds(productId)) {
+      _adsRemoved = true;
+      _save();
+      notifyListeners();
+      return 0;
+    }
+    final coins = EconomyConfig.storeCoins(productId);
+    if (coins == null || coins <= 0) {
+      _storeTransactions.remove(transactionId);
+      return 0;
+    }
+    _grantCoins(coins);
+    _save();
+    notifyListeners();
+    return coins;
   }
 
   WheelSlice? spinWheel(int index) {

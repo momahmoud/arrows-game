@@ -12,6 +12,7 @@ import '../../data/models/arrow.dart';
 import '../../data/models/level.dart';
 import '../arrow_puzzle_game.dart';
 import '../game_state.dart';
+import 'arrow_visual_config.dart';
 import 'grid_component.dart';
 
 /// Renders a multi-cell arrow that winds through the grid.
@@ -62,7 +63,6 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
   double _eraseProgress = 0.0;
 
   // ── Juice ───────────────────────────────────────────────────────────────────────
-  static const double _kPressedScale = 0.92;
   double _pressScale = 1.0;
   bool _exitBurstDone = false;
   int _exitCombo = 0;
@@ -87,6 +87,22 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
   double? _cachedHeadDist;
   double? _cachedTailDist;
   Path? _cachedBodyPath;
+
+  final Paint _bodyPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..isAntiAlias = true;
+  final Paint _headFillPaint = Paint()..isAntiAlias = true;
+  final Paint _headEdgePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..isAntiAlias = true;
+  final Paint _glowPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
 
   void _invalidateCache() {
     _cachedPathPx = null;
@@ -125,7 +141,10 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
   @override
   bool containsLocalPoint(Vector2 point) {
     if (_isExiting || _isErasing) return false;
-    final margin = cellSize * 0.25;
+    // Cells are packed tighter than the arrow is thick, so the tap target
+    // stays the size it had before the spacing change.
+    final margin = cellSize *
+        ((1.5 / AppConstants.boardCellSpacing - 1) / 2);
     for (final pt in arrowModel.path) {
       final cellLeft = pt[1] * cellSize - margin;
       final cellRight = (pt[1] + 1) * cellSize + margin;
@@ -429,8 +448,11 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     }
 
     final pressTarget =
-        (_isTouchDown && !_isAnimating && !_isExiting) ? _kPressedScale : 1.0;
-    _pressScale += (pressTarget - _pressScale) * (dt * 18).clamp(0.0, 1.0);
+        (_isTouchDown && !_isAnimating && !_isExiting)
+            ? ArrowVisualConfig.pressedScale
+            : 1.0;
+    _pressScale += (pressTarget - _pressScale) *
+        (dt * ArrowVisualConfig.pressResponse).clamp(0.0, 1.0);
 
     if (_isErasing) {
       _eraseProgress += dt / _kEraseDuration;
@@ -666,11 +688,13 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     // ── 5. Resolve color and stroke width ─────────────────────────────────────────────
     final baseColor = _color();
     final mainColor = _isExiting
-        ? Color.lerp(baseColor, Colors.white, 0.10 + 0.22 * _activateFlash)!
+        ? Color.lerp(
+            baseColor,
+            Colors.white,
+            ArrowVisualConfig.exitLighten +
+                ArrowVisualConfig.exitFlashLighten * _activateFlash)!
         : baseColor;
-    // Same proportions as the board arrows in arrowsGame: stroke is 16% of
-    // the cell, and the head is a triangle 2.1 strokes long.
-    final sw = max(cellSize * 0.16, 2.0);
+    final sw = ArrowVisualConfig.shaftWidth(cellSize);
     final heading = _headingVector(pts, smooth: isAnimatingNow);
 
     canvas.save();
@@ -680,18 +704,20 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
       if (_pressScale < 0.999) canvas.scale(_pressScale);
       if (_isBlockedAnimating && _blockDuration > 0) {
         final damp = 1 - (_blockTime / _blockDuration).clamp(0.0, 1.0);
-        canvas.rotate(sin(_blockTime * 42) * 0.08 * damp);
+        canvas.rotate(sin(_blockTime * ArrowVisualConfig.blockShakeFrequency) *
+            ArrowVisualConfig.blockShakeAngle *
+            damp);
       }
       canvas.translate(-c.dx, -c.dy);
     }
 
     // ── 6. Draw body ──────────────────────────────────────────────────────
-    // The stroke stops short of the tip so it tucks into the triangle.
+    // The shaft stops inside the head so the two overlap without a seam.
     final Path bodyPath;
     if (isAnimatingNow) {
-      bodyPath = _shaftPath(pts, heading, sw);
+      bodyPath = _shaftPath(pts, heading);
     } else {
-      _cachedBodyPath ??= _shaftPath(pts, heading, sw);
+      _cachedBodyPath ??= _shaftPath(pts, heading);
       bodyPath = _cachedBodyPath!;
     }
 
@@ -699,26 +725,24 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
       final pulse = (sin(_blockerFlash) + 1) / 2;
       canvas.drawPath(
         bodyPath,
-        Paint()
+        _glowPaint
           ..color =
               const Color(0xFFFF1744).withValues(alpha: 0.25 + 0.35 * pulse)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = sw * 2.4
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
+          ..strokeWidth =
+              ArrowVisualConfig.unit(cellSize) *
+                  ArrowVisualConfig.blockerGlowWidthRatio
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0),
       );
     } else if (!isAnimatingNow && gameState.hintArrowId == arrowModel.id) {
       final pulse = (sin(_fxTime * 4.5) + 1) / 2;
       canvas.drawPath(
         bodyPath,
-        Paint()
+        _glowPaint
           ..color =
               const Color(0xFFFFC107).withValues(alpha: 0.18 + 0.22 * pulse)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = sw * 2.6
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
+          ..strokeWidth =
+              ArrowVisualConfig.unit(cellSize) *
+                  ArrowVisualConfig.hintGlowWidthRatio
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0),
       );
     }
@@ -733,16 +757,18 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
       );
     }
 
-    final bodyPaint = Paint()
-      ..color = mainColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = sw
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(bodyPath, bodyPaint);
+    canvas.drawPath(
+      bodyPath,
+      _bodyPaint
+        ..color = mainColor
+        ..strokeWidth = sw,
+    );
 
     // ── 7. Draw arrowhead at the head end (pts.first) ──────────────────────────────
-    _drawHead(canvas, pts, heading, mainColor, sw);
+    _drawHead(canvas, pts.first, heading, mainColor);
+    if (arrowModel.mechanic == SnakeMechanic.colorLock) {
+      _drawLockTail(canvas, pts.last, mainColor);
+    }
 
     canvas.restore();
 
@@ -800,21 +826,25 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
   }
 
   // ── Arrow shape ───────────────────────────────────────────────────────────
-  // Matches the board arrows in arrowsGame: a round stroke whose end sits
-  // inside a filled triangle. The triangle is stroked as well, which rounds
-  // its corners.
-
-  static const double _headLengthFactor = 2.1;
-  static const double _headHalfFactor = 0.66;
-  static const double _shaftInsetFactor = 0.7;
+  // A round-capped shaft with rounded bends whose end sits inside a filled
+  // triangle. The triangle is stroked as well, which rounds its corners.
+  // All sizes come from ArrowVisualConfig.
 
   Offset _headingVector(List<Offset> pts, {required bool smooth}) {
-    final prev = pts.length > 1 ? pts[1] : pts.first;
-    final dv = pts.first - prev;
-    final len = dv.distance;
-    final d = arrowModel.direction.delta;
-    var dx = len > 0.01 ? dv.dx / len : d[1].toDouble();
-    var dy = len > 0.01 ? dv.dy / len : d[0].toDouble();
+    // The first vertex far enough from the head gives the real direction;
+    // a vertex sitting on the head (mid-slide) would fall back to the
+    // model's direction, which is wrong after a deflector.
+    var dx = arrowModel.direction.delta[1].toDouble();
+    var dy = arrowModel.direction.delta[0].toDouble();
+    for (var i = 1; i < pts.length; i++) {
+      final dv = pts.first - pts[i];
+      final len = dv.distance;
+      if (len > 0.01) {
+        dx = dv.dx / len;
+        dy = dv.dy / len;
+        break;
+      }
+    }
 
     if (!smooth) {
       _headAngle = null;
@@ -835,73 +865,64 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     while (diff < -pi) {
       diff += 2 * pi;
     }
-    final k = 1 - exp(-_lastDt * 30);
+    final k = 1 - exp(-_lastDt * ArrowVisualConfig.headTurnRate);
     final next = current + diff * k;
     _headAngle = next;
     return Offset(cos(next), sin(next));
   }
 
-  Path _shaftPath(List<Offset> pts, Offset heading, double sw) {
-    final head = sw * _headLengthFactor;
-    final start = pts.first - heading * (head * _shaftInsetFactor);
-    final path = Path()..moveTo(start.dx, start.dy);
+  /// Shaft centre-line: the path trimmed along its own length by the head
+  /// inset (so it never backtracks past a bend next to the head), with every
+  /// turn replaced by a circular bend of the shared corner radius.
+  Path _shaftPath(List<Offset> pts, Offset heading) {
+    final inset = ArrowVisualConfig.headInset(cellSize);
     if (pts.length == 1) {
-      final tail = pts.first - heading * (head * 1.35);
-      path.lineTo(tail.dx, tail.dy);
-      return path;
+      final head = ArrowVisualConfig.headLength(cellSize);
+      final start = pts.first - heading * inset;
+      final tail = pts.first -
+          heading * (head * ArrowVisualConfig.singleCellTailFraction);
+      return Path()
+        ..moveTo(start.dx, start.dy)
+        ..lineTo(tail.dx, tail.dy);
     }
-    for (var i = 1; i < pts.length; i++) {
-      path.lineTo(pts[i].dx, pts[i].dy);
-    }
-    return path;
+    final shaft = ArrowVisualConfig.trimStart(pts, inset);
+    if (shaft.length < 2) return Path();
+    return ArrowVisualConfig.roundedPolyline(
+        shaft, ArrowVisualConfig.cornerRadius(cellSize));
   }
 
-  void _drawHead(
-    Canvas canvas,
-    List<Offset> pts,
-    Offset heading,
-    Color mainColor,
-    double sw,
-  ) {
-    final tip = pts.first;
-    final head = sw * _headLengthFactor;
-    final half = head * _headHalfFactor;
+  void _drawHead(Canvas canvas, Offset tip, Offset heading, Color color) {
+    final length = ArrowVisualConfig.headLength(cellSize);
+    final half = ArrowVisualConfig.headHalfWidth(cellSize);
     final across = Offset(-heading.dy, heading.dx);
-    final back = tip - heading * head;
+    final back = tip - heading * length;
     final triangle = Path()
       ..moveTo(tip.dx, tip.dy)
       ..lineTo(back.dx + across.dx * half, back.dy + across.dy * half)
       ..lineTo(back.dx - across.dx * half, back.dy - across.dy * half)
       ..close();
 
-    canvas.drawPath(triangle, Paint()..color = mainColor);
+    canvas.drawPath(triangle, _headFillPaint..color = color);
     canvas.drawPath(
       triangle,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = sw * 0.55
-        ..strokeJoin = StrokeJoin.round
-        ..strokeCap = StrokeCap.round
-        ..color = mainColor,
+      _headEdgePaint
+        ..color = color
+        ..strokeWidth = ArrowVisualConfig.headRounding(cellSize),
     );
+  }
 
-    if (arrowModel.mechanic == SnakeMechanic.colorLock && pts.isNotEmpty) {
-      final tailPx = pts.last;
-      canvas.drawCircle(
-        tailPx,
-        sw * 0.70,
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.fill,
-      );
-      canvas.drawCircle(
-        tailPx,
-        sw * 0.45,
-        Paint()
-          ..color = mainColor
-          ..style = PaintingStyle.fill,
-      );
-    }
+  void _drawLockTail(Canvas canvas, Offset tail, Color color) {
+    final unit = ArrowVisualConfig.unit(cellSize);
+    canvas.drawCircle(
+      tail,
+      unit * ArrowVisualConfig.lockRingOuterRatio,
+      _headFillPaint..color = Colors.white,
+    );
+    canvas.drawCircle(
+      tail,
+      unit * ArrowVisualConfig.lockRingInnerRatio,
+      _headFillPaint..color = color,
+    );
   }
 
   // ── Long-press preview path builder & renderer ──────────────────────────────
@@ -1014,7 +1035,7 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
 
   Color _color() {
     if (arrowModel.state == ArrowState.blocked || _isBlockedAnimating) {
-      return const Color(0xFFCC2200); // Vibrant red error color on block
+      return ArrowVisualConfig.blockedColor;
     }
     if (gameState.blockerIds.contains(arrowModel.id)) {
       final pulse = (sin(_blockerFlash) + 1) / 2;
@@ -1027,15 +1048,15 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     if (gameState.rulerHighlightIds.contains(arrowModel.id)) {
       return const Color(0xFF69F0AE);
     }
-    final paired = arrowModel.colorGroup != null;
-    final base = paired
-        ? AppColors.getGroupColor(arrowModel.colorGroup!)
-        : AppColors.arrowUp;
+    final group = arrowModel.colorGroup;
+    final base =
+        group != null ? AppColors.getGroupColor(group) : AppColors.arrowUp;
+    // Salted by group for pairs so both arrows of a group get the same tint.
     return BoardStyle.tintArrow(
       gameState.arrowSkin,
       base,
-      salt: arrowModel.id.hashCode,
-      paired: paired,
+      salt: group ?? arrowModel.id.hashCode,
+      paired: group != null,
     );
   }
 

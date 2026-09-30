@@ -247,7 +247,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get playTodaysLevel => 'العب مرحلة اليوم';
 
   @override
-  String get dailyRewardsInfo => 'تزداد المكافآت مع سلسلتك حتى اليوم 30.';
+  String get dailyRewardsInfo =>
+      'محاولة واحدة في اليوم. الإكمال المثالي يمنح أكثر.';
 
   @override
   String get shop => 'المتجر';
@@ -577,6 +578,19 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get doubleCoins => 'مضاعفة العملات';
+
+  @override
+  String watchAdCoins(int amount) {
+    return 'شاهد إعلانًا ← +$amount عملة';
+  }
+
+  @override
+  String loginReward(int day, int amount) {
+    return 'اليوم $day · +$amount';
+  }
+
+  @override
+  String get claim => 'استلم';
 
   @override
   String get deadlockTitle => 'وصلت إلى طريق مسدود!';

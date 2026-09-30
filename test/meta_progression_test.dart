@@ -1,4 +1,5 @@
 import 'package:arrow_escape/core/constants.dart';
+import 'package:arrow_escape/core/economy_config.dart';
 import 'package:arrow_escape/data/meta_rules.dart';
 import 'package:arrow_escape/data/models/level.dart';
 import 'package:arrow_escape/data/repositories/progress_repository.dart';
@@ -65,11 +66,9 @@ void main() {
       expect(MetaRules.dailyLevel(day), inInclusiveRange(12, 71));
     });
 
-    test('daily coins climb with the streak', () {
-      expect(
-        MetaRules.dailyCoinReward(7),
-        greaterThan(MetaRules.dailyCoinReward(1)),
-      );
+    test('daily coins are a flat clear reward', () {
+      expect(MetaRules.dailyCoinReward(1), EconomyConfig.dailyChallenge);
+      expect(MetaRules.dailyCoinReward(7), EconomyConfig.dailyChallenge);
     });
   });
 

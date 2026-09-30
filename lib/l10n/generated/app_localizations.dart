@@ -527,7 +527,7 @@ abstract class AppLocalizations {
   /// No description provided for @dailyRewardsInfo.
   ///
   /// In en, this message translates to:
-  /// **'Rewards climb with your streak, up to day 30.'**
+  /// **'One clear a day. A perfect clear pays more.'**
   String get dailyRewardsInfo;
 
   /// No description provided for @shop.
@@ -1141,6 +1141,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Double Coins'**
   String get doubleCoins;
+
+  /// No description provided for @watchAdCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch Ad → +{amount} Coins'**
+  String watchAdCoins(int amount);
+
+  /// No description provided for @loginReward.
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day} · +{amount}'**
+  String loginReward(int day, int amount);
+
+  /// No description provided for @claim.
+  ///
+  /// In en, this message translates to:
+  /// **'Claim'**
+  String get claim;
 
   /// No description provided for @deadlockTitle.
   ///

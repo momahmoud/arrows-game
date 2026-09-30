@@ -47,12 +47,16 @@ class CoinShopScreen extends StatelessWidget {
                     const Icon(LucideIcons.coins,
                         color: Color(0xFFE2B93C), size: 18),
                     const SizedBox(width: 4),
-                    Text(
-                      '${progress.coins}',
-                      style: AppFonts.style(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: Text(
+                        '${progress.coins}',
+                        key: ValueKey(progress.coins),
+                        style: AppFonts.style(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
                   ],
@@ -81,7 +85,7 @@ class CoinShopScreen extends StatelessWidget {
                       ),
                     _section(context.l10n.shopHearts),
                     _ShopRow(
-                      title: context.l10n.heart,
+                      title: context.l10n.refillHearts(MetaRules.heartCost),
                       detail: progress.livesAreFull
                           ? context.l10n.heartsFull
                           : '${progress.lives} / ${progress.maxLives}',

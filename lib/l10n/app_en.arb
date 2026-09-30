@@ -157,7 +157,7 @@
   },
   "comeBackTomorrow": "Come back tomorrow",
   "playTodaysLevel": "Play today’s level",
-  "dailyRewardsInfo": "Rewards climb with your streak, up to day 30.",
+  "dailyRewardsInfo": "One clear a day. A perfect clear pays more.",
   "shop": "Shop",
   "shopPowerUps": "Power-ups",
   "ownedExtra": "Owned {count} extra",
@@ -326,6 +326,26 @@
   },
   "nextLevel": "Next Level",
   "doubleCoins": "Double Coins",
+  "watchAdCoins": "Watch Ad → +{amount} Coins",
+  "@watchAdCoins": {
+    "placeholders": {
+      "amount": {
+        "type": "int"
+      }
+    }
+  },
+  "loginReward": "Day {day} · +{amount}",
+  "@loginReward": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "int"
+      }
+    }
+  },
+  "claim": "Claim",
   "deadlockTitle": "Deadlock Reached!",
   "deadlockBody": "All remaining arrows are blocked. This can happen if they are cleared in the wrong sequence.\n\n💡 Hint: Try to trace the paths and see which arrows must escape first to clear the way for others!",
   "inspectBoard": "Inspect Board",

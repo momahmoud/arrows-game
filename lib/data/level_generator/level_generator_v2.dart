@@ -520,6 +520,20 @@ class LevelGeneratorV2 {
       final int phase2TargetCells = (maskPacked.length * phase2MaxFill).round();
       final int maxAllowedBlocks  = 0;
 
+      // ── Sub-pass 2-pre: grow existing arrows into the leftover cells ──────
+      // Before flooding the gaps with 2-cell arrows, let the arrows already on
+      // the board absorb what is next to them. Same final fill rate, but the
+      // cells end up inside long winding arrows instead of stubs.
+      _extendTails(
+        arrows: arrows,
+        occupied: occupied,
+        occupiedPacked: occupiedPacked,
+        maskPacked: maskPacked,
+        targetCells: phase2TargetCells,
+        maxLen: _maxExtendedLen(gridSize),
+        rng: rng,
+      );
+
       // ── Sub-pass 2a: exit-constrained length-2 arrows ────────────────────
       {
         int failures = 0;
@@ -571,6 +585,18 @@ class LevelGeneratorV2 {
           }
         }
       }
+
+      // Grow again: the pairs just placed opened new tails next to the
+      // pockets that were unreachable a moment ago.
+      _extendTails(
+        arrows: arrows,
+        occupied: occupied,
+        occupiedPacked: occupiedPacked,
+        maskPacked: maskPacked,
+        targetCells: phase2TargetCells,
+        maxLen: _maxExtendedLen(gridSize),
+        rng: rng,
+      );
 
       // ── Sub-pass 2b: greedy adjacent-pair sweep (clean-exit only) ──────────
       {
@@ -1709,6 +1735,65 @@ class LevelGeneratorV2 {
       if (!hasExit) blocked += 100;
     }
     return blocked;
+  }
+
+  /// Upper bound for an arrow grown by [_extendTails]. Scales with the board
+  /// so big grids get the long winding arrows they have room for.
+  static int _maxExtendedLen(int gridSize) => (gridSize * 0.7).round().clamp(8, 22);
+
+  /// Appends neighbouring empty cells to arrow tails, round-robin, until the
+  /// board reaches [targetCells] or nothing else fits.
+  ///
+  /// A cell is only appended when it touches no part of its own arrow except
+  /// the tail, which keeps paths self-avoiding and free of the closed loops
+  /// and squares the verifier rejects. Heads, directions and every existing
+  /// cell stay where they are, so this only ever lengthens an arrow's body.
+  static void _extendTails({
+    required List<ArrowModel> arrows,
+    required Set<String> occupied,
+    required Set<int> occupiedPacked,
+    required Set<int> maskPacked,
+    required int targetCells,
+    required int maxLen,
+    required Random rng,
+  }) {
+    if (arrows.isEmpty) return;
+    final order = List<int>.generate(arrows.length, (i) => i)..shuffle(rng);
+
+    bool madeProgress = true;
+    while (madeProgress && occupiedPacked.length < targetCells) {
+      madeProgress = false;
+      for (final i in order) {
+        if (occupiedPacked.length >= targetCells) break;
+        final arrow = arrows[i];
+        if (arrow.path.length >= maxLen) continue;
+
+        final tail = arrow.path.last;
+        final offsets = [[-1, 0], [1, 0], [0, -1], [0, 1]]..shuffle(rng);
+        for (final nb in offsets) {
+          final r = tail[0] + nb[0], c = tail[1] + nb[1];
+          final packed = r * 1000 + c;
+          if (!maskPacked.contains(packed)) continue;
+          if (occupiedPacked.contains(packed)) continue;
+          if (_touchesOwnPath(arrow.path, r, c)) continue;
+
+          arrows[i] = arrow.copyWith(path: [...arrow.path, [r, c]]);
+          occupied.add('$r,$c');
+          occupiedPacked.add(packed);
+          madeProgress = true;
+          break;
+        }
+      }
+    }
+  }
+
+  /// True when (row, col) is grid-adjacent to any cell of [path] other than
+  /// its last one — the condition that would turn the path into a loop.
+  static bool _touchesOwnPath(List<List<int>> path, int row, int col) {
+    for (int i = 0; i < path.length - 1; i++) {
+      if ((path[i][0] - row).abs() + (path[i][1] - col).abs() == 1) return true;
+    }
+    return false;
   }
 
   static void _absorbOrphans(List<ArrowModel> arrows, Set<String> occupied,

@@ -1,4 +1,5 @@
 import 'package:arrow_escape/core/constants.dart';
+import 'package:arrow_escape/core/economy_config.dart';
 import 'package:arrow_escape/data/models/arrow.dart';
 import 'package:arrow_escape/data/models/level.dart';
 import 'package:arrow_escape/data/repositories/progress_repository.dart';
@@ -149,15 +150,15 @@ void main() {
 
     test('spendCoins deducts when affordable', () async {
       final repo = ProgressRepository(await SharedPreferences.getInstance());
-      expect(repo.spendCoins(AppConstants.heartRefillCoinCost), isTrue);
-      expect(repo.coins, 250 - AppConstants.heartRefillCoinCost);
+      expect(repo.spendCoins(EconomyConfig.heartRefillCost), isTrue);
+      expect(repo.coins, 250 - EconomyConfig.heartRefillCost);
     });
 
     test('spendCoins refuses when balance is too low', () async {
       final repo = ProgressRepository(await SharedPreferences.getInstance());
-      repo.spendCoins(AppConstants.heartRefillCoinCost);
+      repo.spendCoins(EconomyConfig.heartRefillCost);
       final before = repo.coins;
-      expect(repo.spendCoins(AppConstants.heartRefillCoinCost), isFalse);
+      expect(repo.spendCoins(EconomyConfig.heartRefillCost), isFalse);
       expect(repo.coins, before);
     });
   });

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/app_colors.dart';
 import '../../core/constants.dart';
+import '../../core/economy_config.dart';
 import '../../data/repositories/progress_repository.dart';
 import '../../data/repositories/level_repository.dart';
 import '../../data/models/level.dart';
@@ -168,12 +169,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                               size: 22,
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              '${progress.coins}',
-                              style: AppFonts.style(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.textPrimary,
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 220),
+                              child: Text(
+                                '${progress.coins}',
+                                key: ValueKey(progress.coins),
+                                style: AppFonts.style(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             ),
                           ],
@@ -226,6 +231,18 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                       ],
                     ),
                   ),
+
+                  if (progress.pendingLoginDay != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                      child: _LoginClaim(
+                        day: progress.pendingLoginDay!,
+                        onClaim: () {
+                          AudioManager.instance.playClick();
+                          progress.claimLoginReward();
+                        },
+                      ),
+                    ),
 
                   const Spacer(flex: 2),
 
@@ -656,6 +673,52 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             duration: 1.2.seconds,
             curve: Curves.easeInOut,
           ),
+    );
+  }
+}
+
+class _LoginClaim extends StatelessWidget {
+  final int day;
+  final VoidCallback onClaim;
+
+  const _LoginClaim({required this.day, required this.onClaim});
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = EconomyConfig.loginCoins(day);
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onClaim,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              const Icon(LucideIcons.coins,
+                  color: Color(0xFFE2B93C), size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  context.l10n.loginReward(day, amount),
+                  style: AppFonts.style(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                context.l10n.claim,
+                style: AppFonts.style(
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.accentGold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

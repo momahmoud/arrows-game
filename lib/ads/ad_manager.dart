@@ -334,19 +334,17 @@ class AdManager {
     );
   }
 
-  /// Shows a rewarded ad with a robust multi-tier fallback mechanism:
-  /// 1. Pre-loaded AdMob Rewarded Ad
-  /// 2. Fast On-Demand AdMob Rewarded Ad load
-  /// 3. Pre-loaded AdMob Interstitial Ad (backup ad for reward)
-  /// 4. Fast On-Demand AdMob Interstitial Ad load
-  /// 5. Unity Rewarded / Interstitial Ads (if enabled)
-  /// 6. Direct reward fallback if ad network inventory is unavailable
+  /// Shows a rewarded ad. The reward callback runs once, and only after the
+  /// provider reports the video completed. A missing or skipped ad grants nothing.
   Future<void> showRewarded({
     required void Function() onRewarded,
     void Function()? onDismissed,
     void Function()? onAdOpened,
   }) async {
+    var granted = false;
     void handleSuccess() {
+      if (granted) return;
+      granted = true;
       onRewarded();
     }
 
@@ -450,7 +448,6 @@ class AdManager {
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
           _loadAdmobInterstitial();
-          handleSuccess(); // Grant reward since user watched fallback ad!
           handleFinish();
         },
         onAdFailedToShowFullScreenContent: (ad, error) async {
@@ -479,7 +476,6 @@ class AdManager {
           onAdDismissedFullScreenContent: (ad) {
             ad.dispose();
             _loadAdmobInterstitial();
-            handleSuccess();
             handleFinish();
           },
           onAdFailedToShowFullScreenContent: (ad, error) async {
@@ -523,10 +519,7 @@ class AdManager {
       return;
     }
 
-    // Final Fallback: Network/Ad Inventory failed — grant reward so 2x button always works for user!
-    debugPrint('AdMob & Unity ads unavailable. Granting reward fallback.');
-    onAdOpened?.call();
-    handleSuccess();
+    debugPrint('Rewarded ad unavailable. No reward granted.');
     handleFinish();
   }
 

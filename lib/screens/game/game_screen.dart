@@ -11,6 +11,7 @@ import 'package:confetti/confetti.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/constants.dart';
+import '../../core/economy_config.dart';
 import '../../data/models/arrow.dart';
 import '../../data/models/level.dart';
 import '../../data/repositories/progress_repository.dart';
@@ -45,6 +46,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   GameState? _gameState;
   late ConfettiController _confettiController;
   bool _showingGameOver = false;
+  bool _continueAdUsed = false;
   bool _showingComplete = false;
   bool _showingDeadlock = false;
   bool _inspectingDeadlock = false;
@@ -144,6 +146,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     _lives = AppConstants.maxLives;
     _lastStateSignature = null;
     _showingGameOver = false;
+    _continueAdUsed = false;
     _showingDeadlock = false;
     _inspectingDeadlock = false;
     _transformationController.value = Matrix4.identity();
@@ -343,7 +346,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
   }
 
-  void _onLevelComplete() {
+  Future<void> _onLevelComplete() async {
     if (!mounted || _showingComplete) return;
     _levelTimer?.cancel();
     setState(() => _showingComplete = true);
@@ -352,7 +355,6 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
 
     final progress = context.read<ProgressRepository>();
-    final adManager = context.read<AdManager>();
     final gs = _gameState!;
     final stars = ProgressRepository.calculateStars(
       livesLost: gs.livesLost,
@@ -361,19 +363,25 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final score =
         AppConstants.baseScore + (_lives * AppConstants.bonusPerRemainingLife);
     ChestReward? chest;
-    var dailyBonus = 0;
+    var coinsEarned = 0;
 
     if (!_shapePreviewMode) {
       final firstClear = !progress.isLevelCompleted(_level.levelNumber);
-      progress.recordLevelComplete(LevelResult(
-        levelNumber: _level.levelNumber,
-        stars: stars,
-        score: score,
-        movesUsed: gs.movesUsed,
-        livesLost: gs.livesLost,
-        completed: true,
-        completedAt: DateTime.now(),
-      ));
+      final levelType = AppConstants.levelTypeFor(_level.levelNumber);
+      coinsEarned = await progress.recordLevelComplete(
+        LevelResult(
+          levelNumber: _level.levelNumber,
+          stars: stars,
+          score: score,
+          movesUsed: gs.movesUsed,
+          livesLost: gs.livesLost,
+          completed: true,
+          completedAt: DateTime.now(),
+        ),
+        levelType: levelType,
+        perfect: stars == 3,
+        daily: _dailyChallenge,
+      );
       progress.unlockShape(_level.maskShape);
       if (firstClear && gs.hintsUsed == 0) {
         progress.noteHintFreeClear(_level.levelNumber);
@@ -381,7 +389,6 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       if (firstClear && stars == 3) {
         progress.notePerfectClear(_level.levelNumber);
       }
-      final levelType = AppConstants.levelTypeFor(_level.levelNumber);
       if (firstClear && levelType == LevelType.boss) {
         progress.noteBossClear(_level.levelNumber);
       }
@@ -389,8 +396,6 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
         progress.noteGodClear(_level.levelNumber);
       }
       chest = progress.claimChest(_level.levelNumber);
-      if (_dailyChallenge) dailyBonus = progress.claimDailyChallenge();
-      adManager.onLevelComplete(_level.levelNumber, levelType.isSpecial);
     }
 
     AudioManager.instance.playLevelComplete();
@@ -406,7 +411,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             }
           });
         }
-        _showLevelCompleteDialog(stars, score, chest, dailyBonus);
+        _showLevelCompleteDialog(stars, coinsEarned, chest);
       }
     });
   }
@@ -471,7 +476,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final progressVal =
         totalArrows > 0 ? (clearedArrows / totalArrows).clamp(0.0, 1.0) : 0.0;
 
-    if (progressVal >= 0.8) {
+    if (progressVal >= 0.8 && _canShowBreakAd()) {
       final adManager = context.read<AdManager>();
       await adManager.showInterstitial();
     }
@@ -479,6 +484,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (mounted) {
       setState(() {
         _showingGameOver = false;
+        _continueAdUsed = false;
         _showingComplete = false;
         _showingDeadlock = false;
         _inspectingDeadlock = false;
@@ -506,8 +512,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
   }
 
-  void _handleNextLevel() {
+  void _handleNextLevel() => _leaveLevel(afterRewarded: false);
+
+  void _leaveLevel({required bool afterRewarded}) {
     Navigator.pop(context);
+    if (!afterRewarded) _showBreakInterstitial();
     if (_shapePreviewMode) {
       Navigator.pop(context);
       return;
@@ -521,20 +530,43 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   void _handleMenu() {
     Navigator.pop(context);
+    _showBreakInterstitial();
     Navigator.pushReplacementNamed(context, '/menu');
   }
 
+  /// Level-break ads only. Never on a tutorial, a daily run, or after ads
+  /// have been removed.
+  bool _canShowBreakAd() {
+    if (_shapePreviewMode || _dailyChallenge) return false;
+    if (context.read<ProgressRepository>().adsRemoved) return false;
+    return AppConstants.levelTypeFor(_level.levelNumber) != LevelType.tutorial;
+  }
+
+  void _showBreakInterstitial() {
+    if (!_canShowBreakAd()) return;
+    final levelType = AppConstants.levelTypeFor(_level.levelNumber);
+    context.read<AdManager>().onLevelComplete(
+          _level.levelNumber,
+          levelType.isSpecial,
+        );
+  }
+
   void _handleDoubleCoins() {
+    final progress = context.read<ProgressRepository>();
+    if (!progress.canClaimRewardedCoins) {
+      _handleNextLevel();
+      return;
+    }
     final adManager = context.read<AdManager>();
     Navigator.pop(context);
-    bool rewarded = false;
+    var rewarded = false;
     adManager.showRewardedWithLoader(
       context,
       onRewarded: () {
+        if (rewarded) return;
         rewarded = true;
-        context.read<ProgressRepository>().addCoins(AppConstants.baseScore +
-            (_lives * AppConstants.bonusPerRemainingLife));
-        _handleNextLevel();
+        progress.claimRewardedCoins();
+        _leaveLevel(afterRewarded: true);
       },
       onDismissed: () {
         if (!rewarded) {
@@ -548,7 +580,6 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     int stars,
     int score,
     ChestReward? chest,
-    int dailyBonus,
   ) async {
     await showDialog(
       context: context,
@@ -560,10 +591,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             stars: stars,
             score: score,
             chest: chest,
-            dailyBonus: dailyBonus,
             onNextLevel: _handleNextLevel,
             onMenu: _handleMenu,
             onDoubleCoins: _handleDoubleCoins,
+            showCoinAd: context.read<ProgressRepository>().canClaimRewardedCoins,
           ),
           // Top Center Explosive Confetti (Subtle)
           Align(
@@ -665,6 +696,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
         level: _level,
         isTimeout: _isTimeoutState,
         continueTime: continueTime,
+        allowAdContinue: !_continueAdUsed,
         onContinue: () {
           // Watch rewarded ad to restore 1 life or add extra time
           final adManager = context.read<AdManager>();
@@ -673,7 +705,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
           adManager.showRewardedWithLoader(
             context,
             onRewarded: () {
+              if (rewarded || _continueAdUsed) return;
               rewarded = true;
+              _continueAdUsed = true;
               if (!mounted) return;
               setState(() {
                 _showingGameOver = false;
@@ -725,7 +759,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
         coins: context.read<ProgressRepository>().coins,
         onRefillWithCoins: () {
           final progress = context.read<ProgressRepository>();
-          if (!progress.spendCoins(AppConstants.heartRefillCoinCost)) return;
+          if (!progress.payHeartRefill()) return;
           Navigator.pop(context);
           setState(() {
             _showingGameOver = false;
@@ -1961,20 +1995,20 @@ class _LevelCompleteDialog extends StatelessWidget {
   final int stars;
   final int score;
   final ChestReward? chest;
-  final int dailyBonus;
   final VoidCallback onNextLevel;
   final VoidCallback onMenu;
   final VoidCallback onDoubleCoins;
+  final bool showCoinAd;
 
   const _LevelCompleteDialog({
     required this.level,
     required this.stars,
     required this.score,
     required this.chest,
-    required this.dailyBonus,
     required this.onNextLevel,
     required this.onMenu,
     required this.onDoubleCoins,
+    required this.showCoinAd,
   });
 
   bool get _showAds =>
@@ -2032,60 +2066,50 @@ class _LevelCompleteDialog extends StatelessWidget {
                               end: const Offset(1, 1),
                               curve: Curves.elasticOut)),
             ),
-            const SizedBox(height: 20),
-
-            SizedBox(
-              height: 28,
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                children: [
-                  for (var i = 0; i < 6; i++)
-                    const Icon(LucideIcons.coins,
-                            color: Color(0xFFE2B93C), size: 16)
-                        .animate(delay: Duration(milliseconds: 90 * i))
-                        .moveY(
-                            begin: -8,
-                            end: 22,
-                            duration: 480.ms,
-                            curve: Curves.easeIn)
-                        .fadeOut(delay: 260.ms, duration: 200.ms),
-                ],
+            if (score > 0) ...[
+              const SizedBox(height: 20),
+              SizedBox(
+                height: 28,
+                child: Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    for (var i = 0; i < 6; i++)
+                      const Icon(LucideIcons.coins,
+                              color: Color(0xFFE2B93C), size: 16)
+                          .animate(delay: Duration(milliseconds: 90 * i))
+                          .moveY(
+                              begin: -8,
+                              end: 22,
+                              duration: 480.ms,
+                              curve: Curves.easeIn)
+                          .fadeOut(delay: 260.ms, duration: 200.ms),
+                  ],
+                ),
               ),
-            ),
-
-            // Score
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-              decoration: BoxDecoration(
-                color: AppColors.accentGold.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                    color: AppColors.accentGold.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    LucideIcons.coins,
-                    color: Color(0xFFE2B93C),
-                    size: 22,
-                  ),
-                  const SizedBox(width: 8),
-                  Text('+$score',
-                      style: AppFonts.style(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.accentGold)),
-                ],
-              ),
-            ),
-            if (dailyBonus > 0) ...[
-              const SizedBox(height: 8),
-              Text(
-                context.l10n.dailyBonus(dailyBonus),
-                style: AppFonts.style(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.accentGold,
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                decoration: BoxDecoration(
+                  color: AppColors.accentGold.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: AppColors.accentGold.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      LucideIcons.coins,
+                      color: Color(0xFFE2B93C),
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    Text('+$score',
+                        style: AppFonts.style(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.accentGold)),
+                  ],
                 ),
               ),
             ],
@@ -2159,10 +2183,9 @@ class _LevelCompleteDialog extends StatelessWidget {
               const SizedBox(height: 10),
             ],
 
-            // Double coins (rewarded ad)
-            if (_showAds) ...[
+            if (_showAds && showCoinAd) ...[
               _DialogButton(
-                label: context.l10n.doubleCoins,
+                label: context.l10n.watchAdCoins(EconomyConfig.rewardedAdCoins),
                 icon: LucideIcons.clapperboard,
                 gradient: AppColors.secondaryGradient,
                 textColor: AppColors.textPrimary,
@@ -2193,6 +2216,7 @@ class _GameOverDialog extends StatelessWidget {
   final LevelModel level;
   final bool isTimeout;
   final int continueTime;
+  final bool allowAdContinue;
   final VoidCallback onContinue;
   final VoidCallback onRestart;
   final VoidCallback onMenu;
@@ -2203,6 +2227,7 @@ class _GameOverDialog extends StatelessWidget {
     required this.level,
     this.isTimeout = false,
     this.continueTime = 0,
+    this.allowAdContinue = true,
     required this.onContinue,
     required this.onRestart,
     required this.onMenu,
@@ -2210,7 +2235,7 @@ class _GameOverDialog extends StatelessWidget {
     required this.onRefillWithCoins,
   });
 
-  bool get _canAffordRefill => coins >= AppConstants.heartRefillCoinCost;
+  bool get _canAffordRefill => coins >= EconomyConfig.heartRefillCost;
 
   bool get _showAds =>
       AppConstants.enableAdMob ||
@@ -2247,8 +2272,7 @@ class _GameOverDialog extends StatelessWidget {
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary)),
             const SizedBox(height: 20),
-            // Continue with ad
-            if (_showAds) ...[
+            if (_showAds && allowAdContinue) ...[
               Text(
                   isTimeout
                       ? context.l10n.watchAdForTime(continueTime)
@@ -2271,9 +2295,9 @@ class _GameOverDialog extends StatelessWidget {
               _DialogButton(
                 label: _canAffordRefill
                     ? context.l10n
-                        .refillHearts(AppConstants.heartRefillCoinCost)
+                        .refillHearts(EconomyConfig.heartRefillCost)
                     : context.l10n
-                        .needCoins(AppConstants.heartRefillCoinCost, coins),
+                        .needCoins(EconomyConfig.heartRefillCost, coins),
                 icon: LucideIcons.coins,
                 gradient: _canAffordRefill
                     ? AppColors.primaryGradient

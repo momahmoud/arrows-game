@@ -91,7 +91,8 @@ class ArrowPuzzleGame extends FlameGame {
 
     final cellW = maxW / activeCols;
     final cellH = maxH / activeRows;
-    final cellSize = cellW < cellH ? cellW : cellH;
+    final cellSize =
+        (cellW < cellH ? cellW : cellH) * AppConstants.boardCellSpacing;
 
     final gridPixelWidth  = level.gridSize * cellSize;
     final gridPixelHeight = level.gridSize * cellSize;

@@ -1,102 +1,100 @@
 import 'dart:math';
 import 'dart:ui';
 
-/// Single source of truth for how arrows are shaped.
+import '../../core/constants.dart';
+
+/// Single source of truth for how board arrows are drawn.
 ///
-/// Every length is a fraction of the grid cell size, so arrows keep the same
-/// proportions on any board size, screen size or pixel density.
+/// Every length is a ratio of the grid cell size, so arrows keep the same
+/// proportions on any board, screen size or pixel density. Colour groups
+/// never change these values: a red and a green arrow are the same shape.
 /// See docs/design/arrow_visual_system.md.
-class ArrowGeometry {
-  ArrowGeometry._();
+class ArrowVisualConfig {
+  ArrowVisualConfig._();
 
   // ── Shaft ─────────────────────────────────────────────────────────────────
-  static const double shaftWidth = 0.21;
+  static const double shaftWidthRatio = 0.16;
 
-  /// Radius of the bend where the path turns 90°. Must stay ≤ 0.5 so two
-  /// consecutive one-cell turns never overlap.
-  static const double cornerRadius = 0.32;
+  /// Hairline floor for tiny cells; below it the shaft would vanish.
+  static const double minShaftWidth = 1.0;
 
-  // ── Head ──────────────────────────────────────────────────────────────────
-  /// How far the tip sits past the head cell's centre (the cell edge is 0.5).
-  static const double headReach = 0.45;
-  static const double headLength = 0.38;
+  /// Centre-line radius of every 90° bend. Must stay below 0.5 so two
+  /// one-cell turns in a row never overlap.
+  static const double cornerRadiusRatio = 0.05;
 
-  /// Full width across the base (≈ 2.7× the shaft).
-  static const double headWidth = 0.56;
-  static const double headTipRadius = 0.045;
-  static const double headBaseRadius = 0.07;
+  // ── Arrowhead ─────────────────────────────────────────────────────────────
+  static const double arrowHeadLengthRatio = 0.4;
 
-  // ── Depth ─────────────────────────────────────────────────────────────────
-  /// Drop-shadow offset straight down, relative to cell size.
-  static const double shadowOffset = 0.05;
-  static const double shadowAlphaOnLight = 0.14;
-  static const double shadowAlphaOnDark = 0.32;
+  /// Full width across the base of the head.
+  static const double arrowHeadWidthRatio = 0.34;
 
-  // ── Touch ─────────────────────────────────────────────────────────────────
-  /// Minimum comfortable touch target (logical px).
-  static const double minTouchTarget = 44.0;
+  /// Stroke drawn over the filled head; it rounds the three corners.
+  static const double arrowHeadRoundingRatio = 0.1;
 
-  /// Empty-space taps snap to the nearest arrow within this many cells, at
-  /// least half the touch target, never further than [maxTouchReach].
-  static const double touchReach = 0.75;
-  static const double maxTouchReach = 1.5;
+  /// Share of the head length the shaft reaches into, so shaft and head
+  /// overlap instead of meeting edge to edge.
+  static const double arrowHeadInsetFraction = 0.5;
 
-  static double touchRadius(double cellSize) => (minTouchTarget / 2)
-      .clamp(cellSize * touchReach, cellSize * maxTouchReach);
+  /// Shaft length behind the head of a one-cell arrow, in head lengths.
+  static const double singleCellTailFraction = 1.0;
 
-  // ── Builders ──────────────────────────────────────────────────────────────
+  // ── Colour-lock tail marker ───────────────────────────────────────────────
+  static const double lockRingOuterRatio = 0.112;
+  static const double lockRingInnerRatio = 0.072;
 
-  static Path? _headPath;
-  static double _headPathCell = -1;
+  // ── States ────────────────────────────────────────────────────────────────
+  static const double pressedScale = 0.92;
+  static const double pressResponse = 18;
 
-  /// Arrowhead in local space: pointing along +x, origin at the head cell
-  /// centre. Shared by every arrow of the same cell size.
-  static Path headPath(double cellSize) {
-    if (_headPath != null && _headPathCell == cellSize) return _headPath!;
-    final tipX = headReach * cellSize;
-    final baseX = tipX - headLength * cellSize;
-    final hw = headWidth * cellSize / 2;
-    _headPath = roundedPolygon(
-      [Offset(tipX, 0), Offset(baseX, hw), Offset(baseX, -hw)],
-      [
-        headTipRadius * cellSize,
-        headBaseRadius * cellSize,
-        headBaseRadius * cellSize
-      ],
-    );
-    _headPathCell = cellSize;
-    return _headPath!;
-  }
+  static const double blockShakeAngle = 0.08;
+  static const double blockShakeFrequency = 42;
+  static const Color blockedColor = Color(0xFFCC2200);
 
-  /// Closed polygon whose corners are rounded by the matching [radii].
-  static Path roundedPolygon(List<Offset> vertices, List<double> radii) {
-    final path = Path();
-    final n = vertices.length;
-    for (var i = 0; i < n; i++) {
-      final prev = vertices[(i - 1 + n) % n];
-      final cur = vertices[i];
-      final next = vertices[(i + 1) % n];
-      final toPrev = prev - cur;
-      final toNext = next - cur;
-      final r = min(radii[i], min(toPrev.distance, toNext.distance) / 2);
-      final a = cur + toPrev / toPrev.distance * r;
-      final b = cur + toNext / toNext.distance * r;
-      if (i == 0) {
-        path.moveTo(a.dx, a.dy);
-      } else {
-        path.lineTo(a.dx, a.dy);
-      }
-      path.quadraticBezierTo(cur.dx, cur.dy, b.dx, b.dy);
-    }
-    return path..close();
-  }
+  static const double blockerGlowWidthRatio = 0.38;
+  static const double hintGlowWidthRatio = 0.42;
+
+  /// White mixed into the arrow while it exits: base + flash on activation.
+  static const double exitLighten = 0.10;
+  static const double exitFlashLighten = 0.22;
+
+  /// Rate the head eases onto a new heading at a deflector (per second).
+  static const double headTurnRate = 30;
+
+  // ── Derived sizes ─────────────────────────────────────────────────────────
+
+  /// Cell size the ratios are applied to. Dividing out [boardCellSpacing]
+  /// keeps the arrow the same thickness when the board cells are packed
+  /// closer. Grows past that only when the shaft would hit [minShaftWidth].
+  static double unit(double cellSize) => max(
+        cellSize / AppConstants.boardCellSpacing,
+        minShaftWidth / shaftWidthRatio,
+      );
+
+  static double shaftWidth(double cellSize) => unit(cellSize) * shaftWidthRatio;
+
+  static double cornerRadius(double cellSize) =>
+      unit(cellSize) * cornerRadiusRatio;
+
+  static double headLength(double cellSize) =>
+      unit(cellSize) * arrowHeadLengthRatio;
+
+  static double headHalfWidth(double cellSize) =>
+      unit(cellSize) * arrowHeadWidthRatio / 2;
+
+  static double headRounding(double cellSize) =>
+      unit(cellSize) * arrowHeadRoundingRatio;
+
+  static double headInset(double cellSize) =>
+      headLength(cellSize) * arrowHeadInsetFraction;
+
+  // ── Geometry ──────────────────────────────────────────────────────────────
 
   /// Open polyline through [pts] with each turn replaced by a circular bend
-  /// of up to [radius]. End segments may be consumed entirely (moving arrows
-  /// that are halfway round a corner); inner segments are shared by two
-  /// bends, so each bend takes at most half.
-  static Path roundedPolyline(List<Offset> pts, double radius, [Path? into]) {
-    final path = into ?? Path();
+  /// of up to [radius]. End segments may be consumed entirely (an arrow that
+  /// is halfway round a corner); inner segments are shared by two bends, so
+  /// each bend takes at most half.
+  static Path roundedPolyline(List<Offset> pts, double radius) {
+    final path = Path();
     if (pts.isEmpty) return path;
     path.moveTo(pts.first.dx, pts.first.dy);
     final last = pts.length - 1;
@@ -110,7 +108,7 @@ class ArrowGeometry {
       }
       final cosTurn = (vIn.dx * vOut.dx + vIn.dy * vOut.dy) / (lIn * lOut);
       if (cosTurn > 0.999) {
-        path.lineTo(cur.dx, cur.dy); // straight through
+        path.lineTo(cur.dx, cur.dy);
         continue;
       }
       final r = min(
@@ -126,13 +124,18 @@ class ArrowGeometry {
     return path;
   }
 
-  /// Shortest distance from [p] to the segment [a]–[b].
-  static double distanceToSegment(Offset p, Offset a, Offset b) {
-    final ab = b - a;
-    final len2 = ab.dx * ab.dx + ab.dy * ab.dy;
-    if (len2 == 0) return (p - a).distance;
-    final t =
-        (((p - a).dx * ab.dx + (p - a).dy * ab.dy) / len2).clamp(0.0, 1.0);
-    return (p - (a + ab * t)).distance;
+  /// [pts] with the first [distance] of its length removed. Empty when the
+  /// polyline is not longer than [distance].
+  static List<Offset> trimStart(List<Offset> pts, double distance) {
+    var left = distance;
+    for (var i = 1; i < pts.length; i++) {
+      final seg = pts[i] - pts[i - 1];
+      final len = seg.distance;
+      if (len > left) {
+        return [pts[i - 1] + seg * (left / len), ...pts.sublist(i)];
+      }
+      left -= len;
+    }
+    return const [];
   }
 }

@@ -30,7 +30,6 @@ class AppConstants {
   /// Starting inventory per power-up (hint, eraser, wand, ruler).
   static const int powerUpsPerLevel = 1;
   static const int powerUpsPerRewardedAd = 1;
-  static const int heartRefillCoinCost = 200;
 
   // Special level cadence
   static const int bossLevelEvery = 3; // Every 3rd level is BOSS
@@ -165,6 +164,10 @@ class AppConstants {
       combo == 6 ||
       combo == 10 ||
       (combo >= 15 && combo % 5 == 0);
+
+  /// How tightly board cells sit. 1 fills the play area; lower pulls each row
+  /// and column closer together. Arrow thickness is kept the same.
+  static const double boardCellSpacing = 0.8;
 
   /// Canvas scale factor: higher scale factor zooms in default game canvas area.
   static double canvasScaleForType(LevelType type) {

@@ -1,4 +1,4 @@
-import '../core/constants.dart';
+import '../core/economy_config.dart';
 import '../game/game_state.dart';
 
 /// One slice of the daily lucky wheel.
@@ -88,17 +88,17 @@ class MetaRules {
   static int powerUpCost(PowerUpType type) {
     switch (type) {
       case PowerUpType.hint:
-        return 80;
+        return EconomyConfig.hintCost;
       case PowerUpType.eraser:
-        return 120;
+        return EconomyConfig.eraserCost;
       case PowerUpType.wand:
-        return 160;
+        return EconomyConfig.wandCost;
       case PowerUpType.ruler:
-        return 100;
+        return EconomyConfig.rulerCost;
     }
   }
 
-  static int get heartCost => AppConstants.heartRefillCoinCost;
+  static int get heartCost => EconomyConfig.heartRefillCost;
 
   static bool isChestLevel(int level) => level > 0 && level % chestEvery == 0;
 
@@ -117,9 +117,9 @@ class MetaRules {
     return 12 + (seed.abs() % 60);
   }
 
-  /// Later streak days pay more.
+  /// Shown before the run. A perfect clear pays [dailyChallengePerfect] instead.
   static int dailyCoinReward(int streakDays) =>
-      30 + streakDays.clamp(1, 30) * 20;
+      EconomyConfig.dailyChallenge;
 
   static const wheel = <WheelSlice>[
     WheelSlice(label: '50', coins: 50),

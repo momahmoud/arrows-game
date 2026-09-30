@@ -247,8 +247,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playTodaysLevel => 'Play today’s level';
 
   @override
-  String get dailyRewardsInfo =>
-      'Rewards climb with your streak, up to day 30.';
+  String get dailyRewardsInfo => 'One clear a day. A perfect clear pays more.';
 
   @override
   String get shop => 'Shop';
@@ -577,6 +576,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get doubleCoins => 'Double Coins';
+
+  @override
+  String watchAdCoins(int amount) {
+    return 'Watch Ad → +$amount Coins';
+  }
+
+  @override
+  String loginReward(int day, int amount) {
+    return 'Day $day · +$amount';
+  }
+
+  @override
+  String get claim => 'Claim';
 
   @override
   String get deadlockTitle => 'Deadlock Reached!';
