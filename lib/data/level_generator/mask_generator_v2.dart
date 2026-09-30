@@ -19,6 +19,12 @@ class MaskGeneratorV2 {
 
   // ── Shape name pools — used by LevelGeneratorV2 for the no-repeat rule ────
 
+  /// Normal levels rotate through these in order. Each fills roughly as much
+  /// of the grid as the old long rectangle did, so difficulty stays put.
+  static const List<String> normalShapeNames = [
+    'circle', 'diamond', 'hexagon', 'octagon', 'pentagon', 'plus', 'heart',
+  ];
+
   static const List<String> bossShapeNames = [
     'cat', 'dog', 'frog', 'fox', 'tiger', 'panda',
     'fish', 'bird', 'butterfly', 'guitar', 'tree',
@@ -83,7 +89,8 @@ class MaskGeneratorV2 {
       case LevelType.tutorial:
         return squareMask(side);
       case LevelType.normal:
-        return longRectangleMask(side);
+        return shapeByName(
+            normalShapeNames[rng.nextInt(normalShapeNames.length)], side, rng);
       case LevelType.boss:
         final mask = _randomBossShape(side, rng);
         final minCells = (side * side * 0.60).floor();

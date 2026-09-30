@@ -66,7 +66,8 @@ class AdManager {
           _isAdmobInterstitialLoaded = false;
           _admobInterstitial = null;
           // Retry after delay
-          Future.delayed(const Duration(seconds: 15), () => _loadAdmobInterstitial());
+          Future.delayed(
+              const Duration(seconds: 15), () => _loadAdmobInterstitial());
         },
       ),
     );
@@ -86,13 +87,12 @@ class AdManager {
           _isAdmobRewardedLoaded = false;
           _admobRewarded = null;
           // Retry after delay
-          Future.delayed(const Duration(seconds: 15), () => _loadAdmobRewarded());
+          Future.delayed(
+              const Duration(seconds: 15), () => _loadAdmobRewarded());
         },
       ),
     );
   }
-
-
 
   // ── Unity Ads Loading ──────────────────────────────────────────────────────────
   void _loadUnityInterstitial() {
@@ -104,7 +104,8 @@ class AdManager {
       },
       onFailed: (placementId, error, message) {
         _isUnityInterstitialLoaded = false;
-        Future.delayed(const Duration(seconds: 25), () => _loadUnityInterstitial());
+        Future.delayed(
+            const Duration(seconds: 25), () => _loadUnityInterstitial());
       },
     );
   }
@@ -141,7 +142,9 @@ class AdManager {
     final completer = Completer<void>();
 
     // 1. Try AdMob (Priority 1) if enabled
-    if (AppConstants.enableAdMob && _isAdmobInterstitialLoaded && _admobInterstitial != null) {
+    if (AppConstants.enableAdMob &&
+        _isAdmobInterstitialLoaded &&
+        _admobInterstitial != null) {
       _levelsSinceLastInterstitial = 0;
       _admobInterstitial!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
@@ -168,7 +171,9 @@ class AdManager {
   }
 
   void _showUnityInterstitial(Completer<void> completer) {
-    if (AppConstants.enableUnityAds && _isUnityInitialized && _isUnityInterstitialLoaded) {
+    if (AppConstants.enableUnityAds &&
+        _isUnityInitialized &&
+        _isUnityInterstitialLoaded) {
       _levelsSinceLastInterstitial = 0;
       UnityAds.showVideoAd(
         placementId: AppConstants.unityInterstitialAdId,
@@ -288,7 +293,8 @@ class AdManager {
                     height: 44,
                     child: CircularProgressIndicator(
                       strokeWidth: 3.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primary),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -349,7 +355,9 @@ class AdManager {
     }
 
     // Tier 1: Pre-loaded AdMob Rewarded Ad
-    if (AppConstants.enableAdMob && _isAdmobRewardedLoaded && _admobRewarded != null) {
+    if (AppConstants.enableAdMob &&
+        _isAdmobRewardedLoaded &&
+        _admobRewarded != null) {
       final ad = _admobRewarded!;
       _admobRewarded = null;
       _isAdmobRewardedLoaded = false;
@@ -366,7 +374,10 @@ class AdManager {
         onAdFailedToShowFullScreenContent: (ad, error) async {
           ad.dispose();
           _loadAdmobRewarded();
-          await _showRewardedFallback(handleSuccess: handleSuccess, handleFinish: handleFinish, onAdOpened: onAdOpened);
+          await _showRewardedFallback(
+              handleSuccess: handleSuccess,
+              handleFinish: handleFinish,
+              onAdOpened: onAdOpened);
         },
       );
 
@@ -380,7 +391,8 @@ class AdManager {
 
     // Tier 2: Try fast on-demand load of AdMob Rewarded Ad (up to 3 seconds)
     if (AppConstants.enableAdMob) {
-      final onDemandAd = await _loadAdmobRewardedOnDemand(const Duration(seconds: 3));
+      final onDemandAd =
+          await _loadAdmobRewardedOnDemand(const Duration(seconds: 3));
       if (onDemandAd != null) {
         onDemandAd.fullScreenContentCallback = FullScreenContentCallback(
           onAdShowedFullScreenContent: (ad) {
@@ -394,7 +406,10 @@ class AdManager {
           onAdFailedToShowFullScreenContent: (ad, error) async {
             ad.dispose();
             _loadAdmobRewarded();
-            await _showRewardedFallback(handleSuccess: handleSuccess, handleFinish: handleFinish, onAdOpened: onAdOpened);
+            await _showRewardedFallback(
+                handleSuccess: handleSuccess,
+                handleFinish: handleFinish,
+                onAdOpened: onAdOpened);
           },
         );
 
@@ -408,7 +423,10 @@ class AdManager {
     }
 
     // Tier 3 & beyond: Fallback cascade
-    await _showRewardedFallback(handleSuccess: handleSuccess, handleFinish: handleFinish, onAdOpened: onAdOpened);
+    await _showRewardedFallback(
+        handleSuccess: handleSuccess,
+        handleFinish: handleFinish,
+        onAdOpened: onAdOpened);
   }
 
   Future<void> _showRewardedFallback({
@@ -417,7 +435,9 @@ class AdManager {
     VoidCallback? onAdOpened,
   }) async {
     // Fallback 1: Pre-loaded AdMob Interstitial
-    if (AppConstants.enableAdMob && _isAdmobInterstitialLoaded && _admobInterstitial != null) {
+    if (AppConstants.enableAdMob &&
+        _isAdmobInterstitialLoaded &&
+        _admobInterstitial != null) {
       final ad = _admobInterstitial!;
       _admobInterstitial = null;
       _isAdmobInterstitialLoaded = false;
@@ -436,7 +456,10 @@ class AdManager {
         onAdFailedToShowFullScreenContent: (ad, error) async {
           ad.dispose();
           _loadAdmobInterstitial();
-          await _showUnityOrDirectFallback(handleSuccess: handleSuccess, handleFinish: handleFinish, onAdOpened: onAdOpened);
+          await _showUnityOrDirectFallback(
+              handleSuccess: handleSuccess,
+              handleFinish: handleFinish,
+              onAdOpened: onAdOpened);
         },
       );
 
@@ -446,7 +469,8 @@ class AdManager {
 
     // Fallback 2: Fast On-demand AdMob Interstitial
     if (AppConstants.enableAdMob) {
-      final onDemandInter = await _loadAdmobInterstitialOnDemand(const Duration(seconds: 3));
+      final onDemandInter =
+          await _loadAdmobInterstitialOnDemand(const Duration(seconds: 3));
       if (onDemandInter != null) {
         onDemandInter.fullScreenContentCallback = FullScreenContentCallback(
           onAdShowedFullScreenContent: (ad) {
@@ -461,7 +485,10 @@ class AdManager {
           onAdFailedToShowFullScreenContent: (ad, error) async {
             ad.dispose();
             _loadAdmobInterstitial();
-            await _showUnityOrDirectFallback(handleSuccess: handleSuccess, handleFinish: handleFinish, onAdOpened: onAdOpened);
+            await _showUnityOrDirectFallback(
+                handleSuccess: handleSuccess,
+                handleFinish: handleFinish,
+                onAdOpened: onAdOpened);
           },
         );
 
@@ -471,7 +498,10 @@ class AdManager {
     }
 
     // Fallback 3: Unity Ads / Direct Reward
-    await _showUnityOrDirectFallback(handleSuccess: handleSuccess, handleFinish: handleFinish, onAdOpened: onAdOpened);
+    await _showUnityOrDirectFallback(
+        handleSuccess: handleSuccess,
+        handleFinish: handleFinish,
+        onAdOpened: onAdOpened);
   }
 
   Future<void> _showUnityOrDirectFallback({
@@ -479,7 +509,9 @@ class AdManager {
     required VoidCallback handleFinish,
     VoidCallback? onAdOpened,
   }) async {
-    if (AppConstants.enableUnityAds && _isUnityInitialized && _isUnityRewardedLoaded) {
+    if (AppConstants.enableUnityAds &&
+        _isUnityInitialized &&
+        _isUnityRewardedLoaded) {
       onAdOpened?.call();
       _showUnityRewarded(
         onRewarded: () {
@@ -502,7 +534,9 @@ class AdManager {
     required void Function() onRewarded,
     void Function()? onDismissed,
   }) {
-    if (AppConstants.enableUnityAds && _isUnityInitialized && _isUnityRewardedLoaded) {
+    if (AppConstants.enableUnityAds &&
+        _isUnityInitialized &&
+        _isUnityRewardedLoaded) {
       UnityAds.showVideoAd(
         placementId: AppConstants.unityRewardedAdId,
         onComplete: (placementId) {

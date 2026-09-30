@@ -192,7 +192,13 @@ class AudioManager {
     }
   }
 
-  Future<void> playLevelComplete() async {}
+  /// Two-note rising chime built from the click sample (no extra assets).
+  Future<void> playLevelComplete() async {
+    if (!_soundEnabled) return;
+    await _playPitched('click.ogg', 1.25, 0.8);
+    await Future.delayed(const Duration(milliseconds: 110));
+    await _playPitched('click.ogg', 1.65, 0.8);
+  }
 
   Future<void> playLifeLost() async {}
 

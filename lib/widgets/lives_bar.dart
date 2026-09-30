@@ -118,8 +118,12 @@ class _LivesBarState extends State<LivesBar> with SingleTickerProviderStateMixin
             children: [
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 350),
-                transitionBuilder: (child, anim) =>
-                    ScaleTransition(scale: anim, child: child),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, anim) => FadeTransition(
+                  opacity: anim,
+                  child: ScaleTransition(scale: anim, child: child),
+                ),
                 child: isFull
                     ? ScaleTransition(
                         key: ValueKey('heart_${i}_full'),

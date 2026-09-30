@@ -86,7 +86,9 @@ class DailyChallengeScreen extends StatelessWidget {
                           arguments: {'level': level, 'daily': true},
                         );
                       },
-                child: Text(done ? context.l10n.comeBackTomorrow : context.l10n.playTodaysLevel),
+                child: Text(done
+                    ? context.l10n.comeBackTomorrow
+                    : context.l10n.playTodaysLevel),
               ),
               const SizedBox(height: 8),
               Text(
@@ -142,7 +144,9 @@ class _Calendar extends StatelessWidget {
           decoration: BoxDecoration(
             color: marked ? const Color(0xFF7D9B76) : AppColors.surface,
             borderRadius: BorderRadius.circular(10),
-            border: isToday ? Border.all(color: const Color(0xFFE2B93C), width: 2) : null,
+            border: isToday
+                ? Border.all(color: const Color(0xFFE2B93C), width: 2)
+                : null,
           ),
           child: Text(
             '$day',

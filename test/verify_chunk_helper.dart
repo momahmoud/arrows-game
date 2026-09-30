@@ -101,6 +101,10 @@ void runVerifyChunk({
 
 // ─── Verification logic ───────────────────────────────────────────────────────
 
+/// Generates [levelNum] and runs every chunk check on it. Returns the same
+/// `{status, ms, level | errors}` entry the progress files store.
+Map<String, dynamic> verifyLevel(int levelNum) => _verifyLevel(levelNum);
+
 Map<String, dynamic> _verifyLevel(int levelNum) {
   final sw     = Stopwatch()..start();
   final errors = <String>[];

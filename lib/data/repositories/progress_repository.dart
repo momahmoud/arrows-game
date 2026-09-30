@@ -62,7 +62,8 @@ class ProgressRepository extends ChangeNotifier {
   int get lives => _isDemoMode ? 999 : _lives;
   int get maxLives => AppConstants.maxLives;
   int get currentLevel => _currentLevel;
-  int get highestUnlockedLevel => _isDemoMode ? AppConstants.totalLevels : _highestUnlockedLevel;
+  int get highestUnlockedLevel =>
+      _isDemoMode ? AppConstants.totalLevels : _highestUnlockedLevel;
   int get totalScore => _totalScore;
   int get coins => _coins;
   int get streakDays => _streakDays;
@@ -118,7 +119,6 @@ class ProgressRepository extends ChangeNotifier {
     _load();
   }
 
-
   // ── Load / Save ──────────────────────────────────────────────────────────────
 
   void _load() {
@@ -157,8 +157,10 @@ class ProgressRepository extends ChangeNotifier {
       if (_lifetimeCoins < _coins) _lifetimeCoins = _coins;
       _lastWheelDay = _prefs!.getString('lastWheelDay');
       _lastDailyClaim = _prefs!.getString('lastDailyClaim');
-      _arrowSkin = _enumByName(ArrowSkin.values, _prefs!.getString('arrowSkin'));
-      _boardTheme = _enumByName(BoardTheme.values, _prefs!.getString('boardTheme'));
+      _arrowSkin =
+          _enumByName(ArrowSkin.values, _prefs!.getString('arrowSkin'));
+      _boardTheme =
+          _enumByName(BoardTheme.values, _prefs!.getString('boardTheme'));
       _shapes.addAll(_stringSet('shapes'));
       _ownedCosmetics.addAll(_stringSet('ownedCosmetics'));
       _playedDays.addAll(_stringSet('playedDays'));
@@ -209,22 +211,27 @@ class ProgressRepository extends ChangeNotifier {
         _prefs!.setString('arrowSkin', _arrowSkin.name),
         _prefs!.setString('boardTheme', _boardTheme.name),
         _prefs!.setString('shapes', jsonEncode(_shapes.toList())),
-        _prefs!.setString('ownedCosmetics', jsonEncode(_ownedCosmetics.toList())),
+        _prefs!
+            .setString('ownedCosmetics', jsonEncode(_ownedCosmetics.toList())),
         _prefs!.setString('playedDays', jsonEncode(_playedDays.toList())),
-        _prefs!.setString('hintFreeLevels', jsonEncode(_hintFreeLevels.toList())),
+        _prefs!
+            .setString('hintFreeLevels', jsonEncode(_hintFreeLevels.toList())),
         _prefs!.setString('perfectLevels', jsonEncode(_perfectLevels.toList())),
         _prefs!.setString('bossLevels', jsonEncode(_bossLevels.toList())),
         _prefs!.setString('godLevels', jsonEncode(_godLevels.toList())),
         _prefs!.setString('claimedChests', jsonEncode(_claimedChests.toList())),
         _prefs!.setString(
           'bonusPowerUps',
-          jsonEncode({for (final e in _bonusPowerUps.entries) e.key.name: e.value}),
+          jsonEncode(
+              {for (final e in _bonusPowerUps.entries) e.key.name: e.value}),
         ),
-        if (_lastWheelDay != null) _prefs!.setString('lastWheelDay', _lastWheelDay!),
+        if (_lastWheelDay != null)
+          _prefs!.setString('lastWheelDay', _lastWheelDay!),
         if (_lastDailyClaim != null)
           _prefs!.setString('lastDailyClaim', _lastDailyClaim!),
         if (_lastPlayedDate != null)
-          _prefs!.setString('lastPlayedDate', _lastPlayedDate!.toIso8601String()),
+          _prefs!
+              .setString('lastPlayedDate', _lastPlayedDate!.toIso8601String()),
       ]);
     } catch (e) {
       debugPrint('Error saving progress: $e');
@@ -416,8 +423,7 @@ class ProgressRepository extends ChangeNotifier {
     _lifetimeCoins += amount;
   }
 
-  String _dayKey(DateTime day) =>
-      '${day.year.toString().padLeft(4, '0')}-'
+  String _dayKey(DateTime day) => '${day.year.toString().padLeft(4, '0')}-'
       '${day.month.toString().padLeft(2, '0')}-'
       '${day.day.toString().padLeft(2, '0')}';
 
@@ -508,7 +514,8 @@ class ProgressRepository extends ChangeNotifier {
     final today = _dayKey(DateTime.now());
     if (_lastDailyClaim == today) return 0;
     _lastDailyClaim = today;
-    final reward = MetaRules.dailyCoinReward(_streakDays == 0 ? 1 : _streakDays);
+    final reward =
+        MetaRules.dailyCoinReward(_streakDays == 0 ? 1 : _streakDays);
     _grantCoins(reward);
     _save();
     notifyListeners();

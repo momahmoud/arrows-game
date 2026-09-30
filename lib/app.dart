@@ -45,7 +45,8 @@ class ArrowPuzzleApp extends StatelessWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       builder: (context, child) {
-        AppFonts.isArabic = Localizations.localeOf(context).languageCode == 'ar';
+        AppFonts.isArabic =
+            Localizations.localeOf(context).languageCode == 'ar';
         return child!;
       },
       themeMode: themeMode,

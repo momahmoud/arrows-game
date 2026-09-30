@@ -68,13 +68,23 @@ void main() {
             gridSize: 5,
             arrows: [
               ArrowModel(
-                  id: 'a', row: 2, col: 1,
+                  id: 'a',
+                  row: 2,
+                  col: 1,
                   direction: ArrowDirection.right,
-                  path: [[2, 1], [2, 0]]),
+                  path: [
+                    [2, 1],
+                    [2, 0]
+                  ]),
               ArrowModel(
-                  id: 'b', row: 2, col: 3,
+                  id: 'b',
+                  row: 2,
+                  col: 3,
                   direction: ArrowDirection.left,
-                  path: [[2, 3], [2, 4]]),
+                  path: [
+                    [2, 3],
+                    [2, 4]
+                  ]),
             ],
             patternName: 'test',
             difficulty: Difficulty.easy,
@@ -106,7 +116,8 @@ void main() {
       final gs = blockedPair();
       expect(gs.tapArrow('a'), TapResult.blocked);
       expect(gs.lives, AppConstants.maxLives - 1);
-      expect(gs.powerUpCount(PowerUpType.eraser), AppConstants.powerUpsPerLevel);
+      expect(
+          gs.powerUpCount(PowerUpType.eraser), AppConstants.powerUpsPerLevel);
     });
 
     test('armed eraser with no charges does nothing', () {

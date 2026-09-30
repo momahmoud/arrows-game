@@ -29,6 +29,7 @@ class GameState extends ChangeNotifier {
   final Map<String, List<OrphanDot>> _consumedDotsByArrow = {};
 
   String? _hintArrowId;
+  String? _lastWandArrowId;
   Set<String> _rulerHighlightIds = {};
   bool _eraserArmed = false;
   int _combo = 0;
@@ -93,6 +94,9 @@ class GameState extends ChangeNotifier {
   /// Live orphan dots remaining (consumed dots are absent from this map).
   Map<String, OrphanDotType> get orphanDots => _orphanDots;
   String? get hintArrowId => _hintArrowId;
+
+  /// Arrow most recently sent out by the magic wand (for its sparkle effect).
+  String? get lastWandArrowId => _lastWandArrowId;
   Set<String> get rulerHighlightIds => _rulerHighlightIds;
   bool get isEraserArmed => _eraserArmed;
 
@@ -448,6 +452,7 @@ class GameState extends ChangeNotifier {
     _consumedDotsByArrow.clear();
     _eraserArmed = false;
     _hintArrowId = null;
+    _lastWandArrowId = null;
     _rulerHighlightIds = {};
     _combo = 0;
     _blockerIds = {};
@@ -497,6 +502,7 @@ class GameState extends ChangeNotifier {
     final id = _nextSolutionArrowId();
     if (id == null || isArrowBlocked(id)) return false;
     _eraserArmed = false;
+    _lastWandArrowId = id;
     tapArrow(id);
     return true;
   }

@@ -49,6 +49,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   bool _showingDeadlock = false;
   bool _inspectingDeadlock = false;
   int _lives = AppConstants.maxLives;
+  int? _lastStateSignature;
   Object? _loadKey;
   bool _shapePreviewMode = false;
   bool _isLoadingLevel = false; // true while level is being generated async
@@ -85,8 +86,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final loadKey = previewLevel ?? levelNum;
     if (_loadKey != loadKey) {
       _loadKey = loadKey;
-      _shapePreviewMode =
-          args?['shapePreview'] == true || previewLevel != null;
+      _shapePreviewMode = args?['shapePreview'] == true || previewLevel != null;
       _dailyChallenge = args?['daily'] == true && previewLevel == null;
       if (previewLevel != null) {
         _level = previewLevel;
@@ -142,6 +142,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   void _initGame() {
     _lives = AppConstants.maxLives;
+    _lastStateSignature = null;
     _showingGameOver = false;
     _showingDeadlock = false;
     _inspectingDeadlock = false;
@@ -190,13 +191,31 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   void _onGameStateChanged() {
     if (!mounted) return;
+    final gs = _gameState!;
     final total = _level.totalArrows;
-    final left = _gameState?.arrowsRemaining ?? total;
+    final left = gs.arrowsRemaining;
     final cleared = total == 0 ? 0.0 : (1 - left / total).clamp(0.0, 1.0);
     AudioManager.instance.setBoardFill(cleared);
+
+    // Hint/ruler/eraser/power-up changes are handled by the PowerUpBar's own
+    // ListenableBuilder; only rebuild the screen for values it renders.
+    final signature = Object.hash(
+      gs.lives,
+      gs.combo,
+      gs.movesUsed,
+      gs.arrows.where((a) => a.state != ArrowState.sliding).length,
+    );
+    if (signature == _lastStateSignature) return;
+    _lastStateSignature = signature;
     setState(() {
-      _lives = _gameState!.lives;
+      _lives = gs.lives;
     });
+  }
+
+  void _boosterHaptic() {
+    if (context.read<ProgressRepository>().vibrationEnabled) {
+      HapticFeedback.selectionClick();
+    }
   }
 
   void _showPowerUpSnack(String message) {
@@ -228,7 +247,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               type,
               AppConstants.powerUpsPerRewardedAd,
             );
-        _showPowerUpSnack(context.l10n.powerUpsAdded(AppConstants.powerUpsPerRewardedAd));
+        _showPowerUpSnack(
+            context.l10n.powerUpsAdded(AppConstants.powerUpsPerRewardedAd));
       },
       onDismissed: () {
         if (mounted) setState(() => _isGamePaused = false);
@@ -250,6 +270,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
     gs.consumePowerUp(PowerUpType.hint);
     AudioManager.instance.playPowerUp('hint');
+    _boosterHaptic();
     setState(() {});
   }
 
@@ -266,6 +287,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
     gs.setEraserArmed(true);
     AudioManager.instance.playPowerUp('eraser');
+    _boosterHaptic();
     _showPowerUpSnack(context.l10n.tapArrowToErase);
   }
 
@@ -283,6 +305,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
     gs.consumePowerUp(PowerUpType.wand);
     AudioManager.instance.playPowerUp('wand');
+    _boosterHaptic();
     setState(() {});
   }
 
@@ -296,12 +319,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
     gs.consumePowerUp(PowerUpType.ruler);
     AudioManager.instance.playPowerUp('ruler');
+    _boosterHaptic();
     gs.applyRuler();
     setState(() {});
   }
 
   void _onArrowExited(int combo) {
-    if (!mounted || !context.read<ProgressRepository>().vibrationEnabled) return;
+    if (!mounted || !context.read<ProgressRepository>().vibrationEnabled)
+      return;
     const milestones = {3, 6, 10, 15};
     if (milestones.contains(combo)) {
       HapticFeedback.mediumImpact();
@@ -314,8 +339,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     setState(() => _lives = _gameState!.lives);
     if (context.read<ProgressRepository>().vibrationEnabled) {
-      HapticFeedback.heavyImpact();
-      HapticFeedback.vibrate();
+      HapticFeedback.mediumImpact();
     }
   }
 
@@ -369,7 +393,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       adManager.onLevelComplete(_level.levelNumber, levelType.isSpecial);
     }
 
-    Future.delayed(const Duration(milliseconds: 300), () {
+    AudioManager.instance.playLevelComplete();
+    // Leaves room for the board's settle + burst before the dialog lands.
+    Future.delayed(const Duration(milliseconds: 650), () {
       if (mounted) {
         _confettiController.play();
         if (context.read<ProgressRepository>().vibrationEnabled) {
@@ -874,173 +900,176 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
         child: Stack(
           children: [
             SafeArea(
-          child: Column(
-            children: [
-              // ── Top Bar ─────────────────────────────────────────────────
-              _TopBar(
-                level: _level,
-                levelType: levelType,
-                lives: _lives,
-                progress: progressVal,
-                onBack: () {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  } else {
-                    Navigator.pushReplacementNamed(context, '/menu');
-                  }
-                },
-                onSettings: _showSettingsDialog,
-              ),
-
-              if (_totalTime > 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _TimerDisplay(
-                    timeRemaining: _timeRemaining,
-                    totalTime: _totalTime,
+              child: Column(
+                children: [
+                  // ── Top Bar ─────────────────────────────────────────────────
+                  _TopBar(
+                    level: _level,
                     levelType: levelType,
+                    lives: _lives,
+                    progress: progressVal,
+                    onBack: () {
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      } else {
+                        Navigator.pushReplacementNamed(context, '/menu');
+                      }
+                    },
+                    onSettings: _showSettingsDialog,
                   ),
-                ),
 
-              // ── Game Canvas ──────────────────────────────────────────────
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    // Measure the real screen area BEFORE entering InteractiveViewer.
-                    // InteractiveViewer gives unbounded constraints to its children,
-                    // so LayoutBuilder must be OUTSIDE to get finite values.
-                    // Use the full available rect — Flame's _calcLayout already
-                    // handles non-square grids by fitting activeCols × activeRows.
-                    final boardW = constraints.maxWidth;
-                    final boardH = constraints.maxHeight;
-                    final fadeH = boardH * 0.10;
-                    return Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Canvas — fills the Expanded bounds, clipped hard
-                        Positioned.fill(
-                          child: ClipRect(
-                            child: InteractiveViewer(
-                              transformationController:
-                                  _transformationController,
-                              minScale: 0.8,
-                              maxScale: 4.0,
-                              boundaryMargin: const EdgeInsets.all(180),
-                              clipBehavior: Clip.none,
-                              child: Center(
-                                child: SizedBox(
-                                  width: boardW,
-                                  height: boardH,
-                                  child: GameWidget(game: _game),
+                  if (_totalTime > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _TimerDisplay(
+                        timeRemaining: _timeRemaining,
+                        totalTime: _totalTime,
+                        levelType: levelType,
+                      ),
+                    ),
+
+                  // ── Game Canvas ──────────────────────────────────────────────
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Measure the real screen area BEFORE entering InteractiveViewer.
+                        // InteractiveViewer gives unbounded constraints to its children,
+                        // so LayoutBuilder must be OUTSIDE to get finite values.
+                        // Use the full available rect — Flame's _calcLayout already
+                        // handles non-square grids by fitting activeCols × activeRows.
+                        final boardW = constraints.maxWidth;
+                        final boardH = constraints.maxHeight;
+                        final fadeH = boardH * 0.10;
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Canvas — fills the Expanded bounds, clipped hard
+                            Positioned.fill(
+                              child: ClipRect(
+                                child: InteractiveViewer(
+                                  transformationController:
+                                      _transformationController,
+                                  minScale: 0.8,
+                                  maxScale: 4.0,
+                                  boundaryMargin: const EdgeInsets.all(180),
+                                  clipBehavior: Clip.none,
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: boardW,
+                                      height: boardH,
+                                      child: GameWidget(game: _game),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                        // Top fade — fixed overlay, non-interactive
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          child: IgnorePointer(
-                            child: Container(
-                              height: fadeH,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    AppColors.background,
-                                    AppColors.background.withValues(alpha: 0),
-                                  ],
+                            // Top fade — fixed overlay, non-interactive
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              child: IgnorePointer(
+                                child: Container(
+                                  height: fadeH,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        AppColors.background,
+                                        AppColors.background
+                                            .withValues(alpha: 0),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                        // Bottom fade — fixed overlay, non-interactive
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: IgnorePointer(
-                            child: Container(
-                              height: fadeH,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.bottomCenter,
-                                  end: Alignment.topCenter,
-                                  colors: [
-                                    AppColors.background,
-                                    AppColors.background.withValues(alpha: 0),
-                                  ],
+                            // Bottom fade — fixed overlay, non-interactive
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: IgnorePointer(
+                                child: Container(
+                                  height: fadeH,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors: [
+                                        AppColors.background,
+                                        AppColors.background
+                                            .withValues(alpha: 0),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                        Positioned(
-                          top: fadeH * 0.4,
-                          left: 0,
-                          right: 0,
-                          child: IgnorePointer(
-                            child: Center(
-                              child: ComboBanner(
-                                  combo: _gameState?.combo ?? 0),
+                            Positioned(
+                              top: fadeH * 0.4,
+                              left: 0,
+                              right: 0,
+                              child: IgnorePointer(
+                                child: Center(
+                                  child: ComboBanner(
+                                      combo: _gameState?.combo ?? 0),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        if (_level.levelNumber <= AppConstants.tutorialLevels &&
-                            (_gameState?.movesUsed ?? 1) == 0 &&
-                            !_showBossIntro)
-                          const Positioned(
-                            bottom: 28,
-                            child: TutorialHand(),
-                          ),
-                      ],
-                    );
-                  },
-                ),
+                            if (_level.levelNumber <=
+                                    AppConstants.tutorialLevels &&
+                                (_gameState?.movesUsed ?? 1) == 0 &&
+                                !_showBossIntro)
+                              const Positioned(
+                                bottom: 28,
+                                child: TutorialHand(),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+
+                  if (!_shapePreviewMode && _gameState != null)
+                    ListenableBuilder(
+                      listenable: _gameState!,
+                      builder: (context, _) {
+                        final gs = _gameState!;
+                        final boardActive = !gs.isComplete &&
+                            !gs.isGameOver &&
+                            !_showingComplete &&
+                            !_showingGameOver &&
+                            !_isGamePaused;
+                        return PowerUpBar(
+                          hintCount: gs.powerUpCount(PowerUpType.hint),
+                          eraserCount: gs.powerUpCount(PowerUpType.eraser),
+                          wandCount: gs.powerUpCount(PowerUpType.wand),
+                          rulerCount: gs.powerUpCount(PowerUpType.ruler),
+                          eraserActive: gs.isEraserArmed,
+                          enabled: boardActive,
+                          canRefill: _adsEnabled,
+                          onHint: _useHintPowerUp,
+                          onEraser: _useEraserPowerUp,
+                          onWand: _useWandPowerUp,
+                          onRuler: _useRulerPowerUp,
+                        );
+                      },
+                    ),
+
+                  // ── Banner Ad (centered and sized to avoid layout warnings) ──
+                  Container(
+                    alignment: Alignment.center,
+                    width: double.infinity,
+                    height: 50,
+                    child: const UnifiedBannerAd(
+                      admobUnitId: AppConstants.admobBannerUnitId,
+                      unityPlacementId: AppConstants.unityBannerAdId,
+                    ),
+                  ),
+                ],
               ),
-
-              if (!_shapePreviewMode && _gameState != null)
-                ListenableBuilder(
-                  listenable: _gameState!,
-                  builder: (context, _) {
-                    final gs = _gameState!;
-                    final boardActive = !gs.isComplete &&
-                        !gs.isGameOver &&
-                        !_showingComplete &&
-                        !_showingGameOver &&
-                        !_isGamePaused;
-                    return PowerUpBar(
-                      hintCount: gs.powerUpCount(PowerUpType.hint),
-                      eraserCount: gs.powerUpCount(PowerUpType.eraser),
-                      wandCount: gs.powerUpCount(PowerUpType.wand),
-                      rulerCount: gs.powerUpCount(PowerUpType.ruler),
-                      eraserActive: gs.isEraserArmed,
-                      enabled: boardActive,
-                      canRefill: _adsEnabled,
-                      onHint: _useHintPowerUp,
-                      onEraser: _useEraserPowerUp,
-                      onWand: _useWandPowerUp,
-                      onRuler: _useRulerPowerUp,
-                    );
-                  },
-                ),
-
-              // ── Banner Ad (centered and sized to avoid layout warnings) ──
-              Container(
-                alignment: Alignment.center,
-                width: double.infinity,
-                height: 50,
-                child: const UnifiedBannerAd(
-                  admobUnitId: AppConstants.admobBannerUnitId,
-                  unityPlacementId: AppConstants.unityBannerAdId,
-                ),
-              ),
-            ],
-          ),
             ),
             if (_showBossIntro)
               Positioned.fill(
@@ -1084,8 +1113,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (levelNum == 1) {
       _showTutorialDialog(
         title: context.l10n.tutorialHowToPlayTitle,
-        description:
-            context.l10n.tutorialHowToPlayBody,
+        description: context.l10n.tutorialHowToPlayBody,
         icon: LucideIcons.playCircle,
         iconColor: const Color(0xFF4CAF50),
         animationWidget: _buildNormalArrowAnimation(),
@@ -1094,8 +1122,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     } else if (levelNum == 2) {
       _showTutorialDialog(
         title: context.l10n.tutorialPairedTitle,
-        description:
-            context.l10n.tutorialPairedBody,
+        description: context.l10n.tutorialPairedBody,
         icon: LucideIcons.coins,
         iconColor: const Color(0xFFFF2D55),
         animationWidget: _buildColorLockAnimation(),
@@ -1104,8 +1131,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     } else if (levelNum == 3) {
       _showTutorialDialog(
         title: context.l10n.tutorialDeflectorTitle,
-        description:
-            context.l10n.tutorialDeflectorBody,
+        description: context.l10n.tutorialDeflectorBody,
         icon: LucideIcons.rotateCw,
         iconColor: const Color(0xFFFFAA00),
         animationWidget: _buildDeflectorAnimation(),
@@ -1824,10 +1850,8 @@ class _TopBar extends StatelessWidget {
                   color: AppColors.surfaceLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                    LucideIcons.arrowLeft,
-                    color: AppColors.textPrimary,
-                    size: 18),
+                child: Icon(LucideIcons.arrowLeft,
+                    color: AppColors.textPrimary, size: 18),
               ),
             ),
           ),
@@ -2016,9 +2040,14 @@ class _LevelCompleteDialog extends StatelessWidget {
                 alignment: Alignment.bottomCenter,
                 children: [
                   for (var i = 0; i < 6; i++)
-                    const Icon(LucideIcons.coins, color: Color(0xFFE2B93C), size: 16)
+                    const Icon(LucideIcons.coins,
+                            color: Color(0xFFE2B93C), size: 16)
                         .animate(delay: Duration(milliseconds: 90 * i))
-                        .moveY(begin: -8, end: 22, duration: 480.ms, curve: Curves.easeIn)
+                        .moveY(
+                            begin: -8,
+                            end: 22,
+                            duration: 480.ms,
+                            curve: Curves.easeIn)
                         .fadeOut(delay: 260.ms, duration: 200.ms),
                 ],
               ),
@@ -2063,7 +2092,8 @@ class _LevelCompleteDialog extends StatelessWidget {
             if (chest != null) ...[
               const SizedBox(height: 10),
               Text(
-                context.l10n.chestReward(chest!.coins, context.l10n.powerUp(chest!.powerUp)),
+                context.l10n.chestReward(
+                    chest!.coins, context.l10n.powerUp(chest!.powerUp)),
                 textAlign: TextAlign.center,
                 style: AppFonts.style(
                   fontWeight: FontWeight.w800,
@@ -2240,18 +2270,18 @@ class _GameOverDialog extends StatelessWidget {
             if (!isTimeout) ...[
               _DialogButton(
                 label: _canAffordRefill
-                    ? context.l10n.refillHearts(AppConstants.heartRefillCoinCost)
-                    : context.l10n.needCoins(AppConstants.heartRefillCoinCost, coins),
+                    ? context.l10n
+                        .refillHearts(AppConstants.heartRefillCoinCost)
+                    : context.l10n
+                        .needCoins(AppConstants.heartRefillCoinCost, coins),
                 icon: LucideIcons.coins,
                 gradient: _canAffordRefill
                     ? AppColors.primaryGradient
                     : AppColors.secondaryGradient,
-                textColor: _canAffordRefill
-                    ? Colors.white
-                    : AppColors.textSecondary,
-                iconColor: _canAffordRefill
-                    ? Colors.white
-                    : AppColors.textSecondary,
+                textColor:
+                    _canAffordRefill ? Colors.white : AppColors.textSecondary,
+                iconColor:
+                    _canAffordRefill ? Colors.white : AppColors.textSecondary,
                 onTap: _canAffordRefill ? onRefillWithCoins : () {},
               ),
               const SizedBox(height: 10),

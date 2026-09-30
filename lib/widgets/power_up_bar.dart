@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../core/app_fonts.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -11,9 +12,11 @@ class PowerUpBar extends StatelessWidget {
   final int eraserCount;
   final int wandCount;
   final int rulerCount;
+
   /// Highlights the eraser while it is waiting for an arrow to be tapped.
   final bool eraserActive;
   final bool enabled;
+
   /// When true, empty buttons stay tappable so the caller can offer a refill.
   final bool canRefill;
   final PowerUpTap? onHint;
@@ -82,7 +85,7 @@ class PowerUpBar extends StatelessWidget {
   }
 }
 
-class _PowerUpButton extends StatelessWidget {
+class _PowerUpButton extends StatefulWidget {
   final IconData icon;
   final Color iconColor;
   final int count;
@@ -102,70 +105,113 @@ class _PowerUpButton extends StatelessWidget {
   });
 
   @override
+  State<_PowerUpButton> createState() => _PowerUpButtonState();
+}
+
+class _PowerUpButtonState extends State<_PowerUpButton> {
+  bool _pressed = false;
+  int _useKey = 0;
+
+  @override
+  void didUpdateWidget(covariant _PowerUpButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.count < oldWidget.count) _useKey++;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final canUse = enabled && count > 0 && onTap != null;
-    final tappable = canUse || (enabled && canRefill && onTap != null);
-    return Material(
-      color: AppColors.surface.withValues(alpha: 0.92),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: tappable ? onTap : null,
+    final icon = widget.icon;
+    final iconColor = widget.iconColor;
+    final count = widget.count;
+    final active = widget.active;
+    final onTap = widget.onTap;
+    final canUse = widget.enabled && count > 0 && onTap != null;
+    final tappable =
+        canUse || (widget.enabled && widget.canRefill && onTap != null);
+
+    Widget iconWidget = Icon(
+      icon,
+      color: canUse ? iconColor : iconColor.withValues(alpha: 0.35),
+      size: 28,
+    );
+    if (_useKey > 0) {
+      iconWidget = iconWidget.animate(key: ValueKey('use_$_useKey')).scaleXY(
+          begin: 1.25, end: 1.0, duration: 280.ms, curve: Curves.easeOutBack);
+    }
+
+    return AnimatedScale(
+      scale: _pressed ? 0.9 : 1.0,
+      duration: const Duration(milliseconds: 90),
+      curve: Curves.easeOut,
+      child: Material(
+        color: AppColors.surface.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(14),
-        child: Container(
-          width: 72,
-          height: 56,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: active
-                  ? iconColor
-                  : canUse
-                      ? AppColors.surfaceLight
-                      : AppColors.surfaceLight.withValues(alpha: 0.5),
-              width: active ? 2.5 : 1,
-            ),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: iconColor.withValues(alpha: 0.45),
-                      blurRadius: 12,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              Icon(
-                icon,
-                color: canUse
+        child: InkWell(
+          onTap: tappable ? onTap : null,
+          onHighlightChanged: (v) {
+            if (_pressed != v) setState(() => _pressed = v);
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: 72,
+            height: 56,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: active
                     ? iconColor
-                    : iconColor.withValues(alpha: 0.35),
-                size: 28,
+                    : canUse
+                        ? AppColors.surfaceLight
+                        : AppColors.surfaceLight.withValues(alpha: 0.5),
+                width: active ? 2.5 : 1,
               ),
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF43A047),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    count > 0 ? '$count' : '+',
-                    style: AppFonts.style(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      height: 1,
+              boxShadow: active
+                  ? [
+                      BoxShadow(
+                        color: iconColor.withValues(alpha: 0.45),
+                        blurRadius: 12,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                iconWidget,
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF43A047),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 240),
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: ScaleTransition(scale: anim, child: child),
+                      ),
+                      child: Text(
+                        count > 0 ? '$count' : '+',
+                        key: ValueKey(count > 0 ? count : -1),
+                        style: AppFonts.style(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          height: 1,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

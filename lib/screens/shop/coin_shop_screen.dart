@@ -44,7 +44,8 @@ class CoinShopScreen extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    const Icon(LucideIcons.coins, color: Color(0xFFE2B93C), size: 18),
+                    const Icon(LucideIcons.coins,
+                        color: Color(0xFFE2B93C), size: 18),
                     const SizedBox(width: 4),
                     Text(
                       '${progress.coins}',
@@ -65,7 +66,8 @@ class CoinShopScreen extends StatelessWidget {
                     for (final type in PowerUpType.values)
                       _ShopRow(
                         title: context.l10n.powerUp(type),
-                        detail: context.l10n.ownedExtra(progress.bonusPowerUp(type)),
+                        detail: context.l10n
+                            .ownedExtra(progress.bonusPowerUp(type)),
                         price: MetaRules.powerUpCost(type),
                         action: context.l10n.buy,
                         enabled: progress.coins >= MetaRules.powerUpCost(type),
@@ -96,10 +98,12 @@ class CoinShopScreen extends StatelessWidget {
                       },
                     ),
                     _section(context.l10n.arrowSkins),
-                    for (final offer in BoardStyle.offers.where((o) => o.isSkin))
+                    for (final offer
+                        in BoardStyle.offers.where((o) => o.isSkin))
                       _cosmetic(context, progress, offer),
                     _section(context.l10n.boardThemes),
-                    for (final offer in BoardStyle.offers.where((o) => !o.isSkin))
+                    for (final offer
+                        in BoardStyle.offers.where((o) => !o.isSkin))
                       _cosmetic(context, progress, offer),
                   ],
                 ),
@@ -118,7 +122,8 @@ class CoinShopScreen extends StatelessWidget {
   ) {
     final owned = progress.ownsCosmetic(offer.id);
     final equipped = progress.isCosmeticEquipped(offer);
-    final free = BoardStyle.unlockedByProgress(offer, progress.highestUnlockedLevel);
+    final free =
+        BoardStyle.unlockedByProgress(offer, progress.highestUnlockedLevel);
     final l10n = context.l10n;
     return _ShopRow(
       title: l10n.cosmeticName(offer.id, offer.name),
@@ -171,7 +176,6 @@ class CoinShopScreen extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _ShopRow extends StatelessWidget {

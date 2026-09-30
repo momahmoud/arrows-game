@@ -161,7 +161,10 @@ class AppConstants {
 
   /// True only on streak beats worth a banner, not on every exit.
   static bool isComboMilestone(int combo) =>
-      combo == 3 || combo == 6 || combo == 10 || (combo >= 15 && combo % 5 == 0);
+      combo == 3 ||
+      combo == 6 ||
+      combo == 10 ||
+      (combo >= 15 && combo % 5 == 0);
 
   /// Canvas scale factor: higher scale factor zooms in default game canvas area.
   static double canvasScaleForType(LevelType type) {

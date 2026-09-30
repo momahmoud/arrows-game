@@ -12,6 +12,7 @@ import '../../data/models/arrow.dart';
 import '../game_state.dart';
 import 'arrow_component.dart';
 import 'floating_text_component.dart';
+import 'impact_pulse_component.dart';
 import 'particle_effect.dart';
 
 /// Renders the puzzle grid, mask boundary dots, and all arrow components.
@@ -31,6 +32,9 @@ class GridComponent extends PositionComponent {
   static const double _kShakeDuration = 0.28;
   double _shakeTime = 0.0;
   final Vector2 _shakeBase = Vector2.zero();
+
+  static const double _kSettleDuration = 0.45;
+  double _settleTime = -1;
 
   ui.Picture? _cachedDotGridPicture;
   bool _isDarkCached = AppColors.isDark;
@@ -114,6 +118,30 @@ class GridComponent extends PositionComponent {
     ));
   }
 
+  void spawnImpactPulse(Offset at, Color color) {
+    add(ImpactPulseComponent(
+      position: Vector2(at.dx, at.dy),
+      color: color,
+      radius: cellSize * 0.55,
+    ));
+  }
+
+  void _spawnCompletionBurst() {
+    final c = boardRect.center;
+    final scale = _effectScale * 1.6;
+    for (final color in [
+      AppColors.accentGreen,
+      AppColors.accentGold,
+      AppColors.primaryLight,
+    ]) {
+      add(ExitParticleEffect(
+        position: Vector2(c.dx, c.dy),
+        color: color,
+        scale: scale,
+      ));
+    }
+  }
+
   void spawnFloatingText(Offset at, String text, Color color) {
     final r = boardRect.deflate(cellSize * 0.8);
     final x = r.width > 0 ? at.dx.clamp(r.left, r.right) : at.dx;
@@ -145,6 +173,7 @@ class GridComponent extends PositionComponent {
   }
 
   void rebuild() {
+    _settleTime = -1;
     _refreshMask();
     _buildArrows();
     _invalidateDotGrid();
@@ -218,6 +247,20 @@ class GridComponent extends PositionComponent {
       _cachedTheme = gameState.boardTheme;
       _recacheDotGrid();
     }
+
+    final settling = _settleTime >= 0;
+    if (settling) {
+      final t = Curves.easeOutCubic
+          .transform((_settleTime / _kSettleDuration).clamp(0.0, 1.0));
+      final c = boardRect.center;
+      canvas.save();
+      canvas.translate(c.dx, c.dy);
+      canvas.scale(1 - 0.04 * t);
+      canvas.translate(-c.dx, -c.dy);
+      canvas.saveLayer(
+          null, Paint()..color = Colors.white.withValues(alpha: 1 - 0.6 * t));
+    }
+
     canvas.drawPicture(_cachedDotGridPicture!);
 
     // ── Orphan deflector dots (drawn on top of background dots) ────────────
@@ -230,12 +273,18 @@ class GridComponent extends PositionComponent {
           entry.value, cs);
     }
 
+    if (settling) {
+      canvas.restore();
+      canvas.restore();
+    }
+
     super.render(canvas);
   }
 
   static void _drawOrphanDot(
       Canvas canvas, Offset center, OrphanDotType type, double cs) {
-    if (type == OrphanDotType.neutral) return; // Neutral empty dots can be left empty
+    if (type == OrphanDotType.neutral)
+      return; // Neutral empty dots can be left empty
 
     const Color baseColor = Color(0xFFFFAA00); // Gold/orange redirect plate
 
@@ -321,8 +370,6 @@ class GridComponent extends PositionComponent {
     }
   }
 
-
-
   // ── Update ────────────────────────────────────────────────────────────────
 
   @override
@@ -332,9 +379,19 @@ class GridComponent extends PositionComponent {
       _shakeTime = (_shakeTime - dt).clamp(0.0, _kShakeDuration);
       final t = 1 - _shakeTime / _kShakeDuration;
       final amp = (cellSize * 0.18).clamp(3.0, 7.0) * (1 - t);
-      position.setValues(
-          _shakeBase.x + sin(t * pi * 9) * amp, _shakeBase.y + sin(t * pi * 7) * amp * 0.35);
+      position.setValues(_shakeBase.x + sin(t * pi * 9) * amp,
+          _shakeBase.y + sin(t * pi * 7) * amp * 0.35);
       if (_shakeTime == 0) position.setFrom(_shakeBase);
+    }
+    if (gameState.isComplete) {
+      if (_settleTime < 0) {
+        _settleTime = 0;
+        _spawnCompletionBurst();
+      } else if (_settleTime < _kSettleDuration) {
+        _settleTime = (_settleTime + dt).clamp(0.0, _kSettleDuration);
+      }
+    } else if (_settleTime >= 0) {
+      _settleTime = -1;
     }
     if (_arrowComponents.length != gameState.arrows.length) {
       final current = gameState.arrows.map((a) => a.id).toSet();

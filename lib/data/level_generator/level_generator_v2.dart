@@ -1223,7 +1223,7 @@ class LevelGeneratorV2 {
       case LevelType.tutorial:
         return MaskShape.square;
       case LevelType.normal:
-        return MaskShape.longRectangle;
+        return _normalShapeFor(levelNumber);
 
       case LevelType.boss:
         return _pickShapeWithHistory(
@@ -1233,6 +1233,17 @@ class LevelGeneratorV2 {
         return _pickShapeWithHistory(
           MaskGeneratorV2.godShapeNames, _godShapeHistory, rng);
     }
+  }
+
+  /// Keyed by the level's position among normal levels rather than a shared
+  /// history, so a level gets the same shape no matter which chunk builds it.
+  static MaskShape _normalShapeFor(int levelNumber) {
+    var ordinal = 0;
+    for (var n = AppConstants.tutorialLevels + 1; n < levelNumber; n++) {
+      if (AppConstants.levelTypeFor(n) == LevelType.normal) ordinal++;
+    }
+    const pool = MaskGeneratorV2.normalShapeNames;
+    return MaskShape.values.byName(pool[ordinal % pool.length]);
   }
 
   static MaskShape _pickShapeWithHistory(

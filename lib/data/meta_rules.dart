@@ -118,7 +118,8 @@ class MetaRules {
   }
 
   /// Later streak days pay more.
-  static int dailyCoinReward(int streakDays) => 30 + streakDays.clamp(1, 30) * 20;
+  static int dailyCoinReward(int streakDays) =>
+      30 + streakDays.clamp(1, 30) * 20;
 
   static const wheel = <WheelSlice>[
     WheelSlice(label: '50', coins: 50),
