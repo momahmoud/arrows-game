@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!--
+    The eraser: one red block tilted off the horizontal with the white band
+    across its waist, as the design draws it. Flat fills, no rim.
+  -->
+  <defs>
+    <linearGradient id="rubber" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF6B63"/>
+      <stop offset="1" stop-color="#F0392F"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="rotate(-38 32 32)">
+    <rect x="9" y="21" width="46" height="22" rx="5.5" fill="url(#rubber)"/>
+    <!-- The band: the worn half of the block, catching the light. -->
+    <rect x="30" y="21" width="7" height="22" fill="#FFFFFF" fill-opacity="0.92"/>
+  </g>
+</svg>

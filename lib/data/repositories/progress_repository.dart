@@ -97,6 +97,11 @@ class ProgressRepository extends ChangeNotifier {
   bool get canAffordHeartRefill =>
       !livesAreFull && canAfford(EconomyConfig.heartRefillCost);
 
+  /// Last claimed day in the 7-day login cycle. 0 before the first claim.
+  int get loginCycleDay => _loginCycleDay;
+
+  bool get loginClaimedToday => _lastLoginClaim == _dayKey(DateTime.now());
+
   /// Next login gift, 1–7, if it has not been claimed today.
   int? get pendingLoginDay {
     final today = _dayKey(DateTime.now());

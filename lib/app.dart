@@ -54,25 +54,25 @@ class ArrowPuzzleApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: AppFonts.family,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
+          seedColor: const Color(0xFF9C3ED1),
           brightness: Brightness.light,
         ),
         textTheme: AppFonts.textTheme(
           ThemeData.light().textTheme,
         ),
-        scaffoldBackgroundColor: AppColors.background,
+        scaffoldBackgroundColor: const Color(0xFFF7F4EC),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
         fontFamily: AppFonts.family,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
+          seedColor: const Color(0xFFA83ED1),
           brightness: Brightness.dark,
         ),
         textTheme: AppFonts.textTheme(
           ThemeData.dark().textTheme,
         ),
-        scaffoldBackgroundColor: AppColors.background,
+        scaffoldBackgroundColor: const Color(0xFF101610),
       ),
       initialRoute: '/splash',
       routes: {

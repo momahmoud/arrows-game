@@ -60,6 +60,13 @@ class AppConstants {
 
   static const int interstitialEveryNLevels = 4;
 
+  /// First level that can show a full-screen break ad, then every other level.
+  static const int interstitialStartLevel = 5;
+  static const int interstitialLevelInterval = 2;
+
+  /// Leaving a level can show an ad, but not again until this time has passed.
+  static const Duration interstitialLeaveCooldown = Duration(seconds: 40);
+
   // Animation durations
   static const Duration arrowSlideDuration = Duration(milliseconds: 220);
   // arrowExitDuration is now dynamic (based on path length) — this is the base
@@ -167,7 +174,15 @@ class AppConstants {
 
   /// How tightly board cells sit. 1 fills the play area; lower pulls each row
   /// and column closer together. Arrow thickness is kept the same.
-  static const double boardCellSpacing = 0.8;
+  static const double boardCellSpacing = 0.9;
+
+  /// Cells across the shorter side of the play area. Every level uses this
+  /// cell size, so arrow thickness and heads stay the same from level to level.
+  /// The play area is whatever remains after safe areas, the HUD, and the
+  /// booster dock. 9 is about a third larger than 12 before that inset; with
+  /// the stage margin the board reads roughly a quarter larger, and boards
+  /// that would overflow still shrink to fit.
+  static const double arrowCellSpan = 9;
 
   /// Canvas scale factor: higher scale factor zooms in default game canvas area.
   static double canvasScaleForType(LevelType type) {

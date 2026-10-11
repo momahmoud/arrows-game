@@ -434,6 +434,54 @@ abstract class AppLocalizations {
   /// **'Awards'**
   String get navAwards;
 
+  /// No description provided for @navHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get navHome;
+
+  /// No description provided for @navMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get navMore;
+
+  /// No description provided for @viewAllLevels.
+  ///
+  /// In en, this message translates to:
+  /// **'View all levels'**
+  String get viewAllLevels;
+
+  /// No description provided for @shopCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'Coins'**
+  String get shopCoins;
+
+  /// No description provided for @dailyLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily login'**
+  String get dailyLogin;
+
+  /// No description provided for @albumEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No collections yet'**
+  String get albumEmpty;
+
+  /// No description provided for @awardsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No awards completed yet'**
+  String get awardsEmpty;
+
+  /// No description provided for @awardsEarned.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} earned'**
+  String awardsEarned(int count);
+
   /// No description provided for @shapeAlbum.
   ///
   /// In en, this message translates to:
@@ -539,7 +587,7 @@ abstract class AppLocalizations {
   /// No description provided for @shopPowerUps.
   ///
   /// In en, this message translates to:
-  /// **'Power-ups'**
+  /// **'Boosters'**
   String get shopPowerUps;
 
   /// No description provided for @ownedExtra.
@@ -1103,8 +1151,50 @@ abstract class AppLocalizations {
   /// No description provided for @levelComplete.
   ///
   /// In en, this message translates to:
-  /// **'Level Complete!'**
+  /// **'Level complete'**
   String get levelComplete;
+
+  /// No description provided for @bossComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Boss complete'**
+  String get bossComplete;
+
+  /// No description provided for @godComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'God level complete'**
+  String get godComplete;
+
+  /// No description provided for @perfectClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect!'**
+  String get perfectClear;
+
+  /// No description provided for @newBest.
+  ///
+  /// In en, this message translates to:
+  /// **'New best'**
+  String get newBest;
+
+  /// No description provided for @levelFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Level failed'**
+  String get levelFailed;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @starsEarned.
+  ///
+  /// In en, this message translates to:
+  /// **'{earned} of 3 stars'**
+  String starsEarned(int earned);
 
   /// No description provided for @dailyBonus.
   ///
@@ -1159,6 +1249,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Claim'**
   String get claim;
+
+  /// No description provided for @removeAds.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Ads'**
+  String get removeAds;
+
+  /// No description provided for @removeAdsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Play with fewer interruptions.'**
+  String get removeAdsBody;
+
+  /// No description provided for @rewardedAdsRemain.
+  ///
+  /// In en, this message translates to:
+  /// **'Ads you choose to watch can still give rewards.'**
+  String get rewardedAdsRemain;
+
+  /// No description provided for @maybeLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Maybe later'**
+  String get maybeLater;
+
+  /// No description provided for @youNeedCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'You need {count} coins.'**
+  String youNeedCoins(int count);
+
+  /// No description provided for @currentBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Current: {count}'**
+  String currentBalance(int count);
+
+  /// No description provided for @getCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'Get coins'**
+  String get getCoins;
+
+  /// No description provided for @notNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get notNow;
+
+  /// No description provided for @getWithCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'Get with coins'**
+  String get getWithCoins;
+
+  /// No description provided for @outOfItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of {name}'**
+  String outOfItem(String name);
+
+  /// No description provided for @getAnother.
+  ///
+  /// In en, this message translates to:
+  /// **'Get another {name}'**
+  String getAnother(String name);
+
+  /// No description provided for @lowOnCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'Low on coins?'**
+  String get lowOnCoins;
+
+  /// No description provided for @lowOnCoinsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Get more coins to use on boosters.'**
+  String get lowOnCoinsBody;
+
+  /// No description provided for @purchaseCouldNot.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase could not be completed. Try again later.'**
+  String get purchaseCouldNot;
+
+  /// No description provided for @purchaseCompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase complete'**
+  String get purchaseCompleteTitle;
+
+  /// No description provided for @addedToAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to your account'**
+  String get addedToAccount;
+
+  /// No description provided for @removeAdsActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Ads are off'**
+  String get removeAdsActive;
+
+  /// No description provided for @storeSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Store purchases are not available in this build yet.'**
+  String get storeSoon;
+
+  /// No description provided for @watchVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch a Video'**
+  String get watchVideo;
+
+  /// No description provided for @receive.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive'**
+  String get receive;
+
+  /// No description provided for @freeCoinsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Free Coins'**
+  String get freeCoinsTitle;
+
+  /// No description provided for @dayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day}'**
+  String dayLabel(int day);
+
+  /// No description provided for @rewardClaimed.
+  ///
+  /// In en, this message translates to:
+  /// **'Claimed'**
+  String get rewardClaimed;
+
+  /// No description provided for @rewardLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get rewardLocked;
+
+  /// No description provided for @rewardMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed'**
+  String get rewardMissed;
+
+  /// No description provided for @jackpot.
+  ///
+  /// In en, this message translates to:
+  /// **'Jackpot'**
+  String get jackpot;
+
+  /// No description provided for @coinsEarned.
+  ///
+  /// In en, this message translates to:
+  /// **'Coins earned'**
+  String get coinsEarned;
 
   /// No description provided for @deadlockTitle.
   ///

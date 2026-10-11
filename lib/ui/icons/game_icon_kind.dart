@@ -1,0 +1,113 @@
+/// Original game icons. Directional ones flip in Arabic.
+enum GameIconKind {
+  coin,
+  coinStack,
+  coinStackLarge,
+  coinPile,
+  coinBurst,
+  coinFlying,
+  freeCoins,
+  coinPurchase,
+  coinBonus,
+  dailyReward,
+  gift,
+  giftOpen,
+  chest,
+  chestOpen,
+  undo,
+  redo,
+  hint,
+  shuffle,
+  freeze,
+  remove,
+  reset,
+  refresh,
+  skip,
+  continuePlay,
+  pause,
+  play,
+  restart,
+  home,
+  settings,
+  soundOn,
+  soundOff,
+  musicOn,
+  musicOff,
+  watchAd,
+  rewardedAd,
+  removeAds,
+  noAds,
+  adFree,
+  freeReward,
+  doubleReward,
+  claimReward,
+  getCoins,
+  earnCoins,
+  bonus,
+  freeGift,
+  star,
+  starEmpty,
+  stars1,
+  stars2,
+  stars3,
+  levelComplete,
+  levelLocked,
+  levelUnlocked,
+  newLevel,
+  trophy,
+  crown,
+  achievement,
+  streak,
+  progress,
+  shop,
+  coinBundle,
+  starterPack,
+  specialOffer,
+  bestValue,
+  discount,
+  limitedOffer,
+  purchase,
+  confirmPurchase,
+  heart,
+  heartEmpty,
+  heartBroken,
+  wand,
+  ruler,
+  back,
+  eye,
+  grid,
+  album,
+  calendar,
+  wheel,
+  medal,
+  haptic,
+  theme,
+  language,
+  shield,
+  chevron,
+  chevronDown,
+  palette,
+  arrowMark,
+  check,
+  hourglass,
+  info,
+  more,
+}
+
+extension GameIconKindDirection on GameIconKind {
+  /// Back, undo, redo, and forward marks follow reading direction.
+  bool get mirrorsInRtl {
+    switch (this) {
+      case GameIconKind.undo:
+      case GameIconKind.redo:
+      case GameIconKind.skip:
+      case GameIconKind.continuePlay:
+      case GameIconKind.play:
+      case GameIconKind.back:
+      case GameIconKind.chevron:
+        return true;
+      default:
+        return false;
+    }
+  }
+}

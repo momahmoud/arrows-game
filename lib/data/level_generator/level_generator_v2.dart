@@ -1,12 +1,15 @@
 import 'dart:collection';
 import 'dart:math';
-import 'dart:io';
 import 'dart:typed_data';
 import '../models/arrow.dart';
 import '../models/level.dart';
+import '../level_layout_profile.dart';
 import '../../core/constants.dart';
 import 'solver.dart';
 import 'mask_generator_v2.dart';
+import 'campaign_composition.dart';
+import 'campaign_level_spec.dart';
+import 'campaign_validators.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  Arrow Puzzle Level Generator — V2
@@ -67,13 +70,15 @@ class LevelGeneratorV2 {
   // Tracks last 5 Boss and last 5 God shape names independently.
   // Persists for the duration of the generation session (static).
   static final ListQueue<String> _bossShapeHistory = ListQueue<String>();
-  static final ListQueue<String> _godShapeHistory  = ListQueue<String>();
+  static final ListQueue<String> _godShapeHistory = ListQueue<String>();
   static const int _shapeHistoryMaxLen = 5;
 
   // ── Entry point ─────────────────────────────────────────────────────────────
 
   /// Generate a level. Seeded by levelNumber for determinism.
-  static LevelModel generateLevel(int levelNumber) {
+  /// [generationSalt] is only for batch dedup retries — default 0 preserves
+  /// the canonical campaign seed.
+  static LevelModel generateLevel(int levelNumber, {int generationSalt = 0}) {
     // ── Tutorial levels — hand-authored, straight arrows only ─────────────────
     // ┌─────────────────────────────────────────────────────────────────────────┐
     // │  TUTORIAL RULE: All arrow paths in levels 1–3 are STRAIGHT (no bends). │
@@ -84,36 +89,43 @@ class LevelGeneratorV2 {
     if (levelNumber == 2) return _buildTutorial2();
     if (levelNumber == 3) return _buildTutorial3();
 
-    final type    = AppConstants.levelTypeFor(levelNumber);
-    int gridSize  = AppConstants.gridSizeForLevel(levelNumber);
+    final type = AppConstants.levelTypeFor(levelNumber);
+    int gridSize = AppConstants.gridSizeForLevel(levelNumber);
 
     // Specific overrides from V1 retained
     if (levelNumber == 213) gridSize = 32;
     if (levelNumber == 395) gridSize = 35;
     if (levelNumber == 437) gridSize = 36;
 
-    final seed = levelNumber * 103 + 51;
-    final rng  = Random(seed);
+    final seed = levelNumber * 103 + 51 + generationSalt * 10007;
+    final rng = Random(seed);
 
     final maskShape = _shapeFor(type, rng, levelNumber);
-    final mask      = MaskGeneratorV2.shapeByName(maskShape.name, gridSize, rng);
-    final params    = _paramsFor(levelNumber, type, gridSize, mask);
+    final window = _playWindow(levelNumber, gridSize, type);
+    final mask = MaskGeneratorV2.placeCentered(
+      MaskGeneratorV2.shapeByName(maskShape.name, window, rng),
+      window,
+      gridSize,
+    );
+    final params = _paramsFor(levelNumber, type, gridSize, mask);
 
     LevelModel? level;
 
-    final bool isLargeGrid = gridSize > 20;
-    final int maxAttempts  = isLargeGrid
-        ? (type == LevelType.normal ? 80 : 120)
-        : 80;
+    final bool isLargeGrid = gridSize > 20 ||
+        (type == LevelType.normal &&
+            CampaignComposition.hasBrief(levelNumber));
+    final int maxAttempts =
+        isLargeGrid ? (type == LevelType.normal ? 140 : 160) : 140;
 
     for (int attempt = 0; attempt < maxAttempts && level == null; attempt++) {
+      final attemptRng = Random(seed + attempt * 7919);
       level = _attempt(
         levelNumber: levelNumber,
         gridSize: gridSize,
         mask: mask,
         params: params,
         type: type,
-        rng: rng,
+        rng: attemptRng,
         maskShape: maskShape,
         attempt: attempt,
       );
@@ -179,26 +191,38 @@ class LevelGeneratorV2 {
     final arrows = [
       ArrowModel(
         id: 'a_1_0',
-        row: 4, col: 5,
+        row: 4,
+        col: 5,
         direction: ArrowDirection.right,
         isPartOfPattern: true,
-        path: [[4, 5], [4, 4]],
+        path: [
+          [4, 5],
+          [4, 4]
+        ],
         mechanic: SnakeMechanic.standard,
       ),
       ArrowModel(
         id: 'a_1_1',
-        row: 5, col: 5,
+        row: 5,
+        col: 5,
         direction: ArrowDirection.up,
         isPartOfPattern: true,
-        path: [[5, 5], [6, 5]],
+        path: [
+          [5, 5],
+          [6, 5]
+        ],
         mechanic: SnakeMechanic.standard,
       ),
       ArrowModel(
         id: 'a_1_2',
-        row: 7, col: 5,
+        row: 7,
+        col: 5,
         direction: ArrowDirection.up,
         isPartOfPattern: true,
-        path: [[7, 5], [8, 5]],
+        path: [
+          [7, 5],
+          [8, 5]
+        ],
         mechanic: SnakeMechanic.standard,
       ),
     ];
@@ -208,8 +232,8 @@ class LevelGeneratorV2 {
       arrows: arrows,
       patternName: 'Tutorial 1',
       difficulty: Difficulty.tutorial,
-      maskShape: MaskShape.square,
-      mask: MaskGeneratorV2.squareMask(10),
+      maskShape: MaskShape.longRectangle,
+      mask: _tightMask(10, arrows, const []),
       orphanDots: [],
       solutionOrder: ['a_1_0', 'a_1_1', 'a_1_2'],
     );
@@ -224,28 +248,40 @@ class LevelGeneratorV2 {
     final arrows = [
       ArrowModel(
         id: 'a_2_0',
-        row: 5, col: 4,
+        row: 5,
+        col: 4,
         direction: ArrowDirection.up,
         isPartOfPattern: true,
-        path: [[5, 4], [6, 4]],
+        path: [
+          [5, 4],
+          [6, 4]
+        ],
         mechanic: SnakeMechanic.colorLock,
         colorGroup: 0,
       ),
       ArrowModel(
         id: 'a_2_1',
-        row: 5, col: 6,
+        row: 5,
+        col: 6,
         direction: ArrowDirection.right,
         isPartOfPattern: true,
-        path: [[5, 6], [5, 5]],
+        path: [
+          [5, 6],
+          [5, 5]
+        ],
         mechanic: SnakeMechanic.colorLock,
         colorGroup: 0,
       ),
       ArrowModel(
         id: 'a_2_2',
-        row: 4, col: 4,
+        row: 4,
+        col: 4,
         direction: ArrowDirection.left,
         isPartOfPattern: true,
-        path: [[4, 4], [4, 5]],
+        path: [
+          [4, 4],
+          [4, 5]
+        ],
         mechanic: SnakeMechanic.standard,
       ),
     ];
@@ -256,7 +292,7 @@ class LevelGeneratorV2 {
       patternName: 'Tutorial 2',
       difficulty: Difficulty.tutorial,
       maskShape: MaskShape.square,
-      mask: MaskGeneratorV2.squareMask(10),
+      mask: _tightMask(10, arrows, const []),
       orphanDots: [],
       solutionOrder: ['a_2_2', 'a_2_0', 'a_2_1'],
     );
@@ -276,18 +312,26 @@ class LevelGeneratorV2 {
     final arrows = [
       ArrowModel(
         id: 'a_3_0',
-        row: 6, col: 4,
+        row: 6,
+        col: 4,
         direction: ArrowDirection.up,
         isPartOfPattern: true,
-        path: [[6, 4], [7, 4]],
+        path: [
+          [6, 4],
+          [7, 4]
+        ],
         mechanic: SnakeMechanic.standard,
       ),
       ArrowModel(
         id: 'a_3_1',
-        row: 4, col: 6,
+        row: 4,
+        col: 6,
         direction: ArrowDirection.down,
         isPartOfPattern: true,
-        path: [[4, 6], [3, 6]],
+        path: [
+          [4, 6],
+          [3, 6]
+        ],
         mechanic: SnakeMechanic.standard,
       ),
     ];
@@ -301,10 +345,80 @@ class LevelGeneratorV2 {
       patternName: 'Tutorial 3',
       difficulty: Difficulty.tutorial,
       maskShape: MaskShape.square,
-      mask: MaskGeneratorV2.squareMask(10),
+      mask: _tightMask(10, arrows, orphanDots),
       orphanDots: orphanDots,
       solutionOrder: ['a_3_1', 'a_3_0'],
     );
+  }
+
+  /// Mask that hugs the arrows (and any dots) instead of a full empty square.
+  static Set<String> _tightMask(
+    int gridSize,
+    List<ArrowModel> arrows,
+    List<OrphanDot> dots,
+  ) {
+    final cells = <String>{};
+    void cover(int row, int col) {
+      for (var dr = -1; dr <= 1; dr++) {
+        for (var dc = -1; dc <= 1; dc++) {
+          final r = row + dr;
+          final c = col + dc;
+          if (r >= 0 && c >= 0 && r < gridSize && c < gridSize) {
+            cells.add('$r,$c');
+          }
+        }
+      }
+    }
+
+    for (final arrow in arrows) {
+      for (final pt in arrow.path) {
+        cover(pt[0], pt[1]);
+      }
+    }
+    for (final dot in dots) {
+      cover(dot.row, dot.col);
+    }
+    return cells;
+  }
+
+  /// Visible play window. The grid stays the engine size; the occupied
+  /// silhouette is this many cells across, centered. Early boards stay small
+  /// enough to read. Later boards grow into the full canvas.
+  static int _playWindow(int level, int gridSize, LevelType type) {
+    if (type == LevelType.tutorial) return gridSize;
+    if (type == LevelType.normal && CampaignComposition.hasBrief(level)) {
+      return CampaignComposition.briefFor(level).window.clamp(6, gridSize);
+    }
+    int window;
+    if (type == LevelType.boss || type == LevelType.god) {
+      final cycle = type == LevelType.boss
+          ? AppConstants.bossCycleCount(level)
+          : AppConstants.godCycleCount(level);
+      if (cycle <= 1) {
+        window = 16;
+      } else if (cycle <= 2) {
+        window = 20;
+      } else if (cycle <= 4) {
+        window = 26;
+      } else {
+        window = gridSize;
+      }
+    } else if (level <= 25) {
+      window = 11;
+    } else if (level <= 50) {
+      window = 12;
+    } else if (level <= 100) {
+      window = 13;
+    } else if (level <= 250) {
+      window = 15;
+    } else if (level <= 500) {
+      window = 17;
+    } else if (level <= 750) {
+      window = 19;
+    } else {
+      window = gridSize.clamp(20, gridSize);
+    }
+    return window.clamp(5, gridSize);
   }
 
   // ── Single generation attempt ────────────────────────────────────────────────
@@ -319,10 +433,10 @@ class LevelGeneratorV2 {
     required MaskShape maskShape,
     required int attempt,
   }) {
-    final arrows           = <ArrowModel>[];
-    final occupied         = <String>{};
-    final occupiedPacked   = <int>{};
-    int counter            = 0;
+    final arrows = <ArrowModel>[];
+    final occupied = <String>{};
+    final occupiedPacked = <int>{};
+    int counter = 0;
 
     final maskCells = mask.map((k) {
       final p = k.split(',');
@@ -334,17 +448,31 @@ class LevelGeneratorV2 {
       maskPacked.add(cell[0] * 1000 + cell[1]);
     }
 
+    final minArrowsForLevel = CampaignLevelSpec.minArrowCount(
+      levelNumber,
+      type,
+      maskCells: mask.length,
+    );
+
     // ── Fill strategy ────────────────────────────────────────────────────────
     // Phase 1 tries to fill the entire grid for the first 12 attempts.
     // After that it falls back to a density target that decreases on each retry.
     // V2 CHANGE: Phase 2 fill rate is capped per level to avoid 2-cell dominance.
-    bool fillEntireGrid = type != LevelType.tutorial && attempt < 12;
+    final brief = CampaignLevelSpec.isCampaignLevel(levelNumber, type)
+        ? CampaignComposition.briefFor(levelNumber)
+        : null;
+
+    bool fillEntireGrid = type != LevelType.tutorial &&
+        attempt < 12 &&
+        brief == null;
     if (levelNumber == 213 || levelNumber == 395 || levelNumber == 437) {
       fillEntireGrid = false;
     }
 
     int targetCount = fillEntireGrid ? mask.length : params.arrowCount;
-    if (!fillEntireGrid) {
+    if (brief != null) {
+      targetCount = brief.targetArrows;
+    } else if (!fillEntireGrid) {
       double fillRate;
       if (levelNumber == 213 || levelNumber == 395 || levelNumber == 437) {
         fillRate = 0.55;
@@ -352,10 +480,15 @@ class LevelGeneratorV2 {
         fillRate = (1.0 - (attempt - 12) * 0.02).clamp(0.68, 0.95);
       }
       final targetOccupied = (mask.length * fillRate).round();
-      targetCount = (targetOccupied / params.avgLen).round().clamp(4, 300);
+      final minA = CampaignLevelSpec.minArrowCount(
+        levelNumber,
+        type,
+        maskCells: mask.length,
+      );
+      final maxA = CampaignLevelSpec.maxArrowCount(levelNumber, type);
+      targetCount =
+          (targetOccupied / params.avgLen).round().clamp(minA, maxA);
     }
-
-
 
     // ═══════════════════════════════════════════════════════════════════════════
     //  PHASE 1 — Place VeryLong / Long / Medium / Short arrows (≥3 cell first)
@@ -363,25 +496,46 @@ class LevelGeneratorV2 {
     //  V2 CHANGE: Tangle factor starts at 0.20 from level 4 (was 0.0).
     // ═══════════════════════════════════════════════════════════════════════════
     {
-      int failures     = 0;
+      int failures = 0;
       int veryLongCount = 0;
-      int longCount     = 0;
-      int medCount      = 0;
-      int shortCount    = 0;
+      int longCount = 0;
+      int medCount = 0;
+      int shortCount = 0;
       final int maxFailures = type == LevelType.tutorial ? 60 : 80;
 
       // ── V2 Tangle factor ──────────────────────────────────────────────────
       final double tangleFactor = _tangleFactorFor(levelNumber, type);
 
-      // Grid-size-adaptive tier thresholds
-      int veryLongMin = 5 + (gridSize ~/ 6);
-      int longMin     = 3 + (gridSize ~/ 10);
-      int veryLongMax = max(veryLongMin + 1,
-          (veryLongMin + 4).clamp(veryLongMin + 1, mask.length));
+      // Length targets follow the occupied silhouette, not the full engine grid.
+      // A 6-cell window cannot hold a 12-cell zigzag, and should not try.
+      final span = _maskSpan(mask);
+      int veryLongMin;
+      int longMin;
+      int veryLongMax;
+      if (span <= 8) {
+        veryLongMin = 4;
+        longMin = 3;
+        veryLongMax = span.clamp(4, 8);
+      } else if (span <= 14) {
+        veryLongMin = 5;
+        longMin = 3;
+        veryLongMax = (span * 0.7).round().clamp(6, 12);
+      } else {
+        veryLongMin = 5 + (gridSize ~/ 6);
+        longMin = 3 + (gridSize ~/ 10);
+        veryLongMax = max(veryLongMin + 1,
+            (veryLongMin + 4).clamp(veryLongMin + 1, mask.length));
+      }
 
-      if (maskShape != MaskShape.square && maskShape != MaskShape.longRectangle) {
+      if (brief != null) {
+        veryLongMin = max(4, brief.avgPath - 1);
+        longMin = max(3, brief.avgPath - 2);
+        veryLongMax = max(veryLongMin + 2, min(span, brief.avgPath + 8));
+      } else if (span > 14 &&
+          maskShape != MaskShape.square &&
+          maskShape != MaskShape.longRectangle) {
         veryLongMin = max(5, (veryLongMin * 0.8).round());
-        longMin     = max(3, (longMin     * 0.8).round());
+        longMin = max(3, (longMin * 0.8).round());
         veryLongMax = max(veryLongMin + 1, (veryLongMax * 0.8).round());
       }
 
@@ -390,12 +544,13 @@ class LevelGeneratorV2 {
 
       while (failures < maxFailures &&
           (fillEntireGrid
-              ? occupiedPacked.length < mask.length
+              ? occupiedPacked.length < mask.length ||
+                  arrows.length < minArrowsForLevel
               : arrows.length < targetCount)) {
-
-        final int relaxation     = failures ~/ 8;
-        final int curVeryLongMin = max(5, veryLongMin - relaxation);
-        final int curLongMin     = max(3, longMin     - relaxation);
+        final int relaxation = failures ~/ 8;
+        final int curVeryLongMin =
+            max(span <= 8 ? 3 : 5, veryLongMin - relaxation);
+        final int curLongMin = max(3, longMin - relaxation);
         final int curVeryLongMax =
             max(curVeryLongMin + 1, veryLongMax - relaxation);
 
@@ -409,37 +564,56 @@ class LevelGeneratorV2 {
           final r = cell[0], c = cell[1];
           if (occupiedPacked.contains(r * 1000 + c)) continue;
           int freeNb = 0;
-          for (final nb in [[-1,0],[1,0],[0,-1],[0,1]]) {
+          for (final nb in [
+            [-1, 0],
+            [1, 0],
+            [0, -1],
+            [0, 1]
+          ]) {
             final nr = r + nb[0], nc = c + nb[1];
             if (maskPacked.contains(nr * 1000 + nc) &&
                 !occupiedPacked.contains(nr * 1000 + nc)) {
               freeNb++;
             }
           }
-          if (freeNb >= 2) { anyCanFit3 = true; break; }
+          if (freeNb >= 2) {
+            anyCanFit3 = true;
+            break;
+          }
         }
         if (!anyCanFit3) break; // hand off to Phase 2
 
-        _shuffleCandidatesFromCenter(candidates, gridSize, rng);
+        _shuffleCandidatesFromCenter(
+          candidates,
+          gridSize,
+          rng,
+          _blockerCells(arrows, occupiedPacked, maskPacked, gridSize),
+        );
 
         _Cand? bestCand;
         List<List<int>>? bestPath;
         int minBlocked = 9999;
+        int bestPriorBlocks = -1;
 
         // ── V2: 4-tier selection (35% VeryLong, 30% Long, 25% Medium, 10% Short)
-        final _LenTier wantTier = _selectTier(
-          type: type,
-          failures: failures,
-          veryLongCount: veryLongCount,
-          longCount: longCount,
-          medCount: medCount,
-          shortCount: shortCount,
-          rng: rng,
-        );
+        final needMoreArrows =
+            brief == null && arrows.length < minArrowsForLevel;
+        final _LenTier wantTier = needMoreArrows
+            ? _LenTier.short
+            : _selectTier(
+                type: type,
+                failures: failures,
+                veryLongCount: veryLongCount,
+                longCount: longCount,
+                medCount: medCount,
+                shortCount: shortCount,
+                rng: rng,
+                compact: span <= 10 && type == LevelType.normal,
+              );
 
         for (final cand in candidates.take(15)) {
           final int len = _lengthForTier(
-            wantTier, curVeryLongMin, curVeryLongMax, curLongMin, type, rng);
+              wantTier, curVeryLongMin, curVeryLongMax, curLongMin, type, rng);
 
           final path = _growPath(
             startRow: cand.row,
@@ -450,11 +624,16 @@ class LevelGeneratorV2 {
             targetLen: len,
             rng: rng,
             gridSize: gridSize,
-            tangleFactor: wantTier == _LenTier.veryLong ? tangleFactor : 0.0,
+            tangleFactor: wantTier == _LenTier.short
+                ? 0.0
+                : (brief == null
+                    ? (wantTier == _LenTier.veryLong ? tangleFactor : 0.0)
+                    : tangleFactor),
+            pathBias: wantTier == _LenTier.short ? null : brief?.pathBias,
           );
 
-          final int minAcceptableLen = _minAcceptableLen(
-              wantTier, curVeryLongMin, curLongMin, type);
+          final int minAcceptableLen =
+              _minAcceptableLen(wantTier, curVeryLongMin, curLongMin, type);
 
           if (path != null && path.length >= minAcceptableLen) {
             final blockedCount = _evalPlacement(
@@ -464,16 +643,32 @@ class LevelGeneratorV2 {
               newPath: path,
               gridSize: gridSize,
             );
-            if (blockedCount == 0) {
-              bestCand  = cand;
-              bestPath  = path;
+            final priorBlocks = _countPriorArrowsBlocked(
+              arrows,
+              occupiedPacked,
+              path,
+              gridSize,
+            );
+            final preferDependency =
+                type != LevelType.tutorial && arrows.isNotEmpty;
+            if (preferDependency) {
+              if (priorBlocks > bestPriorBlocks ||
+                  (priorBlocks == bestPriorBlocks &&
+                      blockedCount < minBlocked)) {
+                bestPriorBlocks = priorBlocks;
+                minBlocked = blockedCount;
+                bestCand = cand;
+                bestPath = path;
+              }
+            } else if (blockedCount == 0) {
+              bestCand = cand;
+              bestPath = path;
               minBlocked = 0;
               break;
-            }
-            if (blockedCount < minBlocked) {
+            } else if (blockedCount < minBlocked) {
               minBlocked = blockedCount;
-              bestCand   = cand;
-              bestPath   = path;
+              bestCand = cand;
+              bestPath = path;
             }
           }
         }
@@ -490,18 +685,24 @@ class LevelGeneratorV2 {
             occupiedPacked: occupiedPacked,
             gridSize: gridSize,
             rng: rng,
+            pathBias: brief?.pathBias,
+            tangleFactor: tangleFactor,
             bestCandOut: (c) => bestCand = c,
             minBlockedOut: (b) => minBlocked = b,
           );
         }
 
         if (bestCand != null && bestPath != null && minBlocked < 1000) {
-          _placeArrow(arrows, bestPath, bestCand!.dir,
-              levelNumber, counter++, occupied, occupiedPacked);
-          if (bestPath.length >= curVeryLongMin)      veryLongCount++;
-          else if (bestPath.length >= curLongMin)     longCount++;
-          else if (bestPath.length >= 3)              medCount++;
-          else                                          shortCount++;
+          _placeArrow(arrows, bestPath, bestCand!.dir, levelNumber, counter++,
+              occupied, occupiedPacked);
+          if (bestPath.length >= curVeryLongMin)
+            veryLongCount++;
+          else if (bestPath.length >= curLongMin)
+            longCount++;
+          else if (bestPath.length >= 3)
+            medCount++;
+          else
+            shortCount++;
           failures = 0;
         } else {
           failures++;
@@ -518,33 +719,41 @@ class LevelGeneratorV2 {
     if (type != LevelType.tutorial) {
       final double phase2MaxFill = _phase2MaxFill(levelNumber, type);
       final int phase2TargetCells = (maskPacked.length * phase2MaxFill).round();
-      final int maxAllowedBlocks  = 0;
+      final int maxAllowedBlocks = 0;
+      final int arrowCap = brief == null
+          ? 500
+          : brief.targetArrows + (attempt > 16 ? 2 : 0);
 
-      // ── Sub-pass 2-pre: grow existing arrows into the leftover cells ──────
-      // Before flooding the gaps with 2-cell arrows, let the arrows already on
-      // the board absorb what is next to them. Same final fill rate, but the
-      // cells end up inside long winding arrows instead of stubs.
-      _extendTails(
-        arrows: arrows,
-        occupied: occupied,
-        occupiedPacked: occupiedPacked,
-        maskPacked: maskPacked,
-        targetCells: phase2TargetCells,
-        maxLen: _maxExtendedLen(gridSize),
-        rng: rng,
-      );
+      if (arrows.length >= minArrowsForLevel) {
+        _extendTails(
+          arrows: arrows,
+          occupied: occupied,
+          occupiedPacked: occupiedPacked,
+          maskPacked: maskPacked,
+          targetCells: phase2TargetCells,
+          maxLen: _maxExtendedLen(gridSize),
+          rng: rng,
+        );
+      }
 
       // ── Sub-pass 2a: exit-constrained length-2 arrows ────────────────────
       {
         int failures = 0;
-        while (failures < 60 && occupiedPacked.length < phase2TargetCells) {
+        while (failures < 60 &&
+            occupiedPacked.length < phase2TargetCells &&
+            arrows.length < arrowCap) {
           final candidates = _exitCandidates(
               maskCells, occupiedPacked, gridSize, maxAllowedBlocks);
           if (candidates.isEmpty) break;
 
-          _shuffleCandidatesFromCenter(candidates, gridSize, rng);
+          _shuffleCandidatesFromCenter(
+            candidates,
+            gridSize,
+            rng,
+            _blockerCells(arrows, occupiedPacked, maskPacked, gridSize),
+          );
 
-          _Cand?        bestCand;
+          _Cand? bestCand;
           List<List<int>>? bestPath;
           int minBlocked = 9999;
 
@@ -568,17 +777,22 @@ class LevelGeneratorV2 {
                 gridSize: gridSize,
               );
               if (bc == 0) {
-                bestCand = cand; bestPath = path; minBlocked = 0; break;
+                bestCand = cand;
+                bestPath = path;
+                minBlocked = 0;
+                break;
               }
               if (bc < minBlocked) {
-                minBlocked = bc; bestCand = cand; bestPath = path;
+                minBlocked = bc;
+                bestCand = cand;
+                bestPath = path;
               }
             }
           }
 
           if (bestCand != null && bestPath != null && minBlocked < 1000) {
-            _placeArrow(arrows, bestPath, bestCand.dir,
-                levelNumber, counter++, occupied, occupiedPacked);
+            _placeArrow(arrows, bestPath, bestCand.dir, levelNumber, counter++,
+                occupied, occupiedPacked);
             failures = 0;
           } else {
             failures++;
@@ -586,22 +800,32 @@ class LevelGeneratorV2 {
         }
       }
 
-      // Grow again: the pairs just placed opened new tails next to the
-      // pockets that were unreachable a moment ago.
-      _extendTails(
+      if (arrows.length >= minArrowsForLevel) {
+        _extendTails(
+          arrows: arrows,
+          occupied: occupied,
+          occupiedPacked: occupiedPacked,
+          maskPacked: maskPacked,
+          targetCells: phase2TargetCells,
+          maxLen: _maxExtendedLen(gridSize),
+          rng: rng,
+        );
+      }
+
+      _densifyToMinArrowCount(
         arrows: arrows,
+        minArrows: minArrowsForLevel,
+        levelNumber: levelNumber,
         occupied: occupied,
         occupiedPacked: occupiedPacked,
-        maskPacked: maskPacked,
-        targetCells: phase2TargetCells,
-        maxLen: _maxExtendedLen(gridSize),
-        rng: rng,
       );
 
       // ── Sub-pass 2b: greedy adjacent-pair sweep (clean-exit only) ──────────
       {
         bool madeProgress = true;
-        while (madeProgress && occupiedPacked.length < phase2TargetCells) {
+        while (madeProgress &&
+            occupiedPacked.length < phase2TargetCells &&
+            arrows.length < arrowCap) {
           madeProgress = false;
           final emptyCells = maskCells
               .where((c) => !occupiedPacked.contains(c[0] * 1000 + c[1]))
@@ -612,26 +836,47 @@ class LevelGeneratorV2 {
             final r = cell[0], c = cell[1];
             if (occupiedPacked.contains(r * 1000 + c)) continue;
 
-            final nbOffsets = [[-1,0],[1,0],[0,-1],[0,1]]..shuffle(rng);
+            final nbOffsets = [
+              [-1, 0],
+              [1, 0],
+              [0, -1],
+              [0, 1]
+            ]..shuffle(rng);
             for (final nb in nbOffsets) {
               final tr = r + nb[0], tc = c + nb[1];
               if (!maskPacked.contains(tr * 1000 + tc)) continue;
               if (occupiedPacked.contains(tr * 1000 + tc)) continue;
 
               final ArrowDirection dir1, dir2;
-              if      (nb[0] ==  1) { dir1 = ArrowDirection.up;    dir2 = ArrowDirection.down; }
-              else if (nb[0] == -1) { dir1 = ArrowDirection.down;  dir2 = ArrowDirection.up;   }
-              else if (nb[1] ==  1) { dir1 = ArrowDirection.left;  dir2 = ArrowDirection.right; }
-              else                   { dir1 = ArrowDirection.right; dir2 = ArrowDirection.left;  }
+              if (nb[0] == 1) {
+                dir1 = ArrowDirection.up;
+                dir2 = ArrowDirection.down;
+              } else if (nb[0] == -1) {
+                dir1 = ArrowDirection.down;
+                dir2 = ArrowDirection.up;
+              } else if (nb[1] == 1) {
+                dir1 = ArrowDirection.left;
+                dir2 = ArrowDirection.right;
+              } else {
+                dir1 = ArrowDirection.right;
+                dir2 = ArrowDirection.left;
+              }
 
               int headRow, headCol, tailRow, tailCol;
               ArrowDirection chosenDir;
 
               if (_canExitClean(r, c, dir1, occupiedPacked, gridSize)) {
-                headRow = r;  headCol = c;  tailRow = tr; tailCol = tc;
+                headRow = r;
+                headCol = c;
+                tailRow = tr;
+                tailCol = tc;
                 chosenDir = dir1;
-              } else if (_canExitClean(tr, tc, dir2, occupiedPacked, gridSize)) {
-                headRow = tr; headCol = tc; tailRow = r;  tailCol = c;
+              } else if (_canExitClean(
+                  tr, tc, dir2, occupiedPacked, gridSize)) {
+                headRow = tr;
+                headCol = tc;
+                tailRow = r;
+                tailCol = c;
                 chosenDir = dir2;
               } else {
                 continue;
@@ -639,10 +884,14 @@ class LevelGeneratorV2 {
 
               arrows.add(ArrowModel(
                 id: 'a_${levelNumber}_${counter++}',
-                row: headRow, col: headCol,
+                row: headRow,
+                col: headCol,
                 direction: chosenDir,
                 isPartOfPattern: true,
-                path: [[headRow, headCol], [tailRow, tailCol]],
+                path: [
+                  [headRow, headCol],
+                  [tailRow, tailCol]
+                ],
                 mechanic: SnakeMechanic.standard,
               ));
               occupied.add('$r,$c');
@@ -659,7 +908,9 @@ class LevelGeneratorV2 {
       // ── Sub-pass 2c: fallback greedy sweep (no clean-exit requirement) ──────
       {
         bool madeProgress = true;
-        while (madeProgress && occupiedPacked.length < phase2TargetCells) {
+        while (madeProgress &&
+            occupiedPacked.length < phase2TargetCells &&
+            arrows.length < arrowCap) {
           madeProgress = false;
           final emptyCells = maskCells
               .where((c) => !occupiedPacked.contains(c[0] * 1000 + c[1]))
@@ -670,21 +921,41 @@ class LevelGeneratorV2 {
             final r = cell[0], c = cell[1];
             if (occupiedPacked.contains(r * 1000 + c)) continue;
 
-            final nbOffsets = [[-1,0],[1,0],[0,-1],[0,1]]..shuffle(rng);
+            final nbOffsets = [
+              [-1, 0],
+              [1, 0],
+              [0, -1],
+              [0, 1]
+            ]..shuffle(rng);
             for (final nb in nbOffsets) {
               final tr = r + nb[0], tc = c + nb[1];
               if (!maskPacked.contains(tr * 1000 + tc)) continue;
               if (occupiedPacked.contains(tr * 1000 + tc)) continue;
 
               final ArrowDirection dir1, dir2;
-              if      (nb[0] ==  1) { dir1 = ArrowDirection.up;    dir2 = ArrowDirection.down; }
-              else if (nb[0] == -1) { dir1 = ArrowDirection.down;  dir2 = ArrowDirection.up;   }
-              else if (nb[1] ==  1) { dir1 = ArrowDirection.left;  dir2 = ArrowDirection.right; }
-              else                   { dir1 = ArrowDirection.right; dir2 = ArrowDirection.left;  }
+              if (nb[0] == 1) {
+                dir1 = ArrowDirection.up;
+                dir2 = ArrowDirection.down;
+              } else if (nb[0] == -1) {
+                dir1 = ArrowDirection.down;
+                dir2 = ArrowDirection.up;
+              } else if (nb[1] == 1) {
+                dir1 = ArrowDirection.left;
+                dir2 = ArrowDirection.right;
+              } else {
+                dir1 = ArrowDirection.right;
+                dir2 = ArrowDirection.left;
+              }
 
               final tries = rng.nextBool()
-                  ? [[r, c, tr, tc, dir1], [tr, tc, r, c, dir2]]
-                  : [[tr, tc, r, c, dir2], [r, c, tr, tc, dir1]];
+                  ? [
+                      [r, c, tr, tc, dir1],
+                      [tr, tc, r, c, dir2]
+                    ]
+                  : [
+                      [tr, tc, r, c, dir2],
+                      [r, c, tr, tc, dir1]
+                    ];
 
               for (final t in tries) {
                 final hr = t[0] as int, hc = t[1] as int;
@@ -693,10 +964,14 @@ class LevelGeneratorV2 {
                 if (_canExitClean(hr, hc, dir, occupiedPacked, gridSize)) {
                   arrows.add(ArrowModel(
                     id: 'a_${levelNumber}_${counter++}',
-                    row: hr, col: hc,
+                    row: hr,
+                    col: hc,
                     direction: dir,
                     isPartOfPattern: true,
-                    path: [[hr, hc], [tailR, tailC]],
+                    path: [
+                      [hr, hc],
+                      [tailR, tailC]
+                    ],
                     mechanic: SnakeMechanic.standard,
                   ));
                   occupied.add('$hr,$hc');
@@ -721,9 +996,15 @@ class LevelGeneratorV2 {
         final remPacked = remainingEmpty.map((c) => c[0] * 1000 + c[1]).toSet();
         for (final cell in remainingEmpty) {
           final r = cell[0], c = cell[1];
-          for (final nb in [[-1,0],[1,0],[0,-1],[0,1]]) {
+          for (final nb in [
+            [-1, 0],
+            [1, 0],
+            [0, -1],
+            [0, 1]
+          ]) {
             if (remPacked.contains((r + nb[0]) * 1000 + (c + nb[1]))) {
-              _log('Level $levelNumber Attempt $attempt: adjacent empty cells remain\n');
+              _log(
+                  'Level $levelNumber Attempt $attempt: adjacent empty cells remain\n');
               return null;
             }
           }
@@ -742,10 +1023,17 @@ class LevelGeneratorV2 {
 
     if (arrows.isEmpty) return null;
 
-    // Minimum arrow density check (30% of mask)
-    final minArrowCoverage = (mask.length * 0.30).floor();
+    final minOcc = CampaignLevelSpec.minOccupancy(levelNumber, type);
+    final minArrowCoverage = (mask.length * minOcc).floor();
     if (occupied.length < minArrowCoverage && type != LevelType.tutorial) {
       _log('Level $levelNumber Attempt $attempt: too sparse\n');
+      return null;
+    }
+
+    if (type != LevelType.tutorial &&
+        arrows.length < minArrowsForLevel) {
+      _log('Level $levelNumber Attempt $attempt: too few arrows '
+          '(${arrows.length})\n');
       return null;
     }
 
@@ -754,7 +1042,8 @@ class LevelGeneratorV2 {
     final maxOrphans = (mask.length * maxOrphansPct).ceil().clamp(5, 300);
 
     if (fillEntireGrid && emptyCount > maxOrphans) {
-      _log('Level $levelNumber Attempt $attempt: too many orphans $emptyCount/$maxOrphans\n');
+      _log(
+          'Level $levelNumber Attempt $attempt: too many orphans $emptyCount/$maxOrphans\n');
       return null;
     }
 
@@ -793,17 +1082,19 @@ class LevelGeneratorV2 {
                   final er = pk ~/ 1000, ec = pk % 1000;
                   final minDotDist = (gridSize * 0.20).floor().clamp(2, 6);
                   if ((er - nr).abs() + (ec - nc).abs() < minDotDist) {
-                    tooClose = true; break;
+                    tooClose = true;
+                    break;
                   }
                 }
                 if (!tooClose) {
                   final turns = rng.nextBool()
                       ? [currentDir.turnRight, currentDir.turnLeft]
-                      : [currentDir.turnLeft,  currentDir.turnRight];
+                      : [currentDir.turnLeft, currentDir.turnRight];
                   bool assigned = false;
                   for (final candDir in turns) {
                     orphanMap[kp] = _dotTypeForDir(candDir);
-                    if (_greedySolveWithMap(gridSize, arrows, orphanMap) != null) {
+                    if (_greedySolveWithMap(gridSize, arrows, orphanMap) !=
+                        null) {
                       currentDir = candDir;
                       assigned = true;
                       break;
@@ -813,7 +1104,8 @@ class LevelGeneratorV2 {
                   }
                   if (!assigned) {
                     orphanMap[kp] = _dotTypeForDir(currentDir);
-                    if (_greedySolveWithMap(gridSize, arrows, orphanMap) == null) {
+                    if (_greedySolveWithMap(gridSize, arrows, orphanMap) ==
+                        null) {
                       orphanMap[kp] = OrphanDotType.neutral;
                     }
                   }
@@ -825,15 +1117,20 @@ class LevelGeneratorV2 {
               }
             } else {
               final dotType = orphanMap[kp]!;
-              if      (dotType == OrphanDotType.up)    currentDir = ArrowDirection.up;
-              else if (dotType == OrphanDotType.down)  currentDir = ArrowDirection.down;
-              else if (dotType == OrphanDotType.left)  currentDir = ArrowDirection.left;
-              else if (dotType == OrphanDotType.right) currentDir = ArrowDirection.right;
+              if (dotType == OrphanDotType.up)
+                currentDir = ArrowDirection.up;
+              else if (dotType == OrphanDotType.down)
+                currentDir = ArrowDirection.down;
+              else if (dotType == OrphanDotType.left)
+                currentDir = ArrowDirection.left;
+              else if (dotType == OrphanDotType.right)
+                currentDir = ArrowDirection.right;
             }
           }
 
           d = currentDir.delta;
-          nr += d[0]; nc += d[1];
+          nr += d[0];
+          nc += d[1];
         }
       }
 
@@ -852,17 +1149,49 @@ class LevelGeneratorV2 {
 
     // ── V2: Color pair mechanic mix ───────────────────────────────────────────
     // STRICT GATE: no pairs before level 16 for any level type
-    if (levelNumber == 2 ||
-        (type != LevelType.tutorial && levelNumber >= 16)) {
-      _mechanicMixV2(
-          arrows, levelNumber, type, rng, gridSize, orphanDots);
+    if (levelNumber == 2 || (type != LevelType.tutorial && levelNumber >= 16)) {
+      _mechanicMixV2(arrows, levelNumber, type, rng, gridSize, orphanDots);
+    }
+
+    final profile = LevelLayoutProfile.analyze(
+      arrows: arrows,
+      gridSize: gridSize,
+      maskCells: mask.length,
+      shapeType: maskShape.name,
+    );
+    final campaignIssues = CampaignValidators.validateLevel(
+      levelNumber: levelNumber,
+      type: type,
+      arrows: arrows,
+      profile: profile,
+      maskCells: mask.length,
+      attempt: attempt,
+    );
+    if (campaignIssues.isNotEmpty && attempt < 30) {
+      _log('Level $levelNumber Attempt $attempt: ${campaignIssues.first.message}\n');
+      return null;
+    }
+    if (_rejectsLayout(
+      levelNumber: levelNumber,
+      type: type,
+      attempt: attempt,
+      profile: profile,
+      arrows: arrows,
+    )) {
+      _log('Level $levelNumber Attempt $attempt: weak layout '
+          'open=${profile.openingMoves} depth=${profile.dependencyDepth}\n');
+      return null;
+    }
+    if (_arrowsAreBroken(arrows)) {
+      _log('Level $levelNumber Attempt $attempt: broken arrow geometry\n');
+      return null;
     }
 
     final level = LevelModel(
       levelNumber: levelNumber,
       gridSize: gridSize,
       arrows: arrows,
-      patternName: _nameFor(type, levelNumber),
+      patternName: _nameFor(type, levelNumber, maskShape),
       difficulty: _difficultyFor(levelNumber, type),
       maskShape: maskShape,
       mask: mask,
@@ -870,7 +1199,8 @@ class LevelGeneratorV2 {
     );
 
     // Solvability check
-    if (gridSize > 20) {
+    final preferGreedy = gridSize > 20 || brief != null;
+    if (preferGreedy) {
       final greedyOrder = _greedySolve(level);
       if (greedyOrder == null) {
         _log('Level $levelNumber Attempt $attempt: greedy FAILED\n');
@@ -899,14 +1229,34 @@ class LevelGeneratorV2 {
   /// visually interesting even without mechanics.
   static double _tangleFactorFor(int levelNumber, LevelType type) {
     if (type == LevelType.tutorial) return 0.0;
+    if (type == LevelType.normal && CampaignComposition.hasBrief(levelNumber)) {
+      return CampaignComposition.briefFor(levelNumber).tangle;
+    }
+    // Straight lanes first. Turns, then nested paths, then full zigzags.
     double base;
-    if      (levelNumber <= 6)   base = 0.50; // level 4-6:   immediate strong tangle
-    else if (levelNumber <= 12)  base = 0.70; // level 7-12:  very high tangle
-    else if (levelNumber <= 20)  base = 0.85; // level 13-20: extreme tangle
-    else                         base = 1.0;  // level 21+:   maximum zig-zag
+    if (levelNumber <= 8) {
+      base = 0.04;
+    } else if (levelNumber <= 14) {
+      base = 0.16;
+    } else if (levelNumber <= 24) {
+      base = 0.30;
+    } else if (levelNumber <= 40) {
+      base = 0.46;
+    } else if (levelNumber <= 80) {
+      base = 0.62;
+    } else if (levelNumber <= 150) {
+      base = 0.75;
+    } else if (levelNumber <= 300) {
+      base = 0.88;
+    } else {
+      base = 1.0;
+    }
 
-    if      (type == LevelType.boss) base = (base + 0.20).clamp(0.50, 1.0);
-    else if (type == LevelType.god)  base = (base + 0.30).clamp(0.65, 1.0);
+    if (type == LevelType.boss) {
+      base = (base + (levelNumber <= 28 ? 0.06 : 0.15)).clamp(0.0, 1.0);
+    } else if (type == LevelType.god) {
+      base = (base + (levelNumber <= 31 ? 0.10 : 0.22)).clamp(0.0, 1.0);
+    }
     return base;
   }
 
@@ -920,20 +1270,31 @@ class LevelGeneratorV2 {
     required int medCount,
     required int shortCount,
     required Random rng,
+    bool compact = false,
   }) {
     if (type == LevelType.tutorial) return _LenTier.medium;
-    if (failures > 15)             return _LenTier.medium;
+    if (failures > 15) return _LenTier.medium;
 
     final total = veryLongCount + longCount + medCount + shortCount;
-    if (total == 0) return _LenTier.veryLong; // always start with very long
+    if (total == 0) {
+      return compact ? _LenTier.long : _LenTier.veryLong;
+    }
 
-    final vlRatio  = veryLongCount / total;
-    final lRatio   = longCount     / total;
-    final medRatio = medCount      / total;
+    final vlRatio = veryLongCount / total;
+    final lRatio = longCount / total;
+    final medRatio = medCount / total;
+
+    // Compact boards want several readable lanes, not one giant snake.
+    if (compact) {
+      if (lRatio < 0.45) return _LenTier.long;
+      if (medRatio < 0.35) return _LenTier.medium;
+      if (vlRatio < 0.15) return _LenTier.veryLong;
+      return rng.nextDouble() < 0.15 ? _LenTier.short : _LenTier.medium;
+    }
 
     // Target: 50% VL, 30% L, 10% M, 10% S
-    if (vlRatio  < 0.50) return _LenTier.veryLong;
-    if (lRatio   < 0.30) return _LenTier.long;
+    if (vlRatio < 0.50) return _LenTier.veryLong;
+    if (lRatio < 0.30) return _LenTier.long;
     if (medRatio < 0.10) return _LenTier.medium;
     return _LenTier.short;
   }
@@ -946,7 +1307,7 @@ class LevelGeneratorV2 {
         return veryLongMin + rng.nextInt(range);
       case _LenTier.long:
         final longMax = max(longMin, veryLongMin - 1);
-        final range   = max(1, longMax - longMin + 1);
+        final range = max(1, longMax - longMin + 1);
         return longMin + rng.nextInt(range);
       case _LenTier.medium:
         return type == LevelType.tutorial
@@ -957,24 +1318,33 @@ class LevelGeneratorV2 {
     }
   }
 
-  static int _minAcceptableLen(_LenTier tier, int curVeryLongMin,
-      int curLongMin, LevelType type) {
+  static int _minAcceptableLen(
+      _LenTier tier, int curVeryLongMin, int curLongMin, LevelType type) {
     switch (tier) {
-      case _LenTier.veryLong: return curVeryLongMin;
-      case _LenTier.long:     return curLongMin;
-      case _LenTier.medium:   return 3;
-      case _LenTier.short:    return 2;
+      case _LenTier.veryLong:
+        return curVeryLongMin;
+      case _LenTier.long:
+        return curLongMin;
+      case _LenTier.medium:
+        return 3;
+      case _LenTier.short:
+        return 2;
     }
   }
 
   // ── V2: Phase 2 max fill rate ─────────────────────────────────────────────
   static double _phase2MaxFill(int levelNumber, LevelType type) {
-    if (type == LevelType.god)  return 0.98; // God levels 98% grid coverage
-    if (type == LevelType.boss) return 0.94; // Boss levels 94% grid coverage
-
-    if      (levelNumber <= 10)  return 0.80;
-    else if (levelNumber <= 30)  return 0.88;
-    else                         return 0.95;
+    // Fill the silhouette. Whitespace comes from the shape's outline
+    // (the bay of a U, the hole of a ring), not from random interior gaps.
+    if (type == LevelType.god) {
+      return levelNumber <= 31 ? 0.90 : 0.98;
+    }
+    if (type == LevelType.boss) {
+      return levelNumber <= 28 ? 0.88 : 0.94;
+    }
+    if (levelNumber <= 40) return 0.90;
+    if (levelNumber <= 80) return 0.93;
+    return 0.95;
   }
 
   // ── V2: Direction dot color probability ──────────────────────────────────
@@ -984,19 +1354,28 @@ class LevelGeneratorV2 {
     if (levelNumber == 395 || levelNumber == 437) return 0.0;
 
     if (type == LevelType.god) {
-      if      (levelNumber < 35)  return 0.80;
-      else if (levelNumber < 60)  return 0.88;
-      else                        return 0.95;
+      if (levelNumber < 35)
+        return 0.80;
+      else if (levelNumber < 60)
+        return 0.88;
+      else
+        return 0.95;
     }
     if (type == LevelType.boss) {
-      if      (levelNumber < 35)  return 0.70;
-      else if (levelNumber < 60)  return 0.82;
-      else                        return 0.92;
+      if (levelNumber < 35)
+        return 0.70;
+      else if (levelNumber < 60)
+        return 0.82;
+      else
+        return 0.92;
     }
     // Normal levels >= 21
-    if      (levelNumber < 40)  return 0.60;
-    else if (levelNumber < 80)  return 0.80;
-    else                        return 0.92;
+    if (levelNumber < 40)
+      return 0.60;
+    else if (levelNumber < 80)
+      return 0.80;
+    else
+      return 0.92;
   }
 
   // ── V2: Color pair mechanic mix ───────────────────────────────────────────
@@ -1009,34 +1388,58 @@ class LevelGeneratorV2 {
 
     int pairs;
     if (type == LevelType.god) {
-      if      (level < 30)   pairs = 3;
-      else if (level < 60)   pairs = (arrows.length * 0.25).floor().clamp(3, 7);
-      else if (level < 150)  pairs = (arrows.length * 0.35).floor().clamp(4, 10);
-      else                   pairs = (arrows.length * 0.40).floor().clamp(5, 14);
+      if (level < 30)
+        pairs = 3;
+      else if (level < 60)
+        pairs = (arrows.length * 0.25).floor().clamp(3, 7);
+      else if (level < 150)
+        pairs = (arrows.length * 0.35).floor().clamp(4, 10);
+      else
+        pairs = (arrows.length * 0.40).floor().clamp(5, 14);
     } else if (type == LevelType.boss) {
-      if      (level < 30)   pairs = 2;
-      else if (level < 60)   pairs = (arrows.length * 0.20).floor().clamp(2, 5);
-      else if (level < 150)  pairs = (arrows.length * 0.28).floor().clamp(3, 8);
-      else                   pairs = (arrows.length * 0.35).floor().clamp(4, 12);
+      if (level < 30)
+        pairs = 2;
+      else if (level < 60)
+        pairs = (arrows.length * 0.20).floor().clamp(2, 5);
+      else if (level < 150)
+        pairs = (arrows.length * 0.28).floor().clamp(3, 8);
+      else
+        pairs = (arrows.length * 0.35).floor().clamp(4, 12);
     } else if (level == 2) {
       pairs = 1;
     } else {
       // Normal levels >= 16: AT LEAST 1 PAIR
-      if      (level < 25)   pairs = 1;
-      else if (level < 45)   pairs = (arrows.length * 0.15).floor().clamp(1, 3);
-      else if (level < 80)   pairs = (arrows.length * 0.22).floor().clamp(2, 5);
-      else if (level < 150)  pairs = (arrows.length * 0.28).floor().clamp(3, 8);
-      else if (level < 300)  pairs = (arrows.length * 0.32).floor().clamp(4, 10);
-      else                   pairs = (arrows.length * 0.38).floor().clamp(5, 14);
+      if (level < 25)
+        pairs = 1;
+      else if (level < 45)
+        pairs = (arrows.length * 0.15).floor().clamp(1, 3);
+      else if (level < 80)
+        pairs = (arrows.length * 0.22).floor().clamp(2, 5);
+      else if (level < 150)
+        pairs = (arrows.length * 0.28).floor().clamp(3, 8);
+      else if (level < 300)
+        pairs = (arrows.length * 0.32).floor().clamp(4, 10);
+      else
+        pairs = (arrows.length * 0.38).floor().clamp(5, 14);
     }
 
-    pairs = pairs.clamp(1, 15); // Max 15 color pairs hard cap
+    if (type == LevelType.normal &&
+        CampaignComposition.hasBrief(level) &&
+        CampaignComposition.briefFor(level).composition ==
+            CompositionFamily.pairedColor) {
+      pairs = max(pairs, 2);
+    }
+
+    pairs =
+        pairs.clamp(1, 4); // A board should read as 1–4 groups, not a rainbow.
 
     if (level == 395 || level == 437) pairs = 0;
     if (pairs == 0) return;
 
     final orphanMap = <String, OrphanDotType>{};
-    for (final od in orphanDots) { orphanMap[od.key] = od.type; }
+    for (final od in orphanDots) {
+      orphanMap[od.key] = od.type;
+    }
 
     // ── Edge vs Center arrow classification ──────────────────────────────────
     // Edge distance <= edgeThreshold is Edge; > edgeThreshold is Center.
@@ -1073,18 +1476,13 @@ class LevelGeneratorV2 {
         if (arrows[ki].mechanic != SnakeMechanic.standard) continue;
 
         // ── Spatial separation across canvas ──────────────────────────────
-        final zone1 = (arrows[li].row * 3 ~/ gridSize, arrows[li].col * 3 ~/ gridSize);
-        final zone2 = (arrows[ki].row * 3 ~/ gridSize, arrows[ki].col * 3 ~/ gridSize);
-        final dist  = (arrows[li].row - arrows[ki].row).abs() +
-                      (arrows[li].col - arrows[ki].col).abs();
-        final minPairDist = (gridSize * 0.25).floor().clamp(2, 15);
-        if (zone1 == zone2 || dist < minPairDist) continue;
+        if (!_pairReadsAsGroup(arrows, li, ki)) continue;
 
         final allCells = <String>{};
         for (final a in arrows) {
           for (final pt in a.path) allCells.add('${pt[0]},${pt[1]}');
         }
-        final otherThanKey  = Set<String>.from(allCells)
+        final otherThanKey = Set<String>.from(allCells)
           ..removeAll(arrows[ki].path.map((p) => '${p[0]},${p[1]}'));
         final otherThanLock = Set<String>.from(allCells)
           ..removeAll(arrows[li].path.map((p) => '${p[0]},${p[1]}'));
@@ -1095,31 +1493,31 @@ class LevelGeneratorV2 {
         arrows[li] = arrows[li].copyWith(
             mechanic: SnakeMechanic.colorLock, colorGroup: actualPairs);
 
-          final tempLevel = LevelModel(
-            levelNumber: level,
-            gridSize: gridSize,
-            arrows: arrows,
-            patternName: 'temp',
-            difficulty: Difficulty.easy,
-            mask: arrows
-                .expand((a) => a.path.map((p) => '${p[0]},${p[1]}'))
-                .toSet(),
-            orphanDots: orphanDots,
-          );
+        final tempLevel = LevelModel(
+          levelNumber: level,
+          gridSize: gridSize,
+          arrows: arrows,
+          patternName: 'temp',
+          difficulty: Difficulty.easy,
+          mask: arrows
+              .expand((a) => a.path.map((p) => '${p[0]},${p[1]}'))
+              .toSet(),
+          orphanDots: orphanDots,
+        );
 
-          final solvable = gridSize > 20
-              ? _greedySolve(tempLevel) != null
-              : LevelSolver.solve(tempLevel, 2000) != null;
+        final solvable = gridSize > 20 || CampaignComposition.hasBrief(level)
+            ? _greedySolve(tempLevel) != null
+            : LevelSolver.solve(tempLevel, 2000) != null;
 
-          if (solvable) {
-            actualPairs++;
-            break;
-          } else {
-            arrows[ki] = oldKi;
-            arrows[li] = oldLi;
-          }
+        if (solvable) {
+          actualPairs++;
+          break;
+        } else {
+          arrows[ki] = oldKi;
+          arrows[li] = oldLi;
         }
       }
+    }
 
     // Pass 2: Secondary Pairing — Fallback if Edge+Center pool couldn't fulfill all requested pairs
     if (actualPairs < pairs) {
@@ -1131,24 +1529,21 @@ class LevelGeneratorV2 {
           final ki = allStdIndices[j];
           if (arrows[ki].mechanic != SnakeMechanic.standard) continue;
 
-          final zone1 = (arrows[li].row * 3 ~/ gridSize, arrows[li].col * 3 ~/ gridSize);
-          final zone2 = (arrows[ki].row * 3 ~/ gridSize, arrows[ki].col * 3 ~/ gridSize);
-          final dist  = (arrows[li].row - arrows[ki].row).abs() +
-                        (arrows[li].col - arrows[ki].col).abs();
-          final minPairDist = (gridSize * 0.25).floor().clamp(2, 15);
-          if (zone1 == zone2 || dist < minPairDist) continue;
+          if (!_pairReadsAsGroup(arrows, li, ki)) continue;
 
           final allCells = <String>{};
           for (final a in arrows) {
             for (final pt in a.path) allCells.add('${pt[0]},${pt[1]}');
           }
-          final otherThanKey  = Set<String>.from(allCells)
+          final otherThanKey = Set<String>.from(allCells)
             ..removeAll(arrows[ki].path.map((p) => '${p[0]},${p[1]}'));
           final otherThanLock = Set<String>.from(allCells)
             ..removeAll(arrows[li].path.map((p) => '${p[0]},${p[1]}'));
 
-          final keyClear  = _simulateExitClear(arrows[ki], gridSize, otherThanKey, orphanMap);
-          final lockClear = _simulateExitClear(arrows[li], gridSize, otherThanLock, orphanMap);
+          final keyClear =
+              _simulateExitClear(arrows[ki], gridSize, otherThanKey, orphanMap);
+          final lockClear = _simulateExitClear(
+              arrows[li], gridSize, otherThanLock, orphanMap);
 
           if (keyClear && lockClear) {
             final oldKi = arrows[ki], oldLi = arrows[li];
@@ -1169,7 +1564,7 @@ class LevelGeneratorV2 {
               orphanDots: orphanDots,
             );
 
-            final solvable = gridSize > 20
+            final solvable = gridSize > 20 || CampaignComposition.hasBrief(level)
                 ? _greedySolve(tempLevel) != null
                 : LevelSolver.solve(tempLevel, 2000) != null;
 
@@ -1199,20 +1594,22 @@ class LevelGeneratorV2 {
           for (final a in arrows) {
             for (final pt in a.path) allCells.add('${pt[0]},${pt[1]}');
           }
-          final otherThanKey  = Set<String>.from(allCells)
+          final otherThanKey = Set<String>.from(allCells)
             ..removeAll(arrows[ki].path.map((p) => '${p[0]},${p[1]}'));
           final otherThanLock = Set<String>.from(allCells)
             ..removeAll(arrows[li].path.map((p) => '${p[0]},${p[1]}'));
 
-          final keyClear  = _simulateExitClear(arrows[ki], gridSize, otherThanKey, orphanMap);
-          final lockClear = _simulateExitClear(arrows[li], gridSize, otherThanLock, orphanMap);
+          final keyClear =
+              _simulateExitClear(arrows[ki], gridSize, otherThanKey, orphanMap);
+          final lockClear = _simulateExitClear(
+              arrows[li], gridSize, otherThanLock, orphanMap);
 
           if (keyClear && lockClear) {
             final oldKi = arrows[ki], oldLi = arrows[li];
-            arrows[ki] = arrows[ki].copyWith(
-                mechanic: SnakeMechanic.colorLock, colorGroup: 0);
-            arrows[li] = arrows[li].copyWith(
-                mechanic: SnakeMechanic.colorLock, colorGroup: 0);
+            arrows[ki] = arrows[ki]
+                .copyWith(mechanic: SnakeMechanic.colorLock, colorGroup: 0);
+            arrows[li] = arrows[li]
+                .copyWith(mechanic: SnakeMechanic.colorLock, colorGroup: 0);
 
             final tempLevel = LevelModel(
               levelNumber: level,
@@ -1226,7 +1623,7 @@ class LevelGeneratorV2 {
               orphanDots: orphanDots,
             );
 
-            final solvable = gridSize > 20
+            final solvable = gridSize > 20 || CampaignComposition.hasBrief(level)
                 ? _greedySolve(tempLevel) != null
                 : LevelSolver.solve(tempLevel, 2000) != null;
 
@@ -1252,30 +1649,79 @@ class LevelGeneratorV2 {
         return _normalShapeFor(levelNumber);
 
       case LevelType.boss:
-        return _pickShapeWithHistory(
-          MaskGeneratorV2.bossShapeNames, _bossShapeHistory, rng);
+        return _scriptedSpecial(type, levelNumber) ??
+            _pickShapeWithHistory(
+                MaskGeneratorV2.bossShapeNames, _bossShapeHistory, rng);
 
       case LevelType.god:
-        return _pickShapeWithHistory(
-          MaskGeneratorV2.godShapeNames, _godShapeHistory, rng);
+        return _scriptedSpecial(type, levelNumber) ??
+            _pickShapeWithHistory(
+                MaskGeneratorV2.godShapeNames, _godShapeHistory, rng);
     }
   }
 
-  /// Keyed by the level's position among normal levels rather than a shared
-  /// history, so a level gets the same shape no matter which chunk builds it.
-  static MaskShape _normalShapeFor(int levelNumber) {
-    var ordinal = 0;
-    for (var n = AppConstants.tutorialLevels + 1; n < levelNumber; n++) {
-      if (AppConstants.levelTypeFor(n) == LevelType.normal) ordinal++;
+  /// First specials are geometric and memorable. Later cycles return to the
+  /// pictorial boss and god libraries.
+  static MaskShape? _scriptedSpecial(LevelType type, int levelNumber) {
+    if (type == LevelType.boss) {
+      final cycle = AppConstants.bossCycleCount(levelNumber);
+      const script = [
+        MaskShape.plus,
+        MaskShape.uShape,
+        MaskShape.staircase,
+        MaskShape.frame,
+      ];
+      if (cycle >= 1 && cycle <= script.length) return script[cycle - 1];
     }
-    const pool = MaskGeneratorV2.normalShapeNames;
-    return MaskShape.values.byName(pool[ordinal % pool.length]);
+    if (type == LevelType.god) {
+      final cycle = AppConstants.godCycleCount(levelNumber);
+      const script = [
+        MaskShape.diamond,
+        MaskShape.heart,
+        MaskShape.frame,
+        MaskShape.pinwheel,
+      ];
+      if (cycle >= 1 && cycle <= script.length) return script[cycle - 1];
+    }
+    return null;
+  }
+
+  /// Same color group should sit apart on the silhouette, not on the empty
+  /// engine grid around a compact shape.
+  static bool _pairReadsAsGroup(List<ArrowModel> arrows, int a, int b) {
+    var minR = 1 << 20, maxR = 0, minC = 1 << 20, maxC = 0;
+    for (final arrow in arrows) {
+      for (final pt in arrow.path) {
+        if (pt[0] < minR) minR = pt[0];
+        if (pt[0] > maxR) maxR = pt[0];
+        if (pt[1] < minC) minC = pt[1];
+        if (pt[1] > maxC) maxC = pt[1];
+      }
+    }
+    final spanR = max(1, maxR - minR);
+    final spanC = max(1, maxC - minC);
+    final span = max(spanR, spanC);
+    final dist = (arrows[a].row - arrows[b].row).abs() +
+        (arrows[a].col - arrows[b].col).abs();
+    if (dist < max(2, (span * 0.28).round())) return false;
+    if (span < 6) return true;
+    final zones = span < 10 ? 2 : 3;
+    final za = ((arrows[a].row - minR) * zones ~/ (spanR + 1)) * 4 +
+        ((arrows[a].col - minC) * zones ~/ (spanC + 1));
+    final zb = ((arrows[b].row - minR) * zones ~/ (spanR + 1)) * 4 +
+        ((arrows[b].col - minC) * zones ~/ (spanC + 1));
+    return za != zb;
+  }
+
+  /// Shape comes from the campaign plan, so every chunk builds the same board.
+  static MaskShape _normalShapeFor(int levelNumber) {
+    return MaskShape.values.byName(
+      CampaignComposition.briefFor(levelNumber).shape,
+    );
   }
 
   static MaskShape _pickShapeWithHistory(
-      List<String> allNames,
-      ListQueue<String> history,
-      Random rng) {
+      List<String> allNames, ListQueue<String> history, Random rng) {
     final available = allNames.where((n) => !history.contains(n)).toList();
     final pool = available.isEmpty ? allNames : available;
     final chosen = pool[rng.nextInt(pool.length)];
@@ -1292,14 +1738,19 @@ class LevelGeneratorV2 {
   // ═══════════════════════════════════════════════════════════════════════════
 
   static void _placeArrow(
-    List<ArrowModel> arrows, List<List<int>> path,
-    ArrowDirection dir, int levelNumber, int counter,
-    Set<String> occupied, Set<int> occupiedPacked,
+    List<ArrowModel> arrows,
+    List<List<int>> path,
+    ArrowDirection dir,
+    int levelNumber,
+    int counter,
+    Set<String> occupied,
+    Set<int> occupiedPacked,
   ) {
     final head = path[0];
     arrows.add(ArrowModel(
       id: 'a_${levelNumber}_$counter',
-      row: head[0], col: head[1],
+      row: head[0],
+      col: head[1],
       direction: dir,
       isPartOfPattern: true,
       path: path,
@@ -1311,15 +1762,43 @@ class LevelGeneratorV2 {
     }
   }
 
+  static Set<int> _blockerCells(
+    List<ArrowModel> arrows,
+    Set<int> occupiedPacked,
+    Set<int> maskPacked,
+    int gridSize,
+  ) {
+    final hot = <int>{};
+    for (final arrow in arrows) {
+      final d = arrow.direction.delta;
+      var r = arrow.row + d[0];
+      var c = arrow.col + d[1];
+      while (r >= 0 && r < gridSize && c >= 0 && c < gridSize) {
+        final packed = r * 1000 + c;
+        if (occupiedPacked.contains(packed)) break;
+        if (maskPacked.contains(packed)) hot.add(packed);
+        r += d[0];
+        c += d[1];
+      }
+    }
+    return hot;
+  }
+
   static void _shuffleCandidatesFromCenter(
-      List<_Cand> candidates, int gridSize, Random rng) {
+      List<_Cand> candidates, int gridSize, Random rng,
+      [Set<int> blockerCells = const <int>{}]) {
     final centerRow = gridSize / 2;
     final centerCol = gridSize / 2;
     candidates.sort((a, b) {
+      final aBlocks = blockerCells.contains(a.row * 1000 + a.col) ? 0 : 1;
+      final bBlocks = blockerCells.contains(b.row * 1000 + b.col) ? 0 : 1;
+      if (aBlocks != bBlocks) return aBlocks.compareTo(bBlocks);
       final distA = (a.row - centerRow).abs() + (a.col - centerCol).abs();
       final distB = (b.row - centerRow).abs() + (b.col - centerCol).abs();
-      final scoreA = distA + a.blockedCount * 3.0 + (rng.nextDouble() * 3.0 - 1.5);
-      final scoreB = distB + b.blockedCount * 3.0 + (rng.nextDouble() * 3.0 - 1.5);
+      final scoreA =
+          distA + a.blockedCount * 3.0 + (rng.nextDouble() * 3.0 - 1.5);
+      final scoreB =
+          distB + b.blockedCount * 3.0 + (rng.nextDouble() * 3.0 - 1.5);
       return scoreA.compareTo(scoreB);
     });
   }
@@ -1336,7 +1815,8 @@ class LevelGeneratorV2 {
         int blockedCount = 0;
         while (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
           if (occupiedPacked.contains(nr * 1000 + nc)) blockedCount++;
-          nr += d[0]; nc += d[1];
+          nr += d[0];
+          nc += d[1];
         }
         if (blockedCount <= maxAllowedBlocks) {
           out.add(_Cand(r, c, dir, blockedCount: blockedCount));
@@ -1358,16 +1838,27 @@ class LevelGeneratorV2 {
     required Random rng,
     required int gridSize,
     double tangleFactor = 0.0,
+    PathBias? pathBias,
   }) {
     final exitPath = _getExitPathPacked(startRow, startCol, exitDir, gridSize);
-    final path     = <List<int>>[[startRow, startCol]];
+    final path = <List<int>>[
+      [startRow, startCol]
+    ];
     final pathPacked = <int>{startRow * 1000 + startCol};
     int cr = startRow, cc = startCol;
     var growDir = exitDir.opposite;
     int straight = 0;
+    final spinRight = rng.nextBool();
+    ArrowDirection? lastTurn;
 
-    final double turnBias   = 0.65 + tangleFactor * 0.20;
-    final int    maxStraight = tangleFactor >= 0.7 ? 2 : 3;
+    final double turnBias =
+        pathBias?.turnBias ?? (0.06 + tangleFactor * 0.78);
+    final int maxStraight = pathBias?.maxStraight ??
+        (tangleFactor < 0.2
+            ? 8
+            : tangleFactor < 0.5
+                ? 4
+                : 2);
 
     for (int step = 1; step < targetLen; step++) {
       final valid = <ArrowDirection>[];
@@ -1383,10 +1874,16 @@ class LevelGeneratorV2 {
 
         // Anti-square: reject if new cell touches any path cell other than current
         bool wouldFormLoop = false;
-        for (final nb in [[-1,0],[1,0],[0,-1],[0,1]]) {
+        for (final nb in [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1]
+        ]) {
           final adjP = (nr + nb[0]) * 1000 + (nc + nb[1]);
           if (adjP != cr * 1000 + cc && pathPacked.contains(adjP)) {
-            wouldFormLoop = true; break;
+            wouldFormLoop = true;
+            break;
           }
         }
         if (wouldFormLoop) continue;
@@ -1396,28 +1893,60 @@ class LevelGeneratorV2 {
 
       if (step == 1 && !valid.contains(growDir)) return null;
 
-      final mustTurn  = straight >= maxStraight;
-      final turns     = valid.where((d) => d != growDir).toList();
+      final mustTurn = straight >= maxStraight;
+      final turns = valid.where((d) => d != growDir).toList();
       final straights = valid.where((d) => d == growDir).toList();
 
       ArrowDirection chosen;
       if (step == 1) {
         chosen = growDir;
       } else if (mustTurn && turns.isNotEmpty) {
-        chosen = _packedPick(turns, cr, cc, occupiedPacked, rng);
+        chosen = _biasedTurn(
+          turns,
+          growDir,
+          pathBias,
+          lastTurn,
+          spinRight,
+          cr,
+          cc,
+          occupiedPacked,
+          rng,
+        );
       } else if (valid.length == 1) {
         chosen = valid[0];
       } else if (rng.nextDouble() < turnBias && turns.isNotEmpty) {
-        chosen = _packedPick(turns, cr, cc, occupiedPacked, rng);
+        chosen = _biasedTurn(
+          turns,
+          growDir,
+          pathBias,
+          lastTurn,
+          spinRight,
+          cr,
+          cc,
+          occupiedPacked,
+          rng,
+        );
       } else if (straights.isNotEmpty) {
         chosen = straights[0];
       } else {
-        chosen = _packedPick(turns, cr, cc, occupiedPacked, rng);
+        chosen = _biasedTurn(
+          turns,
+          growDir,
+          pathBias,
+          lastTurn,
+          spinRight,
+          cr,
+          cc,
+          occupiedPacked,
+          rng,
+        );
       }
 
+      if (chosen != growDir) lastTurn = chosen;
       straight = chosen == growDir ? straight + 1 : 0;
       final nd = chosen.delta;
-      cr += nd[0]; cc += nd[1];
+      cr += nd[0];
+      cc += nd[1];
       path.add([cr, cc]);
       pathPacked.add(cr * 1000 + cc);
       growDir = chosen;
@@ -1432,15 +1961,15 @@ class LevelGeneratorV2 {
       for (int i = 0; i < result.length; i++) {
         final pk = result[i][0] * 1000 + result[i][1];
         assert(!seen.contains(pk),
-          'V2: Self-intersection at step $i (row=${result[i][0]}, col=${result[i][1]})');
+            'V2: Self-intersection at step $i (row=${result[i][0]}, col=${result[i][1]})');
         seen.add(pk);
         if (i >= 2) {
-          final dr1 = result[i-1][0] - result[i-2][0];
-          final dc1 = result[i-1][1] - result[i-2][1];
-          final dr2 = result[i][0]   - result[i-1][0];
-          final dc2 = result[i][1]   - result[i-1][1];
+          final dr1 = result[i - 1][0] - result[i - 2][0];
+          final dc1 = result[i - 1][1] - result[i - 2][1];
+          final dr2 = result[i][0] - result[i - 1][0];
+          final dc2 = result[i][1] - result[i - 1][1];
           assert(!(dr2 == -dr1 && dc2 == -dc1),
-            'V2: U-turn (180° reversal) at step $i');
+              'V2: U-turn (180° reversal) at step $i');
         }
       }
       return true;
@@ -1449,8 +1978,34 @@ class LevelGeneratorV2 {
     return result;
   }
 
-  static ArrowDirection _packedPick(List<ArrowDirection> dirs,
-      int cr, int cc, Set<int> occupiedPacked, Random rng) {
+  static ArrowDirection _biasedTurn(
+    List<ArrowDirection> turns,
+    ArrowDirection growDir,
+    PathBias? pathBias,
+    ArrowDirection? lastTurn,
+    bool spinRight,
+    int cr,
+    int cc,
+    Set<int> occupiedPacked,
+    Random rng,
+  ) {
+    if (turns.isEmpty) return growDir;
+    if (pathBias != null) {
+      if (pathBias.alternateTurns && lastTurn != null) {
+        final want = lastTurn == growDir.turnRight
+            ? growDir.turnLeft
+            : growDir.turnRight;
+        if (turns.contains(want)) return want;
+      } else if (pathBias.consistentTurn) {
+        final want = spinRight ? growDir.turnRight : growDir.turnLeft;
+        if (turns.contains(want)) return want;
+      }
+    }
+    return _packedPick(turns, cr, cc, occupiedPacked, rng);
+  }
+
+  static ArrowDirection _packedPick(List<ArrowDirection> dirs, int cr, int cc,
+      Set<int> occupiedPacked, Random rng) {
     if (dirs.length == 1) return dirs[0];
     int best = -1;
     final bestDirs = <ArrowDirection>[];
@@ -1458,11 +2013,20 @@ class LevelGeneratorV2 {
       final nd = d.delta;
       final nr = cr + nd[0], nc = cc + nd[1];
       int score = 0;
-      for (final nb in [[-1,0],[1,0],[0,-1],[0,1]]) {
-        if (occupiedPacked.contains((nr + nb[0]) * 1000 + (nc + nb[1]))) score++;
+      for (final nb in [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1]
+      ]) {
+        if (occupiedPacked.contains((nr + nb[0]) * 1000 + (nc + nb[1])))
+          score++;
       }
-      if (score > best) { best = score; bestDirs.clear(); bestDirs.add(d); }
-      else if (score == best) bestDirs.add(d);
+      if (score > best) {
+        best = score;
+        bestDirs.clear();
+        bestDirs.add(d);
+      } else if (score == best) bestDirs.add(d);
     }
     return bestDirs[rng.nextInt(bestDirs.length)];
   }
@@ -1498,6 +2062,8 @@ class LevelGeneratorV2 {
     required Random rng,
     required void Function(_Cand) bestCandOut,
     required void Function(int) minBlockedOut,
+    PathBias? pathBias,
+    double tangleFactor = 0.0,
   }) {
     List<List<int>>? bestPath;
     int minBlocked = 9999;
@@ -1505,20 +2071,38 @@ class LevelGeneratorV2 {
 
     void tryTier(int Function() lenGen, int minLen) {
       for (final cand in candidates.take(15)) {
-        final len  = lenGen();
+        final len = lenGen();
         final path = _growPath(
-          startRow: cand.row, startCol: cand.col, exitDir: cand.dir,
-          maskPacked: maskPacked, occupiedPacked: occupiedPacked,
-          targetLen: len, rng: rng, gridSize: gridSize,
+          startRow: cand.row,
+          startCol: cand.col,
+          exitDir: cand.dir,
+          maskPacked: maskPacked,
+          occupiedPacked: occupiedPacked,
+          targetLen: len,
+          rng: rng,
+          gridSize: gridSize,
+          tangleFactor: tangleFactor,
+          pathBias: pathBias,
         );
         if (path != null && path.length >= minLen) {
           final bc = _evalPlacement(
-            maskCells: [], maskPacked: maskPacked,
+            maskCells: [],
+            maskPacked: maskPacked,
             currentOccupiedPacked: occupiedPacked,
-            newPath: path, gridSize: gridSize,
+            newPath: path,
+            gridSize: gridSize,
           );
-          if (bc == 0) { bestCand = cand; bestPath = path; minBlocked = 0; return; }
-          if (bc < minBlocked) { minBlocked = bc; bestCand = cand; bestPath = path; }
+          if (bc == 0) {
+            bestCand = cand;
+            bestPath = path;
+            minBlocked = 0;
+            return;
+          }
+          if (bc < minBlocked) {
+            minBlocked = bc;
+            bestCand = cand;
+            bestPath = path;
+          }
         }
       }
     }
@@ -1548,7 +2132,8 @@ class LevelGeneratorV2 {
     int nr = headRow + d[0], nc = headCol + d[1];
     while (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
       if (occupiedPacked.contains(nr * 1000 + nc)) return false;
-      nr += d[0]; nc += d[1];
+      nr += d[0];
+      nc += d[1];
     }
     return true;
   }
@@ -1560,7 +2145,8 @@ class LevelGeneratorV2 {
     int nr = startRow + d[0], nc = startCol + d[1];
     while (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
       path.add(nr * 1000 + nc);
-      nr += d[0]; nc += d[1];
+      nr += d[0];
+      nc += d[1];
     }
     return path;
   }
@@ -1585,88 +2171,357 @@ class LevelGeneratorV2 {
       visited.add(key);
       if (orphanDots.containsKey(key)) {
         final dotType = orphanDots[key]!;
-        if      (dotType == OrphanDotType.up)    currentDir = ArrowDirection.up;
-        else if (dotType == OrphanDotType.down)  currentDir = ArrowDirection.down;
-        else if (dotType == OrphanDotType.left)  currentDir = ArrowDirection.left;
-        else if (dotType == OrphanDotType.right) currentDir = ArrowDirection.right;
+        if (dotType == OrphanDotType.up)
+          currentDir = ArrowDirection.up;
+        else if (dotType == OrphanDotType.down)
+          currentDir = ArrowDirection.down;
+        else if (dotType == OrphanDotType.left)
+          currentDir = ArrowDirection.left;
+        else if (dotType == OrphanDotType.right)
+          currentDir = ArrowDirection.right;
       } else if (occupied.contains(key) && !myPathSet.contains(key)) {
         return false;
       }
       d = currentDir.delta;
-      nr += d[0]; nc += d[1];
+      nr += d[0];
+      nc += d[1];
     }
     return true;
   }
 
   static OrphanDotType _dotTypeForDir(ArrowDirection dir) {
     switch (dir) {
-      case ArrowDirection.up:    return OrphanDotType.up;
-      case ArrowDirection.down:  return OrphanDotType.down;
-      case ArrowDirection.left:  return OrphanDotType.left;
-      case ArrowDirection.right: return OrphanDotType.right;
+      case ArrowDirection.up:
+        return OrphanDotType.up;
+      case ArrowDirection.down:
+        return OrphanDotType.down;
+      case ArrowDirection.left:
+        return OrphanDotType.left;
+      case ArrowDirection.right:
+        return OrphanDotType.right;
     }
   }
 
   static _Params _paramsFor(
       int level, LevelType type, int gridSize, Set<String> mask) {
-    int avgLen, arrowCount;
     if (level <= 3) {
-      avgLen = 2; arrowCount = 4;
-    } else {
-      if (level == 395 || level == 437) {
-        avgLen = 6;
-      } else if (level <= 15) {
-        avgLen = 3;
-      } else if (level <= 50) {
-        avgLen = 4;
-      } else {
-        avgLen = 5;
-      }
-      arrowCount =
-          ((mask.length * 1.0) / avgLen).round().clamp(4, 300);
+      return _Params(4, 2);
     }
+    final avgLen = level == 395 || level == 437
+        ? 6
+        : CampaignLevelSpec.avgPathLength(level);
+    final minA =
+        CampaignLevelSpec.minArrowCount(level, type, maskCells: mask.length);
+    final maxA = CampaignLevelSpec.maxArrowCount(level, type);
+    final target = CampaignLevelSpec.targetArrowCount(level, type, mask.length);
+    final fromMask = (mask.length / avgLen).round();
+    final arrowCount =
+        max(max(target, fromMask), minA).clamp(minA, maxA);
     return _Params(arrowCount, avgLen);
   }
 
   static Difficulty _difficultyFor(int level, LevelType type) {
     if (type == LevelType.tutorial) return Difficulty.tutorial;
-    if (type == LevelType.god)      return Difficulty.legend;
+    if (type == LevelType.god) return Difficulty.legend;
     if (type == LevelType.boss) {
-      if (level <= 20)  return Difficulty.hard;
-      if (level <= 50)  return Difficulty.expert;
+      if (level <= 20) return Difficulty.hard;
+      if (level <= 50) return Difficulty.expert;
       if (level <= 100) return Difficulty.master;
       return Difficulty.legend;
     }
-    if (level <= 20)  return Difficulty.easy;
-    if (level <= 50)  return Difficulty.medium;
+    if (level <= 20) return Difficulty.easy;
+    if (level <= 50) return Difficulty.medium;
     if (level <= 100) return Difficulty.hard;
     if (level <= 200) return Difficulty.expert;
     if (level <= 400) return Difficulty.master;
     return Difficulty.legend;
   }
 
-  static String _nameFor(LevelType type, int level) {
+  static String _nameFor(LevelType type, int level, [MaskShape? shape]) {
+    final motif = shape == null ? '' : ' · ${_motifLabel(shape)}';
     switch (type) {
-      case LevelType.boss:     return 'Boss $level';
-      case LevelType.god:      return 'God $level';
-      case LevelType.tutorial: return 'Tutorial';
-      default:                 return 'Level $level';
+      case LevelType.boss:
+        return 'Boss $level$motif';
+      case LevelType.god:
+        return 'God $level$motif';
+      case LevelType.tutorial:
+        return 'Tutorial';
+      default:
+        if (CampaignComposition.hasBrief(level)) {
+          final brief = CampaignComposition.briefFor(level);
+          return 'Level $level · ${brief.shape} · ${brief.composition.name}';
+        }
+        return 'Level $level$motif';
     }
+  }
+
+  static String _motifLabel(MaskShape shape) {
+    switch (shape) {
+      case MaskShape.square:
+        return 'straight';
+      case MaskShape.wideRectangle:
+        return 'lanes';
+      case MaskShape.longRectangle:
+        return 'tall';
+      case MaskShape.lShape:
+        return 'L';
+      case MaskShape.chevron:
+        return 'V';
+      case MaskShape.cornerCluster:
+        return 'corner';
+      case MaskShape.uShape:
+        return 'U';
+      case MaskShape.cShape:
+        return 'C';
+      case MaskShape.tShape:
+        return 'T';
+      case MaskShape.staircase:
+        return 'stair';
+      case MaskShape.zShape:
+        return 'zigzag';
+      case MaskShape.plus:
+        return 'cross';
+      case MaskShape.diamond:
+        return 'diamond';
+      case MaskShape.xCross:
+        return 'X';
+      case MaskShape.frame:
+        return 'ring';
+      case MaskShape.heart:
+        return 'heart';
+      case MaskShape.pinwheel:
+        return 'spiral';
+      case MaskShape.hShape:
+        return 'nested';
+      default:
+        return shape.name;
+    }
+  }
+
+  static int _maskSpan(Set<String> mask) {
+    if (mask.isEmpty) return 1;
+    var minR = 1 << 20, maxR = -1, minC = 1 << 20, maxC = -1;
+    for (final cell in mask) {
+      final comma = cell.indexOf(',');
+      final r = int.parse(cell.substring(0, comma));
+      final c = int.parse(cell.substring(comma + 1));
+      if (r < minR) minR = r;
+      if (r > maxR) maxR = r;
+      if (c < minC) minC = c;
+      if (c > maxC) maxC = c;
+    }
+    final h = maxR - minR + 1;
+    final w = maxC - minC + 1;
+    return h > w ? h : w;
+  }
+
+  /// Reject boards whose difficulty is clutter: a pile of stubs, or a board
+  /// where every arrow is already free. Later attempts are allowed through
+  /// so a level still ships.
+  static bool _rejectsLayout({
+    required int levelNumber,
+    required LevelType type,
+    required int attempt,
+    required LevelLayoutProfile profile,
+    required List<ArrowModel> arrows,
+  }) {
+    if (type == LevelType.tutorial || attempt >= 28) return false;
+    if (profile.arrowCount < 3) return true;
+
+    var stubs = 0;
+    for (final arrow in arrows) {
+      if (arrow.path.length <= 2) stubs++;
+    }
+    final stubRatio = stubs / arrows.length;
+    if (levelNumber <= 40 && stubRatio > 0.55 && attempt < 20) return true;
+
+    if (profile.isImmediatelySolved && levelNumber >= 6 && attempt < 24) {
+      return true;
+    }
+
+    final maxOpen = levelNumber <= 12
+        ? 3
+        : levelNumber <= 40
+            ? 4
+            : 6;
+    if (levelNumber >= 8 && profile.openingMoves > maxOpen && attempt < 40) {
+      return true;
+    }
+
+    // Medium boards should need at least a short chain, not one free click
+    // that unblocks everything else at once.
+    if (levelNumber >= 11 &&
+        levelNumber <= 40 &&
+        profile.arrowCount >= 5 &&
+        profile.dependencyDepth < 2 &&
+        attempt < 12) {
+      return true;
+    }
+    return false;
+  }
+
+  /// True when two arrows share a cell, or a head points into its own body.
+  static bool _arrowsAreBroken(List<ArrowModel> arrows) {
+    final seen = <int>{};
+    for (final arrow in arrows) {
+      for (final pt in arrow.path) {
+        final key = pt[0] * 1000 + pt[1];
+        if (!seen.add(key)) return true;
+      }
+      if (arrow.path.length < 2) continue;
+      final stepR = arrow.path[1][0] - arrow.path[0][0];
+      final stepC = arrow.path[1][1] - arrow.path[0][1];
+      final exit = arrow.direction.delta;
+      if (stepR != -exit[0] || stepC != -exit[1]) return true;
+    }
+    return false;
+  }
+
+  static ArrowDirection _dirFromStep(int dr, int dc) {
+    if (dr == -1 && dc == 0) return ArrowDirection.up;
+    if (dr == 1 && dc == 0) return ArrowDirection.down;
+    if (dr == 0 && dc == -1) return ArrowDirection.left;
+    return ArrowDirection.right;
+  }
+
+  static void _densifyToMinArrowCount({
+    required List<ArrowModel> arrows,
+    required int minArrows,
+    required int levelNumber,
+    required Set<String> occupied,
+    required Set<int> occupiedPacked,
+  }) {
+    if (minArrows <= 0) return;
+    var guard = 0;
+    while (arrows.length < minArrows && guard++ < 80) {
+      if (!_splitLongestArrow(
+        arrows: arrows,
+        levelNumber: levelNumber,
+        occupied: occupied,
+        occupiedPacked: occupiedPacked,
+      )) {
+        break;
+      }
+    }
+  }
+
+  static bool _splitLongestArrow({
+    required List<ArrowModel> arrows,
+    required int levelNumber,
+    required Set<String> occupied,
+    required Set<int> occupiedPacked,
+  }) {
+    var pick = -1;
+    var bestLen = 0;
+    for (var i = 0; i < arrows.length; i++) {
+      final len = arrows[i].path.length;
+      if (len > bestLen) {
+        bestLen = len;
+        pick = i;
+      }
+    }
+    if (pick < 0 || bestLen < 4) return false;
+
+    final old = arrows[pick];
+    final mid = bestLen ~/ 2;
+    // The cut cell belongs to B only. A and B share an edge, not a cell,
+    // so the new head is not drawn on top of the other arrow.
+    final pathA = old.path.sublist(0, mid);
+    final pathB = old.path.sublist(mid);
+    if (pathA.length < 2 || pathB.length < 2) return false;
+
+    arrows.removeAt(pick);
+    for (final pt in old.path) {
+      occupied.remove('${pt[0]},${pt[1]}');
+      occupiedPacked.remove(pt[0] * 1000 + pt[1]);
+    }
+
+    final stepDr = pathB[1][0] - pathB[0][0];
+    final stepDc = pathB[1][1] - pathB[0][1];
+    // B's body runs toward the old tail. Its head must leave the other way,
+    // back across the cut, or it slides into itself and sticks.
+    final dirB = _dirFromStep(stepDr, stepDc).opposite;
+
+    void place(List<List<int>> path, ArrowDirection dir, String id) {
+      arrows.add(ArrowModel(
+        id: id,
+        row: path[0][0],
+        col: path[0][1],
+        direction: dir,
+        isPartOfPattern: true,
+        path: path,
+        mechanic: SnakeMechanic.standard,
+      ));
+      for (final pt in path) {
+        occupied.add('${pt[0]},${pt[1]}');
+        occupiedPacked.add(pt[0] * 1000 + pt[1]);
+      }
+    }
+
+    place(pathA, old.direction, '${old.id}_a$mid');
+    place(pathB, dirB, '${old.id}_b$mid');
+    return true;
+  }
+
+  static int _countPriorArrowsBlocked(
+    List<ArrowModel> prior,
+    Set<int> occupiedPacked,
+    List<List<int>> newPath,
+    int gridSize,
+  ) {
+    final newCells = <int>{};
+    for (final pt in newPath) {
+      newCells.add(pt[0] * 1000 + pt[1]);
+    }
+    var count = 0;
+    for (final a in prior) {
+      final d = a.direction.delta;
+      var r = a.row + d[0];
+      var c = a.col + d[1];
+      while (r >= 0 && r < gridSize && c >= 0 && c < gridSize) {
+        final packed = r * 1000 + c;
+        if (newCells.contains(packed)) {
+          count++;
+          break;
+        }
+        if (occupiedPacked.contains(packed)) break;
+        r += d[0];
+        c += d[1];
+      }
+    }
+    return count;
   }
 
   static LevelModel _fallback(
       int levelNumber, int gridSize, Set<String> mask, LevelType type) {
     final arrows = <ArrowModel>[];
-    final mid = gridSize ~/ 2;
-    int i = 0;
-    for (int col = 0; col < gridSize && i < 4; col++) {
-      if (!mask.contains('$mid,$col')) continue;
+    final minTarget = CampaignLevelSpec.minArrowCount(
+      levelNumber,
+      type,
+      maskCells: mask.length,
+    );
+    final maskList = mask.toList()..sort();
+    var i = 0;
+    for (final key in maskList) {
+      if (i >= minTarget) break;
+      final comma = key.indexOf(',');
+      final r = int.parse(key.substring(0, comma));
+      final c = int.parse(key.substring(comma + 1));
+      final path = <List<int>>[
+        [r, c]
+      ];
+      if (mask.contains('$r,${c - 1}')) {
+        path.add([r, c - 1]);
+      } else if (mask.contains('$r,${c + 1}')) {
+        path.add([r, c + 1]);
+      }
       arrows.add(ArrowModel(
         id: 'fb_${levelNumber}_$i',
-        row: mid, col: col,
+        row: path[0][0],
+        col: path[0][1],
         direction: ArrowDirection.right,
         isPartOfPattern: true,
-        path: [[mid, col]],
+        path: path,
       ));
       i++;
     }
@@ -1692,13 +2547,19 @@ class LevelGeneratorV2 {
     for (final pt in newPath) newPathPacked.add(pt[0] * 1000 + pt[1]);
 
     bool isOccupied(int packed) =>
-        currentOccupiedPacked.contains(packed) || newPathPacked.contains(packed);
+        currentOccupiedPacked.contains(packed) ||
+        newPathPacked.contains(packed);
 
-    final rowsToCheck   = newPath.map((pt) => pt[0]).toSet();
-    final colsToCheck   = newPath.map((pt) => pt[1]).toSet();
-    final adjacentKeys  = <int>{};
+    final rowsToCheck = newPath.map((pt) => pt[0]).toSet();
+    final colsToCheck = newPath.map((pt) => pt[1]).toSet();
+    final adjacentKeys = <int>{};
     for (final pt in newPath) {
-      for (final offset in [[-1,0],[1,0],[0,-1],[0,1]]) {
+      for (final offset in [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1]
+      ]) {
         adjacentKeys.add((pt[0] + offset[0]) * 1000 + (pt[1] + offset[1]));
       }
     }
@@ -1708,29 +2569,46 @@ class LevelGeneratorV2 {
       final r = cell[0], c = cell[1];
       final packed = r * 1000 + c;
       if (isOccupied(packed)) continue;
-      final isNear = rowsToCheck.contains(r) || colsToCheck.contains(c) ||
+      final isNear = rowsToCheck.contains(r) ||
+          colsToCheck.contains(c) ||
           adjacentKeys.contains(packed);
       if (!isNear) continue;
 
       int emptyNeighbors = 0;
-      for (final nb in [[-1,0],[1,0],[0,-1],[0,1]]) {
+      for (final nb in [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1]
+      ]) {
         final np = (r + nb[0]) * 1000 + (c + nb[1]);
         if (maskPacked.contains(np) && !isOccupied(np)) emptyNeighbors++;
       }
-      if (emptyNeighbors == 0) { blocked += 100; continue; }
+      if (emptyNeighbors == 0) {
+        blocked += 100;
+        continue;
+      }
 
       bool hasExit = false;
       for (final dir in ArrowDirection.values) {
         final d = dir.delta;
         final backPacked = (r - d[0]) * 1000 + (c - d[1]);
-        if (!maskPacked.contains(backPacked) || isOccupied(backPacked)) continue;
+        if (!maskPacked.contains(backPacked) || isOccupied(backPacked))
+          continue;
         int nr = r + d[0], nc = c + d[1];
         bool pathClear = true;
         while (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
-          if (isOccupied(nr * 1000 + nc)) { pathClear = false; break; }
-          nr += d[0]; nc += d[1];
+          if (isOccupied(nr * 1000 + nc)) {
+            pathClear = false;
+            break;
+          }
+          nr += d[0];
+          nc += d[1];
         }
-        if (pathClear) { hasExit = true; break; }
+        if (pathClear) {
+          hasExit = true;
+          break;
+        }
       }
       if (!hasExit) blocked += 100;
     }
@@ -1739,7 +2617,8 @@ class LevelGeneratorV2 {
 
   /// Upper bound for an arrow grown by [_extendTails]. Scales with the board
   /// so big grids get the long winding arrows they have room for.
-  static int _maxExtendedLen(int gridSize) => (gridSize * 0.7).round().clamp(8, 22);
+  static int _maxExtendedLen(int gridSize) =>
+      (gridSize * 0.7).round().clamp(8, 22);
 
   /// Appends neighbouring empty cells to arrow tails, round-robin, until the
   /// board reaches [targetCells] or nothing else fits.
@@ -1769,7 +2648,12 @@ class LevelGeneratorV2 {
         if (arrow.path.length >= maxLen) continue;
 
         final tail = arrow.path.last;
-        final offsets = [[-1, 0], [1, 0], [0, -1], [0, 1]]..shuffle(rng);
+        final offsets = [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1]
+        ]..shuffle(rng);
         for (final nb in offsets) {
           final r = tail[0] + nb[0], c = tail[1] + nb[1];
           final packed = r * 1000 + c;
@@ -1777,7 +2661,10 @@ class LevelGeneratorV2 {
           if (occupiedPacked.contains(packed)) continue;
           if (_touchesOwnPath(arrow.path, r, c)) continue;
 
-          arrows[i] = arrow.copyWith(path: [...arrow.path, [r, c]]);
+          arrows[i] = arrow.copyWith(path: [
+            ...arrow.path,
+            [r, c]
+          ]);
           occupied.add('$r,$c');
           occupiedPacked.add(packed);
           madeProgress = true;
@@ -1804,16 +2691,24 @@ class LevelGeneratorV2 {
       final r = int.parse(parts[0]), c = int.parse(parts[1]);
       for (int i = 0; i < arrows.length; i++) {
         final arrow = arrows[i];
-        final tail  = arrow.path.last;
-        final dist  = (tail[0] - r).abs() + (tail[1] - c).abs();
+        final tail = arrow.path.last;
+        final dist = (tail[0] - r).abs() + (tail[1] - c).abs();
         if (dist == 1) {
           bool wouldFormLoop = false;
           if (arrow.path.length >= 3) {
-            for (final nb in [[-1,0],[1,0],[0,-1],[0,1]]) {
+            for (final nb in [
+              [-1, 0],
+              [1, 0],
+              [0, -1],
+              [0, 1]
+            ]) {
               final adjR = r + nb[0], adjC = c + nb[1];
               if (adjR == tail[0] && adjC == tail[1]) continue;
               for (final pt in arrow.path) {
-                if (pt[0] == adjR && pt[1] == adjC) { wouldFormLoop = true; break; }
+                if (pt[0] == adjR && pt[1] == adjC) {
+                  wouldFormLoop = true;
+                  break;
+                }
               }
               if (wouldFormLoop) break;
             }
@@ -1831,38 +2726,41 @@ class LevelGeneratorV2 {
 
   // ── Greedy solver (identical to V1) ────────────────────────────────────────
 
-  static List<String>? _greedySolveWithMap(
-      int gridSize, List<ArrowModel> arrows, Map<int, OrphanDotType> orphanMap) {
+  static List<String>? _greedySolveWithMap(int gridSize,
+      List<ArrowModel> arrows, Map<int, OrphanDotType> orphanMap) {
     final board = Uint16List(gridSize * gridSize);
     for (int i = 0; i < arrows.length; i++) {
       for (final pt in arrows[i].path) {
         board[pt[0] * gridSize + pt[1]] = i + 1;
       }
     }
-    final orphanTypes  = Uint8List(gridSize * gridSize);
+    final orphanTypes = Uint8List(gridSize * gridSize);
     final orphanActive = List<bool>.filled(gridSize * gridSize, false);
     orphanMap.forEach((packed, type) {
       final r = packed ~/ 1000, c = packed % 1000;
       final idx = r * gridSize + c;
-      orphanTypes[idx]  = type.index;
+      orphanTypes[idx] = type.index;
       orphanActive[idx] = true;
     });
 
-    final partnerOf  = List<int>.filled(arrows.length, -1);
+    final partnerOf = List<int>.filled(arrows.length, -1);
     final grpBuckets = <int, List<int>>{};
     for (int i = 0; i < arrows.length; i++) {
       final g = arrows[i].colorGroup;
       if (g != null) grpBuckets.putIfAbsent(g, () => []).add(i);
     }
     for (final v in grpBuckets.values) {
-      if (v.length == 2) { partnerOf[v[0]] = v[1]; partnerOf[v[1]] = v[0]; }
+      if (v.length == 2) {
+        partnerOf[v[0]] = v[1];
+        partnerOf[v[1]] = v[0];
+      }
     }
 
-    final active    = List<bool>.filled(arrows.length, true);
-    final order     = <String>[];
-    int remaining   = arrows.length;
+    final active = List<bool>.filled(arrows.length, true);
+    final order = <String>[];
+    int remaining = arrows.length;
     final exitVisited = Uint16List(gridSize * gridSize);
-    int exitToken   = 0;
+    int exitToken = 0;
 
     List<int>? tryExit(int ai, int pi) {
       exitToken++;
@@ -1878,15 +2776,21 @@ class LevelGeneratorV2 {
         if (orphanActive[idx]) {
           consumed.add(idx);
           final t = orphanTypes[idx];
-          if      (t == 0) dir = ArrowDirection.up;
-          else if (t == 1) dir = ArrowDirection.down;
-          else if (t == 2) dir = ArrowDirection.left;
+          if (t == 0)
+            dir = ArrowDirection.up;
+          else if (t == 1)
+            dir = ArrowDirection.down;
+          else if (t == 2)
+            dir = ArrowDirection.left;
           else if (t == 3) dir = ArrowDirection.right;
         } else {
           final val = board[idx];
-          if (val != 0 && val != ai + 1 && (pi == -1 || val != pi + 1)) return null;
+          if (val != 0 && val != ai + 1 && (pi == -1 || val != pi + 1))
+            return null;
         }
-        d = dir.delta; nr += d[0]; nc += d[1];
+        d = dir.delta;
+        nr += d[0];
+        nc += d[1];
       }
       return consumed;
     }
@@ -1899,7 +2803,7 @@ class LevelGeneratorV2 {
     }
 
     bool madeProgress = true;
-    final seenGroups  = <int>{};
+    final seenGroups = <int>{};
     while (madeProgress && remaining > 0) {
       madeProgress = false;
       seenGroups.clear();
@@ -1915,7 +2819,8 @@ class LevelGeneratorV2 {
         if (c1 != null && c2 != null) {
           final consumed = <int>{...c1, ...c2};
           for (final f in consumed) orphanActive[f] = false;
-          clearArrow(i); clearArrow(p);
+          clearArrow(i);
+          clearArrow(p);
           madeProgress = true;
         }
       }
@@ -1940,12 +2845,7 @@ class LevelGeneratorV2 {
     return _greedySolveWithMap(level.gridSize, level.arrows, orphanMap);
   }
 
-  static void _log(String msg) {
-    try {
-      File('attempt_log_v2.txt').writeAsStringSync(msg,
-          mode: FileMode.append, flush: true);
-    } catch (_) {}
-  }
+  static void _log(String msg) {}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

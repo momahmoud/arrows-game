@@ -196,6 +196,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navAwards => 'Awards';
 
   @override
+  String get navHome => 'Home';
+
+  @override
+  String get navMore => 'More';
+
+  @override
+  String get viewAllLevels => 'View all levels';
+
+  @override
+  String get shopCoins => 'Coins';
+
+  @override
+  String get dailyLogin => 'Daily login';
+
+  @override
+  String get albumEmpty => 'No collections yet';
+
+  @override
+  String get awardsEmpty => 'No awards completed yet';
+
+  @override
+  String awardsEarned(int count) {
+    return '$count earned';
+  }
+
+  @override
   String get shapeAlbum => 'Shape Album';
 
   @override
@@ -253,7 +279,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shop => 'Shop';
 
   @override
-  String get shopPowerUps => 'Power-ups';
+  String get shopPowerUps => 'Boosters';
 
   @override
   String ownedExtra(int count) {
@@ -551,7 +577,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pairBadge => 'PAIR';
 
   @override
-  String get levelComplete => 'Level Complete!';
+  String get levelComplete => 'Level complete';
+
+  @override
+  String get bossComplete => 'Boss complete';
+
+  @override
+  String get godComplete => 'God level complete';
+
+  @override
+  String get perfectClear => 'Perfect!';
+
+  @override
+  String get newBest => 'New best';
+
+  @override
+  String get levelFailed => 'Level failed';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String starsEarned(int earned) {
+    return '$earned of 3 stars';
+  }
 
   @override
   String dailyBonus(int amount) {
@@ -589,6 +638,100 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get claim => 'Claim';
+
+  @override
+  String get removeAds => 'Remove Ads';
+
+  @override
+  String get removeAdsBody => 'Play with fewer interruptions.';
+
+  @override
+  String get rewardedAdsRemain =>
+      'Ads you choose to watch can still give rewards.';
+
+  @override
+  String get maybeLater => 'Maybe later';
+
+  @override
+  String youNeedCoins(int count) {
+    return 'You need $count coins.';
+  }
+
+  @override
+  String currentBalance(int count) {
+    return 'Current: $count';
+  }
+
+  @override
+  String get getCoins => 'Get coins';
+
+  @override
+  String get notNow => 'Not now';
+
+  @override
+  String get getWithCoins => 'Get with coins';
+
+  @override
+  String outOfItem(String name) {
+    return 'Out of $name';
+  }
+
+  @override
+  String getAnother(String name) {
+    return 'Get another $name';
+  }
+
+  @override
+  String get lowOnCoins => 'Low on coins?';
+
+  @override
+  String get lowOnCoinsBody => 'Get more coins to use on boosters.';
+
+  @override
+  String get purchaseCouldNot =>
+      'Purchase could not be completed. Try again later.';
+
+  @override
+  String get purchaseCompleteTitle => 'Purchase complete';
+
+  @override
+  String get addedToAccount => 'Added to your account';
+
+  @override
+  String get removeAdsActive => 'Ads are off';
+
+  @override
+  String get storeSoon =>
+      'Store purchases are not available in this build yet.';
+
+  @override
+  String get watchVideo => 'Watch a Video';
+
+  @override
+  String get receive => 'Receive';
+
+  @override
+  String get freeCoinsTitle => 'Free Coins';
+
+  @override
+  String dayLabel(int day) {
+    return 'Day $day';
+  }
+
+  @override
+  String get rewardClaimed => 'Claimed';
+
+  @override
+  String get rewardLocked => 'Locked';
+
+  @override
+  String get rewardMissed => 'Missed';
+
+  @override
+  String get jackpot => 'Jackpot';
+
+  @override
+  String get coinsEarned => 'Coins earned';
 
   @override
   String get deadlockTitle => 'Deadlock Reached!';

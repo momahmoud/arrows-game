@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:flame/game.dart' hide Matrix4;
 import 'package:provider/provider.dart';
@@ -20,18 +19,19 @@ import '../../ads/ad_manager.dart';
 import '../../game/arrow_puzzle_game.dart';
 import '../../game/game_state.dart';
 import '../../widgets/combo_banner.dart';
-import '../../widgets/lives_bar.dart';
 import '../../widgets/power_up_bar.dart';
-import '../../widgets/wavy_progress_bar.dart';
+import '../../ui/widgets/gameplay_hud.dart';
 import '../../widgets/arrow_line.dart';
 import '../../widgets/boss_intro_banner.dart';
-import '../../widgets/shape_reveal.dart';
+import '../../monetization/monetization_policy.dart';
+import '../../ui/widgets/level_result.dart';
+import '../../ui/widgets/monetization_modal.dart';
 import '../../widgets/tutorial_hand.dart';
 import '../../core/board_style.dart';
 import '../../data/meta_rules.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/audio_manager.dart';
 import '../../l10n/l10n.dart';
+import '../../ui/game_ui.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -74,7 +74,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _confettiController =
-        ConfettiController(duration: const Duration(seconds: 4));
+        ConfettiController(duration: const Duration(milliseconds: 700));
     _transformationController = TransformationController();
   }
 
@@ -235,28 +235,23 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   bool get _adsEnabled =>
       AppConstants.enableAdMob || AppConstants.enableUnityAds;
 
-  void _offerPowerUpRefill(PowerUpType type, String emptyMessage) {
-    if (!_adsEnabled || _shapePreviewMode) {
+  Future<void> _offerPowerUpRefill(PowerUpType type, String emptyMessage) async {
+    if (_shapePreviewMode) {
       _showPowerUpSnack(emptyMessage);
       return;
     }
     setState(() => _isGamePaused = true);
-    context.read<AdManager>().showRewardedWithLoader(
+    final shown = await MonetizationPresenter.outOfBooster(
       context,
-      onRewarded: () {
+      type: type,
+      onGranted: () {
         if (!mounted) return;
         _gameState?.addPowerUp(type, AppConstants.powerUpsPerRewardedAd);
-        context.read<ProgressRepository>().addBonusPowerUp(
-              type,
-              AppConstants.powerUpsPerRewardedAd,
-            );
-        _showPowerUpSnack(
-            context.l10n.powerUpsAdded(AppConstants.powerUpsPerRewardedAd));
-      },
-      onDismissed: () {
-        if (mounted) setState(() => _isGamePaused = false);
+        setState(() {});
       },
     );
+    if (!shown && mounted) _showPowerUpSnack(emptyMessage);
+    if (mounted) setState(() => _isGamePaused = false);
   }
 
   void _useHintPowerUp() {
@@ -356,6 +351,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
     final progress = context.read<ProgressRepository>();
     final gs = _gameState!;
+    final alreadyCleared = progress.isLevelCompleted(_level.levelNumber);
+    final previousStars = progress.getStarsForLevel(_level.levelNumber);
     final stars = ProgressRepository.calculateStars(
       livesLost: gs.livesLost,
       powerUpsUsed: gs.powerUpsUsed,
@@ -366,7 +363,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     var coinsEarned = 0;
 
     if (!_shapePreviewMode) {
-      final firstClear = !progress.isLevelCompleted(_level.levelNumber);
+      final firstClear = !alreadyCleared;
       final levelType = AppConstants.levelTypeFor(_level.levelNumber);
       coinsEarned = await progress.recordLevelComplete(
         LevelResult(
@@ -396,31 +393,29 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
         progress.noteGodClear(_level.levelNumber);
       }
       chest = progress.claimChest(_level.levelNumber);
+      context.read<MonetizationPolicy>().noteClear();
     }
 
     AudioManager.instance.playLevelComplete();
-    // Leaves room for the board's settle + burst before the dialog lands.
+    // Leaves room for the board's settle before the result panel.
     Future.delayed(const Duration(milliseconds: 650), () {
-      if (mounted) {
-        _confettiController.play();
-        if (context.read<ProgressRepository>().vibrationEnabled) {
-          Future.forEach(List.generate(6, (i) => i * 150), (delay) async {
-            await Future.delayed(Duration(milliseconds: delay == 0 ? 0 : 150));
-            if (mounted && _showingComplete) {
-              HapticFeedback.lightImpact();
-            }
-          });
-        }
-        _showLevelCompleteDialog(stars, coinsEarned, chest);
-      }
+      if (!mounted) return;
+      if (!GameMotion.reduce(context)) _confettiController.play();
+      _showLevelCompleteDialog(
+        stars,
+        coinsEarned,
+        chest,
+        improved: alreadyCleared && stars > previousStars && !_shapePreviewMode,
+      );
     });
   }
 
   void _onGameOver() {
     if (!mounted || _showingGameOver) return;
+    context.read<MonetizationPolicy>().noteFailure();
     setState(() => _showingGameOver = true);
     if (context.read<ProgressRepository>().vibrationEnabled) {
-      HapticFeedback.vibrate();
+      HapticFeedback.mediumImpact();
     }
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) _showGameOverDialog();
@@ -436,7 +431,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       _inspectingDeadlock = false;
     });
     if (context.read<ProgressRepository>().vibrationEnabled) {
-      HapticFeedback.vibrate();
+      HapticFeedback.mediumImpact();
     }
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) _showDeadlockDialog();
@@ -447,40 +442,43 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _DeadlockDialog(
-        level: _level,
-        onRestart: () {
+      builder: (_) => _bindDeviceBack(
+        onBack: () {
           Navigator.pop(context);
-          _handleRestart();
+          setState(() => _inspectingDeadlock = true);
         },
-        onMenu: () {
-          Navigator.pop(context);
-          _handleMenu();
-        },
-        onInspect: () {
-          Navigator.pop(context);
-          setState(() {
-            _inspectingDeadlock = true;
-          });
-        },
+        child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: SingleChildScrollView(
+          child: FailurePanel(
+            title: context.l10n.deadlockTitle,
+            message: context.l10n.deadlockBody,
+            icon: GameIconKind.info,
+            onRetry: () {
+              Navigator.pop(context);
+              _handleRestart();
+            },
+            onHome: _handleMenu,
+            recovery: GameButton(
+              label: context.l10n.inspectBoard,
+              icon: GameIconKind.eye,
+              variant: GameButtonVariant.secondary,
+              compact: true,
+              onPressed: () {
+                AudioManager.instance.playClick();
+                Navigator.pop(context);
+                setState(() => _inspectingDeadlock = true);
+              },
+            ),
+          ),
+        ),
+        ),
       ),
     );
   }
 
   Future<void> _handleRestart() async {
-    final totalArrows = _level.arrows.length;
-    final activeArrows =
-        _gameState?.arrows.where((a) => a.state != ArrowState.sliding).length ??
-            totalArrows;
-    final clearedArrows = totalArrows - activeArrows;
-    final progressVal =
-        totalArrows > 0 ? (clearedArrows / totalArrows).clamp(0.0, 1.0) : 0.0;
-
-    if (progressVal >= 0.8 && _canShowBreakAd()) {
-      final adManager = context.read<AdManager>();
-      await adManager.showInterstitial();
-    }
-
     if (mounted) {
       setState(() {
         _showingGameOver = false;
@@ -544,11 +542,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   void _showBreakInterstitial() {
     if (!_canShowBreakAd()) return;
-    final levelType = AppConstants.levelTypeFor(_level.levelNumber);
-    context.read<AdManager>().onLevelComplete(
-          _level.levelNumber,
-          levelType.isSpecial,
-        );
+    context.read<AdManager>().onLevelComplete(_level.levelNumber);
   }
 
   void _handleDoubleCoins() {
@@ -579,99 +573,65 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   Future<void> _showLevelCompleteDialog(
     int stars,
     int score,
-    ChestReward? chest,
-  ) async {
+    ChestReward? chest, {
+    required bool improved,
+  }) async {
+    final adsOn = AppConstants.enableAdMob || AppConstants.enableUnityAds;
+    final god = AppConstants.levelTypeFor(_level.levelNumber) == LevelType.god;
     await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Stack(
+      builder: (_) => _bindDeviceBack(
+        onBack: _handleMenu,
+        child: Stack(
         children: [
-          _LevelCompleteDialog(
-            level: _level,
-            stars: stars,
-            score: score,
-            chest: chest,
-            onNextLevel: _handleNextLevel,
-            onMenu: _handleMenu,
-            onDoubleCoins: _handleDoubleCoins,
-            showCoinAd: context.read<ProgressRepository>().canClaimRewardedCoins,
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Center(
+                child: SingleChildScrollView(
+                  child: LevelResultPanel(
+                    level: _level,
+                    stars: stars,
+                    coins: score,
+                    improved: improved,
+                    chest: chest,
+                    onNext: _handleNextLevel,
+                    onReplay: () {
+                      Navigator.pop(context);
+                      _handleRestart();
+                    },
+                    onHome: _handleMenu,
+                    onWatchAd: _handleDoubleCoins,
+                    showCoinAd: adsOn &&
+                        context
+                            .read<ProgressRepository>()
+                            .canClaimRewardedCoins,
+                  ),
+                ),
+              ),
+            ),
           ),
-          // Top Center Explosive Confetti (Subtle)
           Align(
             alignment: Alignment.topCenter,
             child: ConfettiWidget(
               confettiController: _confettiController,
               blastDirectionality: BlastDirectionality.explosive,
-              emissionFrequency: 0.08,
-              numberOfParticles: 10,
-              maxBlastForce: 70,
-              minBlastForce: 35,
-              gravity: 0.18,
-              shouldLoop: false,
-              colors: const [
-                Colors.red,
-                Colors.blue,
-                Colors.green,
-                Colors.yellow,
-                Colors.pink,
-                Colors.purple,
-                Colors.orange,
-                Colors.teal,
-                Colors.cyan,
-              ],
-            ),
-          ),
-          // Bottom Left Confetti (Subtle)
-          Align(
-            alignment: Alignment.bottomLeft,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirection: -pi / 4,
               emissionFrequency: 0.04,
-              numberOfParticles: 4,
-              maxBlastForce: 80,
-              minBlastForce: 40,
-              gravity: 0.15,
+              numberOfParticles: god ? 8 : 5,
+              maxBlastForce: 36,
+              minBlastForce: 14,
+              gravity: 0.28,
               shouldLoop: false,
-              colors: const [
-                Colors.red,
-                Colors.blue,
-                Colors.green,
-                Colors.yellow,
-                Colors.pink,
-                Colors.purple,
-                Colors.orange,
-                Colors.teal,
-                Colors.cyan,
-              ],
-            ),
-          ),
-          // Bottom Right Confetti (Subtle)
-          Align(
-            alignment: Alignment.bottomRight,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirection: -3 * pi / 4,
-              emissionFrequency: 0.04,
-              numberOfParticles: 4,
-              maxBlastForce: 80,
-              minBlastForce: 40,
-              gravity: 0.15,
-              shouldLoop: false,
-              colors: const [
-                Colors.red,
-                Colors.blue,
-                Colors.green,
-                Colors.yellow,
-                Colors.pink,
-                Colors.purple,
-                Colors.orange,
-                Colors.teal,
-                Colors.cyan,
+              colors: [
+                AppColors.accent,
+                AppColors.primary,
+                AppColors.accentGreen,
               ],
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -692,82 +652,123 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _GameOverDialog(
-        level: _level,
-        isTimeout: _isTimeoutState,
-        continueTime: continueTime,
-        allowAdContinue: !_continueAdUsed,
-        onContinue: () {
-          // Watch rewarded ad to restore 1 life or add extra time
-          final adManager = context.read<AdManager>();
-          Navigator.pop(context);
-          bool rewarded = false;
-          adManager.showRewardedWithLoader(
-            context,
-            onRewarded: () {
-              if (rewarded || _continueAdUsed) return;
-              rewarded = true;
-              _continueAdUsed = true;
-              if (!mounted) return;
-              setState(() {
-                _showingGameOver = false;
-                if (_isTimeoutState) {
-                  _timeRemaining = continueTime; // Add dynamic extra time
-                  _isTimeoutState = false;
-                  _gameState!.resumeFromTimeout();
-                  _startLevelTimer();
-                } else {
-                  _gameState!.restoreLife();
-                  _lives = _gameState!.lives;
-                }
-              });
-            },
-            onDismissed: () {
-              if (!rewarded && mounted) {
-                _showingGameOver = false;
-                _showGameOverDialog(); // Re-open game over dialog so player can try again or restart
-                ScaffoldMessenger.of(context).clearSnackBars();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      context.l10n.adNotCompletedRestart,
-                      style: AppFonts.style(
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
+      builder: (_) {
+        final adsOn = AppConstants.enableAdMob || AppConstants.enableUnityAds;
+        final progress = context.read<ProgressRepository>();
+        final canRefill = progress.coins >= EconomyConfig.heartRefillCost;
+        return _bindDeviceBack(
+          onBack: () {
+            Navigator.pop(context);
+            Navigator.pushReplacementNamed(context, '/menu');
+          },
+          child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: SingleChildScrollView(
+            child: FailurePanel(
+              title: context.l10n.levelFailed,
+              message: _isTimeoutState
+                  ? context.l10n.outOfTime
+                  : context.l10n.outOfLives,
+              icon: _isTimeoutState
+                  ? GameIconKind.hourglass
+                  : GameIconKind.heartBroken,
+              lives: _gameState?.lives ?? 0,
+              maxLives: AppConstants.maxLives,
+              onRetry: () {
+                Navigator.pop(context);
+                _handleRestart();
+              },
+              onHome: () {
+                Navigator.pop(context);
+                Navigator.pushReplacementNamed(context, '/menu');
+              },
+              recovery: adsOn && !_continueAdUsed
+                  ? ContinueAdButton(
+                      label: context.l10n.watchVideo,
+                      subtitle: _isTimeoutState
+                          ? context.l10n.watchAdForTime(continueTime)
+                          : context.l10n.watchAdForLifeContinue,
+                      onPressed: () {
+                        // Watch rewarded ad to restore 1 life or add extra time
+                        final adManager = context.read<AdManager>();
+                        Navigator.pop(context);
+                        bool rewarded = false;
+                        adManager.showRewardedWithLoader(
+                          context,
+                          onRewarded: () {
+                            if (rewarded || _continueAdUsed) return;
+                            rewarded = true;
+                            _continueAdUsed = true;
+                            if (!mounted) return;
+                            setState(() {
+                              _showingGameOver = false;
+                              if (_isTimeoutState) {
+                                _timeRemaining =
+                                    continueTime; // Add dynamic extra time
+                                _isTimeoutState = false;
+                                _gameState!.resumeFromTimeout();
+                                _startLevelTimer();
+                              } else {
+                                _gameState!.restoreLife();
+                                _lives = _gameState!.lives;
+                              }
+                            });
+                          },
+                          onDismissed: () {
+                            if (!rewarded && mounted) {
+                              _showingGameOver = false;
+                              _showGameOverDialog(); // Re-open game over dialog so player can try again or restart
+                              ScaffoldMessenger.of(context).clearSnackBars();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    context.l10n.adNotCompletedRestart,
+                                    style: AppFonts.style(
+                                        fontWeight: FontWeight.w800),
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                        );
+                      },
+                    )
+                  : null,
+              extra: _isTimeoutState
+                  ? null
+                  : GameButton(
+                      label: canRefill
+                          ? context.l10n
+                              .refillHearts(EconomyConfig.heartRefillCost)
+                          : context.l10n.needCoins(
+                              EconomyConfig.heartRefillCost,
+                              progress.coins,
+                            ),
+                      icon: GameIconKind.heart,
+                      variant: GameButtonVariant.secondary,
+                      compact: true,
+                      onPressed: canRefill
+                          ? () {
+                              if (!progress.payHeartRefill()) return;
+                              AudioManager.instance.playClick();
+                              Navigator.pop(context);
+                              setState(() {
+                                _showingGameOver = false;
+                                _gameState!.refillLives();
+                                _lives = _gameState!.lives;
+                              });
+                            }
+                          : null,
                     ),
-                    backgroundColor: const Color(0xFFC0392B),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              }
-            },
-          );
-        },
-        onRestart: () {
-          Navigator.pop(context);
-          _handleRestart();
-        },
-        onMenu: () {
-          Navigator.pop(context);
-          Navigator.pushReplacementNamed(context, '/menu');
-        },
-        coins: context.read<ProgressRepository>().coins,
-        onRefillWithCoins: () {
-          final progress = context.read<ProgressRepository>();
-          if (!progress.payHeartRefill()) return;
-          Navigator.pop(context);
-          setState(() {
-            _showingGameOver = false;
-            _gameState!.refillLives();
-            _lives = _gameState!.lives;
-          });
-        },
-      ),
+            ),
+          ),
+          ),
+        );
+      },
     );
   }
 
@@ -893,6 +894,37 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     });
   }
 
+  bool _leavingLevel = false;
+
+  Future<void> _leaveGameplay() async {
+    if (!mounted || _leavingLevel) return;
+    _leavingLevel = true;
+    if (_canShowBreakAd() &&
+        _level.levelNumber >= AppConstants.interstitialStartLevel) {
+      await context.read<AdManager>().showLeaveInterstitial();
+    }
+    if (!mounted) return;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacementNamed(context, '/menu');
+    }
+  }
+
+  /// The device back button runs the same action as the on-screen control.
+  Widget _bindDeviceBack({
+    required Widget child,
+    required VoidCallback onBack,
+  }) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) onBack();
+      },
+      child: child,
+    );
+  }
+
   void _onTimeOut() {
     if (!mounted || _showingGameOver) return;
     setState(() {
@@ -909,7 +941,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       final args =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final levelNum = args?['level'] as int? ?? 1;
-      return _LevelLoadingScreen(levelNumber: levelNum);
+      return _bindDeviceBack(
+        onBack: _leaveGameplay,
+        child: _LevelLoadingScreen(levelNumber: levelNum),
+      );
     }
 
     final levelType = AppConstants.levelTypeFor(_level.levelNumber);
@@ -924,12 +959,19 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final progressVal =
         totalArrows > 0 ? (clearedArrows / totalArrows).clamp(0.0, 1.0) : 0.0;
 
-    return Scaffold(
+    return _bindDeviceBack(
+      onBack: _leaveGameplay,
+      child: Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: boardTheme == BoardTheme.classic
-              ? AppColors.bgGradient
-              : BoardStyle.playfield(boardTheme),
+          color: !AppColors.isDark && boardTheme == BoardTheme.classic
+              ? const Color(0xFFFFFFFF)
+              : null,
+          gradient: !AppColors.isDark && boardTheme == BoardTheme.classic
+              ? null
+              : boardTheme == BoardTheme.classic
+                  ? AppColors.bgGradient
+                  : BoardStyle.playfield(boardTheme),
         ),
         child: Stack(
           children: [
@@ -937,24 +979,17 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               child: Column(
                 children: [
                   // ── Top Bar ─────────────────────────────────────────────────
-                  _TopBar(
-                    level: _level,
+                  GameplayHeader(
+                    levelNumber: _level.levelNumber,
                     levelType: levelType,
                     lives: _lives,
                     progress: progressVal,
-                    onBack: () {
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      } else {
-                        Navigator.pushReplacementNamed(context, '/menu');
-                      }
-                    },
+                    onHome: _leaveGameplay,
                     onSettings: _showSettingsDialog,
                   ),
-
                   if (_totalTime > 0)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(bottom: 4),
                       child: _TimerDisplay(
                         timeRemaining: _timeRemaining,
                         totalTime: _totalTime,
@@ -964,105 +999,107 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
                   // ── Game Canvas ──────────────────────────────────────────────
                   Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        // Measure the real screen area BEFORE entering InteractiveViewer.
-                        // InteractiveViewer gives unbounded constraints to its children,
-                        // so LayoutBuilder must be OUTSIDE to get finite values.
-                        // Use the full available rect — Flame's _calcLayout already
-                        // handles non-square grids by fitting activeCols × activeRows.
-                        final boardW = constraints.maxWidth;
-                        final boardH = constraints.maxHeight;
-                        final fadeH = boardH * 0.10;
-                        return Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Canvas — fills the Expanded bounds, clipped hard
-                            Positioned.fill(
-                              child: ClipRect(
-                                child: InteractiveViewer(
-                                  transformationController:
-                                      _transformationController,
-                                  minScale: 0.8,
-                                  maxScale: 4.0,
-                                  boundaryMargin: const EdgeInsets.all(180),
-                                  clipBehavior: Clip.none,
+                    child: PuzzleStage(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Measure the real screen area BEFORE entering InteractiveViewer.
+                          // InteractiveViewer gives unbounded constraints to its children,
+                          // so LayoutBuilder must be OUTSIDE to get finite values.
+                          // Use the full available rect. The game sizes cells from this
+                          // area and keeps the grid inside it, so taps match the arrows.
+                          final boardW = constraints.maxWidth;
+                          final boardH = constraints.maxHeight;
+                          final fadeH = boardH * 0.035;
+                          return Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Canvas — fills the Expanded bounds, clipped hard
+                              Positioned.fill(
+                                child: ClipRect(
+                                  child: InteractiveViewer(
+                                    transformationController:
+                                        _transformationController,
+                                    minScale: 0.8,
+                                    maxScale: 4.0,
+                                    boundaryMargin: const EdgeInsets.all(180),
+                                    clipBehavior: Clip.none,
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: boardW,
+                                        height: boardH,
+                                        child: GameWidget(game: _game),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Top fade — fixed overlay, non-interactive
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: IgnorePointer(
+                                  child: Container(
+                                    height: fadeH,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          AppColors.background,
+                                          AppColors.background
+                                              .withValues(alpha: 0),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Bottom fade — fixed overlay, non-interactive
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: IgnorePointer(
+                                  child: Container(
+                                    height: fadeH,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.bottomCenter,
+                                        end: Alignment.topCenter,
+                                        colors: [
+                                          AppColors.background,
+                                          AppColors.background
+                                              .withValues(alpha: 0),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: fadeH * 0.4,
+                                left: 0,
+                                right: 0,
+                                child: IgnorePointer(
                                   child: Center(
-                                    child: SizedBox(
-                                      width: boardW,
-                                      height: boardH,
-                                      child: GameWidget(game: _game),
-                                    ),
+                                    child: ComboBanner(
+                                        combo: _gameState?.combo ?? 0),
                                   ),
                                 ),
                               ),
-                            ),
-                            // Top fade — fixed overlay, non-interactive
-                            Positioned(
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              child: IgnorePointer(
-                                child: Container(
-                                  height: fadeH,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        AppColors.background,
-                                        AppColors.background
-                                            .withValues(alpha: 0),
-                                      ],
-                                    ),
-                                  ),
+                              if (_level.levelNumber <=
+                                      AppConstants.tutorialLevels &&
+                                  (_gameState?.movesUsed ?? 1) == 0 &&
+                                  !_showBossIntro)
+                                const Positioned(
+                                  bottom: 28,
+                                  child: TutorialHand(),
                                 ),
-                              ),
-                            ),
-                            // Bottom fade — fixed overlay, non-interactive
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: IgnorePointer(
-                                child: Container(
-                                  height: fadeH,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                      colors: [
-                                        AppColors.background,
-                                        AppColors.background
-                                            .withValues(alpha: 0),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              top: fadeH * 0.4,
-                              left: 0,
-                              right: 0,
-                              child: IgnorePointer(
-                                child: Center(
-                                  child: ComboBanner(
-                                      combo: _gameState?.combo ?? 0),
-                                ),
-                              ),
-                            ),
-                            if (_level.levelNumber <=
-                                    AppConstants.tutorialLevels &&
-                                (_gameState?.movesUsed ?? 1) == 0 &&
-                                !_showBossIntro)
-                              const Positioned(
-                                bottom: 28,
-                                child: TutorialHand(),
-                              ),
-                          ],
-                        );
-                      },
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
 
@@ -1093,13 +1130,25 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                     ),
 
                   // ── Banner Ad (centered and sized to avoid layout warnings) ──
-                  Container(
-                    alignment: Alignment.center,
-                    width: double.infinity,
+                  SizedBox(
                     height: 50,
-                    child: const UnifiedBannerAd(
-                      admobUnitId: AppConstants.admobBannerUnitId,
-                      unityPlacementId: AppConstants.unityBannerAdId,
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: UnifiedBannerAd(
+                            admobUnitId: AppConstants.admobBannerUnitId,
+                            unityPlacementId: AppConstants.unityBannerAdId,
+                          ),
+                        ),
+                        if (!context.watch<ProgressRepository>().adsRemoved)
+                          RemoveAdsEntry(
+                            onTap: () =>
+                                MonetizationPresenter.buy(
+                                  context,
+                                  EconomyConfig.removeAdsId,
+                                ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -1128,7 +1177,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 _showDeadlockDialog();
               },
               backgroundColor: AppColors.primary,
-              icon: const Icon(LucideIcons.menu, color: Colors.white),
+              icon: const GameIcon(kind: GameIconKind.grid, size: 28),
               label: Text(
                 context.l10n.deadlockOptions,
                 style: AppFonts.style(
@@ -1138,6 +1187,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               ),
             )
           : null,
+    ),
     );
   }
 
@@ -1148,7 +1198,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       _showTutorialDialog(
         title: context.l10n.tutorialHowToPlayTitle,
         description: context.l10n.tutorialHowToPlayBody,
-        icon: LucideIcons.playCircle,
+        icon: GameIconKind.play,
         iconColor: const Color(0xFF4CAF50),
         animationWidget: _buildNormalArrowAnimation(),
         stepText: '1/3',
@@ -1157,7 +1207,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       _showTutorialDialog(
         title: context.l10n.tutorialPairedTitle,
         description: context.l10n.tutorialPairedBody,
-        icon: LucideIcons.coins,
+        icon: GameIconKind.coin,
         iconColor: const Color(0xFFFF2D55),
         animationWidget: _buildColorLockAnimation(),
         stepText: '2/3',
@@ -1166,7 +1216,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       _showTutorialDialog(
         title: context.l10n.tutorialDeflectorTitle,
         description: context.l10n.tutorialDeflectorBody,
-        icon: LucideIcons.rotateCw,
+        icon: GameIconKind.restart,
         iconColor: const Color(0xFFFFAA00),
         animationWidget: _buildDeflectorAnimation(),
         stepText: '3/3',
@@ -1189,7 +1239,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.zoom_in, color: Colors.white, size: 20),
+                const GameIcon(kind: GameIconKind.info, size: 22),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -1243,8 +1293,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                     color: AppColors.accentOrange.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(LucideIcons.alertTriangle,
-                      color: AppColors.accentOrange, size: 28),
+                  child: const GameIcon(kind: GameIconKind.info, size: 36),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -1313,7 +1362,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   void _showTutorialDialog({
     required String title,
     required String description,
-    required IconData icon,
+    required GameIconKind icon,
     required Color iconColor,
     required Widget animationWidget,
     required String stepText,
@@ -1372,7 +1421,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                     color: iconColor.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: iconColor, size: 28),
+                  child: GameIcon(kind: icon, size: 36),
                 ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(
                     begin: const Offset(0.92, 0.92),
                     end: const Offset(1.08, 1.08),
@@ -1474,8 +1523,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               ),
               child: Directionality(
                 textDirection: TextDirection.ltr,
-                child: Icon(Icons.arrow_forward_rounded,
-                    color: AppColors.primary, size: 20),
+                child: const GameIcon(kind: GameIconKind.arrowMark, size: 28),
               ),
             )
                 .animate(onPlay: (c) => c.repeat())
@@ -1489,11 +1537,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             Positioned(
               right: 80,
               bottom: 15,
-              child: Icon(
-                Icons.touch_app_rounded,
-                color: AppColors.textPrimary.withValues(alpha: 0.8),
-                size: 24,
-              )
+              child: const GameIcon(kind: GameIconKind.hint, size: 28)
                   .animate(onPlay: (c) => c.repeat())
                   .hide()
                   .fadeIn(delay: 400.ms, duration: 200.ms)
@@ -1545,8 +1589,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: color1, width: 2),
                       ),
-                      child: Icon(Icons.arrow_upward_rounded,
-                          color: color1, size: 20),
+                      child: const GameIcon(
+                          kind: GameIconKind.arrowMark, size: 28),
                     )
                         .animate(onPlay: (c) => c.repeat())
                         .scale(
@@ -1584,8 +1628,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.link_rounded,
-                        color: Color(0xFF888888), size: 18),
+                    const GameIcon(kind: GameIconKind.levelLocked, size: 22),
                   ],
                 ),
 
@@ -1605,8 +1648,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                       ),
                       child: Directionality(
                         textDirection: TextDirection.ltr,
-                        child: Icon(Icons.arrow_forward_rounded,
-                            color: color2, size: 20),
+                        child: const GameIcon(
+                            kind: GameIconKind.arrowMark, size: 28),
                       ),
                     )
                         .animate(onPlay: (c) => c.repeat())
@@ -1640,11 +1683,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             // Tap hint — appears briefly then fades
             Positioned(
               bottom: 10,
-              child: Icon(
-                Icons.touch_app_rounded,
-                color: AppColors.textPrimary.withValues(alpha: 0.7),
-                size: 22,
-              )
+              child: const GameIcon(kind: GameIconKind.hint, size: 28)
                   .animate(onPlay: (c) => c.repeat())
                   .hide()
                   .fadeIn(delay: 300.ms, duration: 200.ms)
@@ -1688,11 +1727,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               ],
             ),
             child: const Center(
-              child: Icon(
-                Icons.arrow_upward_rounded,
-                color: Colors.white,
-                size: 16,
-              ),
+              child: const GameIcon(kind: GameIconKind.arrowMark, size: 22),
             ),
           )
               .animate(onPlay: (c) => c.repeat())
@@ -1794,11 +1829,7 @@ class _TimerDisplay extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                LucideIcons.hourglass,
-                color: color,
-                size: 16,
-              ),
+              const GameIcon(kind: GameIconKind.hourglass, size: 22),
               const SizedBox(width: 6),
               Text(
                 _formatTime(timeRemaining),
@@ -1843,646 +1874,31 @@ class _TimerDisplay extends StatelessWidget {
   }
 }
 
-// ── Top Bar ─────────────────────────────────────────────────────────────────
-
-class _TopBar extends StatelessWidget {
-  final LevelModel level;
-  final LevelType levelType;
-  final int lives;
-  final double progress;
-  final VoidCallback onBack;
-  final VoidCallback onSettings;
-
-  const _TopBar({
-    required this.level,
-    required this.levelType,
-    required this.lives,
-    required this.progress,
-    required this.onBack,
-    required this.onSettings,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 115,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Left Side (Back Button aligned left)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: GestureDetector(
-              onTap: () {
-                AudioManager.instance.playClick();
-                onBack();
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(LucideIcons.arrowLeft,
-                    color: AppColors.textPrimary, size: 18),
-              ),
-            ),
-          ),
-
-          // Center Side (Level Label, Progress Bar & Lives, perfectly centered)
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (levelType.isSpecial)
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 4),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (levelType == LevelType.god
-                                ? AppColors.accent
-                                : AppColors.accentOrange)
-                            .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            levelType == LevelType.god
-                                ? LucideIcons.flame
-                                : LucideIcons.zap,
-                            color: levelType == LevelType.god
-                                ? AppColors.accent
-                                : AppColors.accentOrange,
-                            size: 10,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            context.l10n.levelType(levelType).toUpperCase(),
-                            style: AppFonts.style(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              color: levelType == LevelType.god
-                                  ? AppColors.accent
-                                  : AppColors.accentOrange,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    context.l10n.levelNumber(level.levelNumber),
-                    style: AppFonts.style(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 5),
-                // Level progress bar with horizontal wavy liquid animation (width adjusted to 130, height to 10.0)
-                WavyProgressBar(
-                  progress: progress,
-                  width: 130,
-                  height: 10.0,
-                ),
-                const SizedBox(height: 6),
-                // Lives bar centered below the progress bar
-                LivesBar(lives: lives, maxLives: AppConstants.maxLives),
-              ],
-            ),
-          ),
-
-          // Right Side (Settings Button aligned right)
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () {
-                AudioManager.instance.playClick();
-                onSettings();
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(LucideIcons.settings,
-                    color: AppColors.textPrimary, size: 18),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Level Complete Dialog ─────────────────────────────────────────────────────
-
-class _LevelCompleteDialog extends StatelessWidget {
-  final LevelModel level;
-  final int stars;
-  final int score;
-  final ChestReward? chest;
-  final VoidCallback onNextLevel;
-  final VoidCallback onMenu;
-  final VoidCallback onDoubleCoins;
-  final bool showCoinAd;
-
-  const _LevelCompleteDialog({
-    required this.level,
-    required this.stars,
-    required this.score,
-    required this.chest,
-    required this.onNextLevel,
-    required this.onMenu,
-    required this.onDoubleCoins,
-    required this.showCoinAd,
-  });
-
-  bool get _showAds =>
-      AppConstants.enableAdMob ||
-      AppConstants.enableUnityAds; // || AppConstants.enableAppLovin
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.surfaceLight, width: 3),
-          boxShadow: [
-            BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                blurRadius: 32),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ShapeReveal(level: level),
-            const SizedBox(height: 8),
-            Text(context.l10n.levelComplete,
-                style: AppFonts.style(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary)),
-            const SizedBox(height: 16),
-
-            // Stars
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                  3,
-                  (i) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Icon(
-                          i < stars
-                              ? Icons.star_rounded
-                              : Icons.star_border_rounded,
-                          color: i < stars
-                              ? const Color(0xFFE2B93C)
-                              : AppColors.surfaceLight,
-                          size: 38,
-                        ),
-                      )
-                          .animate(delay: Duration(milliseconds: 200 + i * 150))
-                          .scale(
-                              begin: const Offset(0, 0),
-                              end: const Offset(1, 1),
-                              curve: Curves.elasticOut)),
-            ),
-            if (score > 0) ...[
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 28,
-                child: Stack(
-                  alignment: Alignment.bottomCenter,
-                  children: [
-                    for (var i = 0; i < 6; i++)
-                      const Icon(LucideIcons.coins,
-                              color: Color(0xFFE2B93C), size: 16)
-                          .animate(delay: Duration(milliseconds: 90 * i))
-                          .moveY(
-                              begin: -8,
-                              end: 22,
-                              duration: 480.ms,
-                              curve: Curves.easeIn)
-                          .fadeOut(delay: 260.ms, duration: 200.ms),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                decoration: BoxDecoration(
-                  color: AppColors.accentGold.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                      color: AppColors.accentGold.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      LucideIcons.coins,
-                      color: Color(0xFFE2B93C),
-                      size: 22,
-                    ),
-                    const SizedBox(width: 8),
-                    Text('+$score',
-                        style: AppFonts.style(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.accentGold)),
-                  ],
-                ),
-              ),
-            ],
-            if (chest != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                context.l10n.chestReward(
-                    chest!.coins, context.l10n.powerUp(chest!.powerUp)),
-                textAlign: TextAlign.center,
-                style: AppFonts.style(
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFFE2B93C),
-                ),
-              ),
-            ],
-            const SizedBox(height: 24),
-
-            // Next Level button or Game Completed message
-            if (level.levelNumber == AppConstants.totalLevels) ...[
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.accentGold.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                      color: AppColors.accentGold.withValues(alpha: 0.4),
-                      width: 1.5),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      LucideIcons.trophy,
-                      color: AppColors.accentGold,
-                      size: 32,
-                    ).animate(onPlay: (c) => c.repeat()).scale(
-                        begin: const Offset(0.9, 0.9),
-                        end: const Offset(1.1, 1.1),
-                        duration: 1.seconds,
-                        curve: Curves.easeInOut),
-                    const SizedBox(height: 10),
-                    Text(
-                      context.l10n.finishedGameTitle,
-                      textAlign: TextAlign.center,
-                      style: AppFonts.style(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.accentGold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      context.l10n.finishedGameBody(AppConstants.totalLevels),
-                      textAlign: TextAlign.center,
-                      style: AppFonts.style(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-            ] else ...[
-              _DialogButton(
-                label: context.l10n.nextLevel,
-                icon: Icons.play_arrow_rounded,
-                gradient: AppColors.primaryGradient,
-                onTap: onNextLevel,
-              ),
-              const SizedBox(height: 10),
-            ],
-
-            if (_showAds && showCoinAd) ...[
-              _DialogButton(
-                label: context.l10n.watchAdCoins(EconomyConfig.rewardedAdCoins),
-                icon: LucideIcons.clapperboard,
-                gradient: AppColors.secondaryGradient,
-                textColor: AppColors.textPrimary,
-                iconColor: AppColors.textPrimary,
-                onTap: onDoubleCoins,
-              ),
-              const SizedBox(height: 10),
-            ],
-
-            TextButton(
-              onPressed: () {
-                AudioManager.instance.playClick();
-                onMenu();
-              },
-              child: Text(context.l10n.backToMenu,
-                  style: AppFonts.style(color: AppColors.textSecondary)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Game Over Dialog ──────────────────────────────────────────────────────────
-
-class _GameOverDialog extends StatelessWidget {
-  final LevelModel level;
-  final bool isTimeout;
-  final int continueTime;
-  final bool allowAdContinue;
-  final VoidCallback onContinue;
-  final VoidCallback onRestart;
-  final VoidCallback onMenu;
-  final int coins;
-  final VoidCallback onRefillWithCoins;
-
-  const _GameOverDialog({
-    required this.level,
-    this.isTimeout = false,
-    this.continueTime = 0,
-    this.allowAdContinue = true,
-    required this.onContinue,
-    required this.onRestart,
-    required this.onMenu,
-    required this.coins,
-    required this.onRefillWithCoins,
-  });
-
-  bool get _canAffordRefill => coins >= EconomyConfig.heartRefillCost;
-
-  bool get _showAds =>
-      AppConstants.enableAdMob ||
-      AppConstants.enableUnityAds; // || AppConstants.enableAppLovin
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.surfaceLight, width: 3),
-          boxShadow: [
-            BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                blurRadius: 32),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isTimeout ? LucideIcons.hourglass : LucideIcons.heartOff,
-              color: AppColors.accent,
-              size: 52,
-            ).animate().shake(duration: 500.ms),
-            const SizedBox(height: 12),
-            Text(isTimeout ? context.l10n.outOfTime : context.l10n.outOfLives,
-                style: AppFonts.style(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary)),
-            const SizedBox(height: 20),
-            if (_showAds && allowAdContinue) ...[
-              Text(
-                  isTimeout
-                      ? context.l10n.watchAdForTime(continueTime)
-                      : context.l10n.watchAdForLifeContinue,
-                  style: AppFonts.style(
-                      fontSize: 13, color: AppColors.textSecondary)),
-              const SizedBox(height: 28),
-              _DialogButton(
-                label: isTimeout
-                    ? context.l10n.getMoreTime(continueTime)
-                    : context.l10n.getOneMoreLife,
-                icon: LucideIcons.clapperboard,
-                gradient: AppColors.successGradient,
-                onTap: onContinue,
-              ),
-              const SizedBox(height: 10),
-            ],
-
-            if (!isTimeout) ...[
-              _DialogButton(
-                label: _canAffordRefill
-                    ? context.l10n
-                        .refillHearts(EconomyConfig.heartRefillCost)
-                    : context.l10n
-                        .needCoins(EconomyConfig.heartRefillCost, coins),
-                icon: LucideIcons.coins,
-                gradient: _canAffordRefill
-                    ? AppColors.primaryGradient
-                    : AppColors.secondaryGradient,
-                textColor:
-                    _canAffordRefill ? Colors.white : AppColors.textSecondary,
-                iconColor:
-                    _canAffordRefill ? Colors.white : AppColors.textSecondary,
-                onTap: _canAffordRefill ? onRefillWithCoins : () {},
-              ),
-              const SizedBox(height: 10),
-            ],
-
-            // Restart (all lives back)
-            _DialogButton(
-              label: context.l10n.restartLevel,
-              icon: Icons.refresh_rounded,
-              gradient: AppColors.secondaryGradient,
-              textColor: AppColors.textPrimary,
-              iconColor: AppColors.textPrimary,
-              onTap: onRestart,
-            ),
-            const SizedBox(height: 10),
-
-            TextButton(
-              onPressed: () {
-                AudioManager.instance.playClick();
-                onMenu();
-              },
-              child: Text(context.l10n.mainMenu,
-                  style: AppFonts.style(color: AppColors.textSecondary)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Deadlock Dialog ───────────────────────────────────────────────────────────
-
-class _DeadlockDialog extends StatelessWidget {
-  final LevelModel level;
-  final VoidCallback onRestart;
-  final VoidCallback onMenu;
-  final VoidCallback onInspect;
-
-  const _DeadlockDialog({
-    required this.level,
-    required this.onRestart,
-    required this.onMenu,
-    required this.onInspect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.surfaceLight, width: 3),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.15),
-              blurRadius: 32,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              LucideIcons.alertTriangle,
-              color: AppColors.accentOrange,
-              size: 52,
-            ).animate().shake(duration: 600.ms),
-            const SizedBox(height: 12),
-            Text(
-              context.l10n.deadlockTitle,
-              textAlign: TextAlign.center,
-              style: AppFonts.style(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              context.l10n.deadlockBody,
-              textAlign: TextAlign.center,
-              style: AppFonts.style(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 28),
-
-            // Restart Level
-            _DialogButton(
-              label: context.l10n.restartLevel,
-              icon: Icons.refresh_rounded,
-              gradient: AppColors.primaryGradient,
-              onTap: onRestart,
-            ),
-            const SizedBox(height: 10),
-
-            // Inspect Board
-            _DialogButton(
-              label: context.l10n.inspectBoard,
-              icon: LucideIcons.eye,
-              gradient: AppColors.secondaryGradient,
-              textColor: AppColors.textPrimary,
-              iconColor: AppColors.textPrimary,
-              onTap: onInspect,
-            ),
-            const SizedBox(height: 10),
-
-            TextButton(
-              onPressed: () {
-                AudioManager.instance.playClick();
-                onMenu();
-              },
-              child: Text(
-                context.l10n.backToMenu,
-                style: AppFonts.style(color: AppColors.textSecondary),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _DialogButton extends StatelessWidget {
   final String label;
-  final IconData icon;
-  final Gradient gradient;
-  final VoidCallback onTap;
-  final Color textColor;
-  final Color iconColor;
+  final GameIconKind icon;
+  final GameButtonVariant variant;
+  final VoidCallback? onTap;
 
   const _DialogButton({
     required this.label,
     required this.icon,
-    required this.gradient,
+    required this.variant,
     required this.onTap,
-    this.textColor = Colors.white,
-    this.iconColor = Colors.white,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        AudioManager.instance.playClick();
-        onTap();
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: iconColor, size: 20),
-              const SizedBox(width: 8),
-              Text(label,
-                  style: AppFonts.style(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: textColor)),
-            ],
-          ),
-        ),
-      ),
+    return GameButton(
+      label: label,
+      icon: icon,
+      variant: variant,
+      onPressed: onTap == null
+          ? null
+          : () {
+              AudioManager.instance.playClick();
+              onTap!();
+            },
     );
   }
 }
@@ -2526,7 +1942,9 @@ class _GameSettingsDialog extends StatelessWidget {
 
             // Sound Toggle
             _DialogSettingsTile(
-              icon: LucideIcons.volume2,
+              icon: progress.soundEnabled
+                  ? GameIconKind.soundOn
+                  : GameIconKind.soundOff,
               label: context.l10n.soundEffects,
               value: progress.soundEnabled,
               onChanged: (val) => progress.setSoundEnabled(val),
@@ -2534,7 +1952,9 @@ class _GameSettingsDialog extends StatelessWidget {
 
             // Music Toggle
             _DialogSettingsTile(
-              icon: LucideIcons.music,
+              icon: progress.musicEnabled
+                  ? GameIconKind.musicOn
+                  : GameIconKind.musicOff,
               label: context.l10n.backgroundMusic,
               value: progress.musicEnabled,
               onChanged: (val) => progress.setMusicEnabled(val),
@@ -2542,7 +1962,7 @@ class _GameSettingsDialog extends StatelessWidget {
 
             // Vibration Toggle
             _DialogSettingsTile(
-              icon: LucideIcons.vibrate,
+              icon: GameIconKind.haptic,
               label: context.l10n.vibration,
               value: progress.vibrationEnabled,
               onChanged: (val) => progress.setVibrationEnabled(val),
@@ -2555,8 +1975,8 @@ class _GameSettingsDialog extends StatelessWidget {
             // Restart Button
             _DialogButton(
               label: context.l10n.restartLevel,
-              icon: LucideIcons.rotateCcw,
-              gradient: AppColors.primaryGradient,
+              icon: GameIconKind.restart,
+              variant: GameButtonVariant.primary,
               onTap: onRestart,
             ),
             const SizedBox(height: 10),
@@ -2584,7 +2004,7 @@ class _GameSettingsDialog extends StatelessWidget {
 }
 
 class _DialogSettingsTile extends StatelessWidget {
-  final IconData icon;
+  final GameIconKind icon;
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -2602,7 +2022,7 @@ class _DialogSettingsTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.textSecondary, size: 20),
+          GameIcon(kind: icon, size: 28),
           const SizedBox(width: 12),
           Text(
             label,
@@ -2975,10 +2395,9 @@ class _BossLoadingScreenState extends State<_BossLoadingScreen>
                 animation: _flame,
                 builder: (_, __) => Transform.scale(
                   scale: 0.9 + 0.15 * _flame.value,
-                  child: Icon(
-                    LucideIcons.skull,
-                    size: 72 + 8 * _flame.value,
-                    color: Color.lerp(_bossRed, _bossGlow, _flame.value),
+                  child: GameIcon(
+                    kind: GameIconKind.crown,
+                    size: 80 + 8 * _flame.value,
                   ),
                 ),
               ),
@@ -2996,7 +2415,7 @@ class _BossLoadingScreenState extends State<_BossLoadingScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(LucideIcons.swords, color: _bossGlow, size: 16),
+                    const GameIcon(kind: GameIconKind.crown, size: 20),
                     const SizedBox(width: 8),
                     Text(
                       context.l10n.levelTypeBoss,
@@ -3008,7 +2427,7 @@ class _BossLoadingScreenState extends State<_BossLoadingScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(LucideIcons.swords, color: _bossGlow, size: 16),
+                    const GameIcon(kind: GameIconKind.crown, size: 20),
                   ],
                 ),
               ),
@@ -3119,10 +2538,9 @@ class _GodLoadingScreenState extends State<_GodLoadingScreen>
                         ],
                       ),
                     ),
-                    Icon(
-                      LucideIcons.sparkles,
-                      size: 72 + 8 * _glow.value,
-                      color: Color.lerp(_godPurple, _godGlow, _glow.value),
+                    GameIcon(
+                      kind: GameIconKind.streak,
+                      size: 80 + 8 * _glow.value,
                     ),
                   ],
                 ),
@@ -3142,7 +2560,7 @@ class _GodLoadingScreenState extends State<_GodLoadingScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(LucideIcons.sparkles, color: _godGold, size: 16),
+                    const GameIcon(kind: GameIconKind.streak, size: 20),
                     const SizedBox(width: 8),
                     Text(
                       context.l10n.godMode,
@@ -3154,7 +2572,7 @@ class _GodLoadingScreenState extends State<_GodLoadingScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(LucideIcons.sparkles, color: _godGold, size: 16),
+                    const GameIcon(kind: GameIconKind.streak, size: 20),
                   ],
                 ),
               ),

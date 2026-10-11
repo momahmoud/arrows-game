@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../core/app_fonts.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../core/app_colors.dart';
+import '../ui/icons/game_icon_kind.dart';
+import '../ui/theme/game_tokens.dart';
+import '../ui/widgets/booster_button.dart';
 
 typedef PowerUpTap = void Function();
 
-class PowerUpBar extends StatelessWidget {
+/// Bottom booster surface. Counts and taps stay with the caller.
+class BoosterDock extends StatelessWidget {
   final int hintCount;
   final int eraserCount;
   final int wandCount;
@@ -24,7 +25,7 @@ class PowerUpBar extends StatelessWidget {
   final PowerUpTap? onWand;
   final PowerUpTap? onRuler;
 
-  const PowerUpBar({
+  const BoosterDock({
     super.key,
     required this.hintCount,
     required this.eraserCount,
@@ -41,180 +42,79 @@ class PowerUpBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _PowerUpButton(
-            icon: Icons.lightbulb_rounded,
-            iconColor: const Color(0xFFFFD54F),
-            count: hintCount,
-            enabled: enabled,
-            canRefill: canRefill,
-            onTap: onHint,
-          ),
-          _PowerUpButton(
-            icon: LucideIcons.eraser,
-            iconColor: const Color(0xFFFF8A80),
-            count: eraserCount,
-            active: eraserActive,
-            enabled: enabled,
-            canRefill: canRefill,
-            onTap: onEraser,
-          ),
-          _PowerUpButton(
-            icon: Icons.auto_fix_high_rounded,
-            iconColor: const Color(0xFFFFD740),
-            count: wandCount,
-            enabled: enabled,
-            canRefill: canRefill,
-            onTap: onWand,
-          ),
-          _PowerUpButton(
-            icon: Icons.square_foot_rounded,
-            iconColor: const Color(0xFF64B5F6),
-            count: rulerCount,
-            enabled: enabled,
-            canRefill: canRefill,
-            onTap: onRuler,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PowerUpButton extends StatefulWidget {
-  final IconData icon;
-  final Color iconColor;
-  final int count;
-  final bool enabled;
-  final bool canRefill;
-  final bool active;
-  final PowerUpTap? onTap;
-
-  const _PowerUpButton({
-    required this.icon,
-    required this.iconColor,
-    required this.count,
-    required this.enabled,
-    required this.canRefill,
-    this.active = false,
-    this.onTap,
-  });
-
-  @override
-  State<_PowerUpButton> createState() => _PowerUpButtonState();
-}
-
-class _PowerUpButtonState extends State<_PowerUpButton> {
-  bool _pressed = false;
-  int _useKey = 0;
-
-  @override
-  void didUpdateWidget(covariant _PowerUpButton oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.count < oldWidget.count) _useKey++;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = widget.icon;
-    final iconColor = widget.iconColor;
-    final count = widget.count;
-    final active = widget.active;
-    final onTap = widget.onTap;
-    final canUse = widget.enabled && count > 0 && onTap != null;
-    final tappable =
-        canUse || (widget.enabled && widget.canRefill && onTap != null);
-
-    Widget iconWidget = Icon(
-      icon,
-      color: canUse ? iconColor : iconColor.withValues(alpha: 0.35),
-      size: 28,
-    );
-    if (_useKey > 0) {
-      iconWidget = iconWidget.animate(key: ValueKey('use_$_useKey')).scaleXY(
-          begin: 1.25, end: 1.0, duration: 280.ms, curve: Curves.easeOutBack);
-    }
-
-    return AnimatedScale(
-      scale: _pressed ? 0.9 : 1.0,
-      duration: const Duration(milliseconds: 90),
-      curve: Curves.easeOut,
-      child: Material(
-        color: AppColors.surface.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: tappable ? onTap : null,
-          onHighlightChanged: (v) {
-            if (_pressed != v) setState(() => _pressed = v);
-          },
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            width: 72,
-            height: 56,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: active
-                    ? iconColor
-                    : canUse
-                        ? AppColors.surfaceLight
-                        : AppColors.surfaceLight.withValues(alpha: 0.5),
-                width: active ? 2.5 : 1,
-              ),
-              boxShadow: active
-                  ? [
-                      BoxShadow(
-                        color: iconColor.withValues(alpha: 0.45),
-                        blurRadius: 12,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                iconWidget,
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF43A047),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 240),
-                      switchInCurve: Curves.easeOut,
-                      switchOutCurve: Curves.easeIn,
-                      transitionBuilder: (child, anim) => FadeTransition(
-                        opacity: anim,
-                        child: ScaleTransition(scale: anim, child: child),
-                      ),
-                      child: Text(
-                        count > 0 ? '$count' : '+',
-                        key: ValueKey(count > 0 ? count : -1),
-                        style: AppFonts.style(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          height: 1,
-                        ),
-                      ),
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inset = GameplayMetrics.horizontalPadding(constraints.maxWidth);
+        return Padding(
+      padding: EdgeInsets.fromLTRB(inset, 0, inset, 8),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(GameRadius.lg),
+          border: Border.all(color: AppColors.surfaceLight),
+          boxShadow: AppColors.isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
                   ),
+                ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(6, 8, 6, 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: BoosterButton(
+                  icon: GameIconKind.hint,
+                  count: hintCount,
+                  enabled: enabled,
+                  canRefill: canRefill,
+                  onTap: onHint,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: BoosterButton(
+                  icon: GameIconKind.remove,
+                  count: eraserCount,
+                  selected: eraserActive,
+                  enabled: enabled,
+                  canRefill: canRefill,
+                  onTap: onEraser,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: BoosterButton(
+                  icon: GameIconKind.wand,
+                  count: wandCount,
+                  enabled: enabled,
+                  canRefill: canRefill,
+                  onTap: onWand,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: BoosterButton(
+                  icon: GameIconKind.ruler,
+                  count: rulerCount,
+                  enabled: enabled,
+                  canRefill: canRefill,
+                  onTap: onRuler,
+                ),
+              ),
+            ],
           ),
         ),
       ),
+        );
+      },
     );
   }
 }
+
+/// Existing call sites keep this name.
+typedef PowerUpBar = BoosterDock;

@@ -13,14 +13,14 @@ class ArrowVisualConfig {
   ArrowVisualConfig._();
 
   // ── Shaft ─────────────────────────────────────────────────────────────────
-  static const double shaftWidthRatio = 0.16;
+  static const double shaftWidthRatio = 0.17;
 
   /// Hairline floor for tiny cells; below it the shaft would vanish.
   static const double minShaftWidth = 1.0;
 
   /// Centre-line radius of every 90° bend. Must stay below 0.5 so two
   /// one-cell turns in a row never overlap.
-  static const double cornerRadiusRatio = 0.05;
+  static const double cornerRadiusRatio = 0.08;
 
   // ── Arrowhead ─────────────────────────────────────────────────────────────
   static const double arrowHeadLengthRatio = 0.4;

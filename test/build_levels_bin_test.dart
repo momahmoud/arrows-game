@@ -13,12 +13,12 @@ void main() {
     print('=====================================================');
     print('');
 
-    const totalLevels = 500;
+    const totalLevels = 1000;
     const outputFile = 'assets/levels.bin';
 
     // 1. Load and merge all chunk progress files.
     final rawProgress = <String, dynamic>{};
-    for (int chunk = 1; chunk <= 5; chunk++) {
+    for (int chunk = 1; chunk <= 10; chunk++) {
       final progressFile = 'assets/verify_progress_chunk_$chunk.json';
       final progressF = File(progressFile);
       if (progressF.existsSync()) {

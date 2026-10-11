@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_colors.dart';
 import '../core/app_fonts.dart';
 
 import '../data/models/level.dart';
@@ -7,8 +8,9 @@ import '../l10n/l10n.dart';
 /// Fills the level silhouette in and shows its name when the board clears.
 class ShapeReveal extends StatefulWidget {
   final LevelModel level;
+  final bool compact;
 
-  const ShapeReveal({super.key, required this.level});
+  const ShapeReveal({super.key, required this.level, this.compact = false});
 
   @override
   State<ShapeReveal> createState() => _ShapeRevealState();
@@ -23,7 +25,7 @@ class _ShapeRevealState extends State<ShapeReveal>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: Duration(milliseconds: widget.compact ? 420 : 900),
     )..forward();
   }
 
@@ -40,8 +42,8 @@ class _ShapeRevealState extends State<ShapeReveal>
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 132,
-          height: 132,
+          width: widget.compact ? 72 : 132,
+          height: widget.compact ? 72 : 132,
           child: AnimatedBuilder(
             animation: _controller,
             builder: (context, _) => CustomPaint(
@@ -57,9 +59,9 @@ class _ShapeRevealState extends State<ShapeReveal>
         Text(
           name,
           style: AppFonts.style(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: const Color(0xFF5E6B56),
+            fontSize: widget.compact ? 13 : 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
           ),
         ),
       ],
@@ -86,7 +88,7 @@ class _SilhouettePainter extends CustomPainter {
               for (var c = 0; c < gridSize; c++) '$r,$c',
           ]
         : mask.toList()
-          ..sort();
+      ..sort();
     if (cells.isEmpty) return;
 
     var minR = gridSize, maxR = 0, minC = gridSize, maxC = 0;

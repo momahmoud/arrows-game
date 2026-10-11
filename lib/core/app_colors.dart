@@ -9,46 +9,63 @@ class AppColors {
     isDark = dark;
   }
 
-  // Brand
-  static Color get primary => isDark ? const Color(0xFF829079) : const Color(0xFF5E6B56);      // Dark forest green / lighter sage in dark mode for contrast
-  static Color get primaryLight => isDark ? const Color(0xFFA8B5A2) : const Color(0xFF829079);
-  static Color get primaryDark => isDark ? const Color(0xFF3C4636) : const Color(0xFF3C4636);
-  static Color get accent => isDark ? const Color(0xFF829079) : const Color(0xFF5E6B56);
-  static Color get accentGold => isDark ? const Color(0xFFA8B5A2) : const Color(0xFF8B9B82);   // Sagey gold
-  static Color get accentGreen => isDark ? const Color(0xFF829079) : const Color(0xFF5E6B56);
-  static Color get accentOrange => isDark ? const Color(0xFFA8B5A2) : const Color(0xFF829079);
+  // Brand. Light and dark share one purple primary and one gold accent.
+  static Color get primary =>
+      isDark ? const Color(0xFFA83ED1) : const Color(0xFF9C3ED1);
+  static Color get primaryLight =>
+      isDark ? const Color(0xFFC56EE8) : const Color(0xFFB45ADF);
+  static Color get primaryDark =>
+      isDark ? const Color(0xFF7A249E) : const Color(0xFF6E1F9A);
+  static Color get accent => const Color(0xFFF5B82E);
+  static Color get accentGold => const Color(0xFFF5B82E);
+  static Color get accentGreen =>
+      isDark ? const Color(0xFF35C96B) : const Color(0xFF32C768);
+  static Color get accentOrange => const Color(0xFFE39B2B);
 
-  // Backgrounds
-  static Color get background => isDark ? const Color(0xFF1E231C) : const Color(0xFFF2EFEA);   // Warm cream / Deep earthy dark green-gray
-  static Color get surface => isDark ? const Color(0xFF2A3027) : const Color(0xFFFFFFFF);      // Card surface / slate/sage dark card
-  static Color get surfaceLight => isDark ? const Color(0xFF3D473A) : const Color(0xFFA8B5A2); // Sage green border/detail
-  static Color get gridBg => isDark ? const Color(0xFF1E231C) : const Color(0xFFF2EFEA);       // Grid background
+  // Backgrounds. Dark mode stays a deep green, never pure black.
+  static Color get background =>
+      isDark ? const Color(0xFF101610) : const Color(0xFFF7F4EC);
+  static Color get surface =>
+      isDark ? const Color(0xFF1D241E) : const Color(0xFFFFFFFF);
+  static Color get elevated =>
+      isDark ? const Color(0xFF252D26) : const Color(0xFFF0F0E9);
+  static Color get surfaceLight =>
+      isDark ? const Color(0xFF3A443C) : const Color(0xFFE4E1D6);
+  static Color get gridBg => background;
 
   // Arrow direction colors — solid dark green for maximum legibility in light, clean cream/sage in dark
-  static Color get arrowUp    => isDark ? const Color(0xFFECF0EB) : const Color(0xFF3C4636);
-  static Color get arrowDown  => isDark ? const Color(0xFFECF0EB) : const Color(0xFF3C4636);
-  static Color get arrowLeft  => isDark ? const Color(0xFFECF0EB) : const Color(0xFF3C4636);
-  static Color get arrowRight => isDark ? const Color(0xFFECF0EB) : const Color(0xFF3C4636);
+  static Color get arrowUp =>
+      isDark ? const Color(0xFFECF0EB) : const Color(0xFF3C4636);
+  static Color get arrowDown =>
+      isDark ? const Color(0xFFECF0EB) : const Color(0xFF3C4636);
+  static Color get arrowLeft =>
+      isDark ? const Color(0xFFECF0EB) : const Color(0xFF3C4636);
+  static Color get arrowRight =>
+      isDark ? const Color(0xFFECF0EB) : const Color(0xFF3C4636);
 
-  // Difficulty colors
-  static Color get easy => isDark ? const Color(0xFFA8B5A2) : const Color(0xFF829079);
-  static Color get medium => isDark ? const Color(0xFF96A390) : const Color(0xFF708066);
-  static Color get hard => isDark ? const Color(0xFF829079) : const Color(0xFF5E6B56);
-  static Color get expert => isDark ? const Color(0xFF6F7C66) : const Color(0xFF4C5745);
-  static Color get master => isDark ? const Color(0xFF5E6B56) : const Color(0xFF3C4636);
+  // Difficulty labels. The play button itself stays the purple primary.
+  static Color get easy => accentGreen;
+  static Color get medium => const Color(0xFF2E9A8A);
+  static Color get hard => primary;
+  static Color get expert => primaryDark;
+  static Color get master => textPrimary;
 
   // Text
-  static Color get textPrimary => isDark ? const Color(0xFFECF0EB) : const Color(0xFF3C4636);
-  static Color get textSecondary => isDark ? const Color(0xFFBDC7B9) : const Color(0xFF5E6B56);
-  static Color get textMuted => isDark ? const Color(0xFF8A9885) : const Color(0xFF829079);
+  static Color get textPrimary =>
+      isDark ? const Color(0xFFF4F5EF) : const Color(0xFF263127);
+  static Color get textSecondary =>
+      isDark ? const Color(0xFFAAB2A8) : const Color(0xFF667064);
+  static Color get textMuted =>
+      isDark ? const Color(0xFF8E988C) : const Color(0xFF7A8478);
 
   // UI Elements
-  static Color get heartRed => isDark ? const Color(0xFFA8B5A2) : const Color(0xFF5E6B56);
-  static Color get heartEmpty => isDark ? const Color(0xFF3D473A) : const Color(0xFFD3CFC9);
-  static Color get streakFire => isDark ? const Color(0xFFA8B5A2) : const Color(0xFF5E6B56);
-  static Color get coinGold => isDark ? const Color(0xFFF1C40F) : const Color(0xFF829079);
-  static Color get starYellow => isDark ? const Color(0xFFA8B5A2) : const Color(0xFF5E6B56);
-  static Color get borderGlow => isDark ? const Color(0xFF829079) : const Color(0xFF5E6B56);
+  static Color get heartRed => const Color(0xFFFF5A73);
+  static Color get heartEmpty =>
+      isDark ? const Color(0xFF3A443C) : const Color(0xFFD9D6CC);
+  static Color get streakFire => const Color(0xFFF08A2A);
+  static Color get coinGold => accent;
+  static Color get starYellow => accent;
+  static Color get borderGlow => primary;
 
   // ── Theme-aware Arrow Pair / Group Colors (12 Maximally Distant, Unconfusable Colors) ───
   // Ordered around the color wheel with max hue separation so pairs 0..N receive zero-confusion colors:
@@ -89,45 +106,42 @@ class AppColors {
     return list[groupIndex % list.length];
   }
 
-
   // Gradients
   static LinearGradient get primaryGradient => LinearGradient(
-    colors: isDark 
-      ? [const Color(0xFF4C5745), const Color(0xFF5E6B56)]
-      : [const Color(0xFF5E6B56), const Color(0xFF7A8972)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+        colors: isDark
+            ? [const Color(0xFFC56EE8), const Color(0xFFA83ED1)]
+            : [const Color(0xFFB45ADF), const Color(0xFF9C3ED1)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
 
   static LinearGradient get secondaryGradient => LinearGradient(
-    colors: isDark
-      ? [const Color(0xFF3D473A), const Color(0xFF4C5745)]
-      : [const Color(0xFFA8B5A2), const Color(0xFFC0CDC0)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+        colors: isDark
+            ? [const Color(0xFF2C352D), const Color(0xFF1D241E)]
+            : [const Color(0xFFFFFFFF), const Color(0xFFF0F0E9)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
 
   static LinearGradient get bgGradient => LinearGradient(
-    colors: isDark
-      ? [const Color(0xFF1E231C), const Color(0xFF141912)]
-      : [const Color(0xFFF2EFEA), const Color(0xFFE2DFDA)],
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-  );
+        colors: isDark
+            ? [const Color(0xFF182018), const Color(0xFF101610)]
+            : [const Color(0xFFF7F4EC), const Color(0xFFEFEADF)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      );
 
   static LinearGradient get successGradient => LinearGradient(
-    colors: isDark
-      ? [const Color(0xFF3D473A), const Color(0xFF4C5745)]
-      : [const Color(0xFF5E6B56), const Color(0xFF708066)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+        colors: isDark
+            ? [const Color(0xFF4AD67C), const Color(0xFF35C96B)]
+            : [const Color(0xFF46D478), const Color(0xFF32C768)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
 
-  static LinearGradient get dangerGradient => LinearGradient(
-    colors: isDark
-      ? [const Color(0xFF6B3E36), const Color(0xFF82524A)]
-      : [const Color(0xFF8B5E56), const Color(0xFFA27870)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  static LinearGradient get dangerGradient => const LinearGradient(
+        colors: [Color(0xFFE15B5B), Color(0xFFC73E3E)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
 }

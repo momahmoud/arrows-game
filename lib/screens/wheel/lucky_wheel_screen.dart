@@ -7,8 +7,10 @@ import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/audio_manager.dart';
 import '../../data/meta_rules.dart';
+import '../../game/game_state.dart';
 import '../../data/repositories/progress_repository.dart';
 import '../../l10n/l10n.dart';
+import '../../ui/game_ui.dart';
 
 class LuckyWheelScreen extends StatefulWidget {
   const LuckyWheelScreen({super.key});
@@ -73,77 +75,73 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
         child: SafeArea(
           child: Column(
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: IconButton(
-                  onPressed: () {
-                    AudioManager.instance.playClick();
-                    Navigator.pop(context);
-                  },
-                  icon: Icon(Icons.arrow_back_ios_new_rounded,
-                      color: AppColors.textPrimary),
-                ),
-              ),
+              GameScreenHeader(title: context.l10n.luckyWheel),
               Text(
-                context.l10n.luckyWheel,
-                style: AppFonts.style(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary,
-                ),
+                progress.canSpinWheel
+                    ? context.l10n.freeSpinToday
+                    : context.l10n.spunToday,
+                style: GameTypography.body(GameColors.textMuted),
               ),
-              Text(
-                progress.canSpinWheel ? context.l10n.freeSpinToday : context.l10n.spunToday,
-                style: AppFonts.style(color: AppColors.textMuted),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: 260,
-                height: 280,
-                child: Stack(
-                  alignment: Alignment.topCenter,
-                  children: [
-                    const Icon(Icons.arrow_drop_down, size: 36, color: Color(0xFFE2B93C)),
-                    Positioned(
-                      top: 16,
-                      child: AnimatedBuilder(
-                        animation: _spin,
-                        builder: (context, child) {
-                          return Transform.rotate(
-                            angle: _turn?.value ?? 0,
-                            child: child,
-                          );
-                        },
-                        child: CustomPaint(
-                          size: const Size.square(260),
-                          painter: _WheelPainter(
-                            labels: [
-                              for (final s in MetaRules.wheel)
-                                context.l10n.wheelSliceLabel(s),
+              const SizedBox(height: 12),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final side = min(280.0, constraints.maxWidth - 48);
+                    final room = constraints.maxHeight;
+                    final box = min(side + 16, room);
+                    final wheel = max(0.0, box - 16);
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: wheel,
+                          height: box,
+                          child: Stack(
+                            alignment: Alignment.topCenter,
+                            children: [
+                              const GameIcon(
+                                  kind: GameIconKind.chevronDown, size: 36),
+                              Positioned(
+                                top: 16,
+                                child: AnimatedBuilder(
+                                  animation: _spin,
+                                  builder: (context, child) {
+                                    return Transform.rotate(
+                                      angle: _turn?.value ?? 0,
+                                      child: child,
+                                    );
+                                  },
+                                  child: CustomPaint(
+                                    size: Size.square(wheel),
+                                    painter: _WheelPainter(
+                                      labels: [
+                                        for (final s in MetaRules.wheel)
+                                          context.l10n.wheelSliceLabel(s),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                      ),
-                    ),
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ),
-              const SizedBox(height: 18),
               if (_result != null)
-                Text(
-                  context.l10n.youWon(context.l10n.wheelPrize(_result!)),
-                  style: AppFonts.style(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: _WheelResult(slice: _result!),
                 ),
-              const Spacer(),
               Padding(
-                padding: const EdgeInsets.all(20),
-                child: FilledButton(
-                  onPressed: progress.canSpinWheel && !_busy ? _spinWheel : null,
-                  child: Text(context.l10n.spin),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: GameButton(
+                  icon: GameIconKind.wheel,
+                  label: context.l10n.spin,
+                  onPressed:
+                      progress.canSpinWheel && !_busy ? _spinWheel : null,
                 ),
               ),
             ],
@@ -151,6 +149,49 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
         ),
       ),
     );
+  }
+}
+
+class _WheelResult extends StatelessWidget {
+  const _WheelResult({required this.slice});
+
+  final WheelSlice slice;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: GameDecor.card(highlight: true),
+      child: Row(
+        children: [
+          GameIcon(kind: _icon(slice), size: GameIconSizes.feature),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              context.l10n.youWon(context.l10n.wheelPrize(slice)),
+              style: GameTypography.section(GameColors.text),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  GameIconKind _icon(WheelSlice slice) {
+    if (slice.heart) return GameIconKind.heart;
+    if (slice.coins > 0) return GameIconKind.coin;
+    switch (slice.powerUp) {
+      case PowerUpType.hint:
+        return GameIconKind.hint;
+      case PowerUpType.eraser:
+        return GameIconKind.remove;
+      case PowerUpType.wand:
+        return GameIconKind.wand;
+      case PowerUpType.ruler:
+        return GameIconKind.ruler;
+      case null:
+        return GameIconKind.gift;
+    }
   }
 }
 

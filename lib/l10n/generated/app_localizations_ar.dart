@@ -196,6 +196,32 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navAwards => 'الجوائز';
 
   @override
+  String get navHome => 'الرئيسية';
+
+  @override
+  String get navMore => 'المزيد';
+
+  @override
+  String get viewAllLevels => 'كل المراحل';
+
+  @override
+  String get shopCoins => 'عملات';
+
+  @override
+  String get dailyLogin => 'مكافأة الدخول اليومي';
+
+  @override
+  String get albumEmpty => 'لا مجموعات بعد';
+
+  @override
+  String get awardsEmpty => 'لا جوائز مكتملة بعد';
+
+  @override
+  String awardsEarned(int count) {
+    return '$count مكتسبة';
+  }
+
+  @override
   String get shapeAlbum => 'ألبوم الأشكال';
 
   @override
@@ -553,7 +579,30 @@ class AppLocalizationsAr extends AppLocalizations {
   String get pairBadge => 'زوج';
 
   @override
-  String get levelComplete => 'اكتملت المرحلة!';
+  String get levelComplete => 'اكتملت المرحلة';
+
+  @override
+  String get bossComplete => 'اكتمل الزعيم';
+
+  @override
+  String get godComplete => 'اكتملت المرحلة الأسطورية';
+
+  @override
+  String get perfectClear => 'مثالي!';
+
+  @override
+  String get newBest => 'أفضل نتيجة';
+
+  @override
+  String get levelFailed => 'لم تكتمل المرحلة';
+
+  @override
+  String get retry => 'إعادة المحاولة';
+
+  @override
+  String starsEarned(int earned) {
+    return '$earned من 3 نجوم';
+  }
 
   @override
   String dailyBonus(int amount) {
@@ -591,6 +640,98 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get claim => 'استلم';
+
+  @override
+  String get removeAds => 'إزالة الإعلانات';
+
+  @override
+  String get removeAdsBody => 'العب مع انقطاع أقل.';
+
+  @override
+  String get rewardedAdsRemain =>
+      'الإعلانات التي تختار مشاهدتها ما زالت تمنح مكافآت.';
+
+  @override
+  String get maybeLater => 'لاحقًا';
+
+  @override
+  String youNeedCoins(int count) {
+    return 'تحتاج $count عملة.';
+  }
+
+  @override
+  String currentBalance(int count) {
+    return 'رصيدك: $count';
+  }
+
+  @override
+  String get getCoins => 'احصل على عملات';
+
+  @override
+  String get notNow => 'ليس الآن';
+
+  @override
+  String get getWithCoins => 'اشترِ بالعملات';
+
+  @override
+  String outOfItem(String name) {
+    return 'نفد $name';
+  }
+
+  @override
+  String getAnother(String name) {
+    return 'احصل على $name آخر';
+  }
+
+  @override
+  String get lowOnCoins => 'العملات قليلة؟';
+
+  @override
+  String get lowOnCoinsBody => 'احصل على عملات إضافية للمعززات.';
+
+  @override
+  String get purchaseCouldNot => 'تعذر إتمام الشراء. حاول لاحقًا.';
+
+  @override
+  String get purchaseCompleteTitle => 'اكتمل الشراء';
+
+  @override
+  String get addedToAccount => 'أُضيف إلى حسابك';
+
+  @override
+  String get removeAdsActive => 'الإعلانات متوقفة';
+
+  @override
+  String get storeSoon => 'الشراء من المتجر غير متاح في هذا الإصدار بعد.';
+
+  @override
+  String get watchVideo => 'شاهد فيديو';
+
+  @override
+  String get receive => 'ستحصل على';
+
+  @override
+  String get freeCoinsTitle => 'عملات مجانية';
+
+  @override
+  String dayLabel(int day) {
+    return 'اليوم $day';
+  }
+
+  @override
+  String get rewardClaimed => 'تم الاستلام';
+
+  @override
+  String get rewardLocked => 'مقفل';
+
+  @override
+  String get rewardMissed => 'فائت';
+
+  @override
+  String get jackpot => 'الجائزة الكبرى';
+
+  @override
+  String get coinsEarned => 'العملات المكتسبة';
 
   @override
   String get deadlockTitle => 'وصلت إلى طريق مسدود!';

@@ -15,7 +15,7 @@ class BlendedMazeBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Opacity(
-      opacity: 0.55, // Lower the opacity of the whole mesh slightly
+      opacity: 0.16,
       child: ShaderMask(
         shaderCallback: (rect) {
           return const LinearGradient(
@@ -58,7 +58,7 @@ class MazeBackgroundPainter extends CustomPainter {
     final rng = Random(1337); // Seeded random for deterministic layout
 
     // Grid dots spacing
-    final double spacing = 38.0;
+    final double spacing = 64.0;
     final int rows = (size.height / spacing).ceil();
     final int cols = (size.width / spacing).ceil();
 
@@ -66,8 +66,7 @@ class MazeBackgroundPainter extends CustomPainter {
     final Set<String> occupiedCells = {};
     String cellKey(int r, int c) => '$r,$c';
 
-    // A clean density of 15 non-overlapping paths
-    final int numArrows = 15;
+    final int numArrows = 7;
     final colors = [
       AppColors.accentGold,
       AppColors.accentOrange,
@@ -80,7 +79,7 @@ class MazeBackgroundPainter extends CustomPainter {
 
     for (int i = 0; i < numArrows; i++) {
       final color = colors[rng.nextInt(colors.length)];
-      final strokeWidth = 3.5 + rng.nextDouble() * 2.0;
+      final strokeWidth = 1.1 + rng.nextDouble() * 0.7;
 
       // Find an unoccupied starting cell for this path
       int startRow = 0;
@@ -88,7 +87,8 @@ class MazeBackgroundPainter extends CustomPainter {
       bool foundStart = false;
 
       for (int attempt = 0; attempt < 30; attempt++) {
-        final double colTarget = (i + 0.1 + rng.nextDouble() * 0.8) * (cols / numArrows);
+        final double colTarget =
+            (i + 0.1 + rng.nextDouble() * 0.8) * (cols / numArrows);
         final int c = colTarget.floor().clamp(0, cols - 1);
         final int r = rng.nextInt((rows * 0.6).ceil().clamp(2, rows));
 
@@ -121,10 +121,18 @@ class MazeBackgroundPainter extends CustomPainter {
           int nextR = currentValR;
           int nextC = currentValC;
           switch (d) {
-            case 0: nextC++; break; // Right
-            case 1: nextR++; break; // Down
-            case 2: nextC--; break; // Left
-            default: nextR--; break; // Up
+            case 0:
+              nextC++;
+              break; // Right
+            case 1:
+              nextR++;
+              break; // Down
+            case 2:
+              nextC--;
+              break; // Left
+            default:
+              nextR--;
+              break; // Up
           }
 
           if (nextC >= 0 && nextC < cols && nextR >= 0 && nextR < rows) {
@@ -144,13 +152,22 @@ class MazeBackgroundPainter extends CustomPainter {
         }
 
         switch (lastDir) {
-          case 0: currentValC++; break;
-          case 1: currentValR++; break;
-          case 2: currentValC--; break;
-          default: currentValR--; break;
+          case 0:
+            currentValC++;
+            break;
+          case 1:
+            currentValR++;
+            break;
+          case 2:
+            currentValC--;
+            break;
+          default:
+            currentValR--;
+            break;
         }
 
-        pathPoints.add(Offset(currentValC * spacing + 19, currentValR * spacing + 19));
+        pathPoints.add(
+            Offset(currentValC * spacing + 19, currentValR * spacing + 19));
         occupiedCells.add(cellKey(currentValR, currentValC));
       }
 
@@ -181,7 +198,7 @@ class MazeBackgroundPainter extends CustomPainter {
     // 2. Draw the generated arrow lines with full opacity (mesh arrows opaque 100%)
     for (final gp in generatedPaths) {
       final arrowPaint = Paint()
-        ..color = gp.color
+        ..color = gp.color.withValues(alpha: 0.55)
         ..style = PaintingStyle.stroke
         ..strokeWidth = gp.strokeWidth
         ..strokeCap = StrokeCap.round
@@ -192,7 +209,8 @@ class MazeBackgroundPainter extends CustomPainter {
       if (animatedPoints.length < 2) continue;
 
       // Draw path body
-      final path = Path()..moveTo(animatedPoints.first.dx, animatedPoints.first.dy);
+      final path = Path()
+        ..moveTo(animatedPoints.first.dx, animatedPoints.first.dy);
       for (int k = 1; k < animatedPoints.length; k++) {
         path.lineTo(animatedPoints[k].dx, animatedPoints[k].dy);
       }
@@ -214,12 +232,13 @@ class MazeBackgroundPainter extends CustomPainter {
       final caretPath = Path()
         ..moveTo(base.dx + px * headSize * 0.75, base.dy + py * headSize * 0.75)
         ..lineTo(tip.dx, tip.dy)
-        ..lineTo(base.dx - px * headSize * 0.75, base.dy - py * headSize * 0.75);
+        ..lineTo(
+            base.dx - px * headSize * 0.75, base.dy - py * headSize * 0.75);
 
       canvas.drawPath(
         caretPath,
         Paint()
-          ..color = gp.color // Matching full opacity
+          ..color = gp.color.withValues(alpha: 0.55)
           ..style = PaintingStyle.stroke
           ..strokeWidth = gp.strokeWidth
           ..strokeCap = StrokeCap.round
@@ -228,7 +247,8 @@ class MazeBackgroundPainter extends CustomPainter {
     }
   }
 
-  List<Offset> _getAnimatedPoints(List<Offset> points, double progress, double spacing) {
+  List<Offset> _getAnimatedPoints(
+      List<Offset> points, double progress, double spacing) {
     if (points.isEmpty) return [];
     if (progress <= 0.0) return [];
     if (progress >= 1.0) return points;
@@ -259,7 +279,8 @@ class MazeBackgroundPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant MazeBackgroundPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.baseColor != baseColor;
+    return oldDelegate.progress != progress ||
+        oldDelegate.baseColor != baseColor;
   }
 }
 

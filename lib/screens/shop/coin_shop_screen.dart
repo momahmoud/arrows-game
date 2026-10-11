@@ -1,114 +1,143 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import '../../core/app_fonts.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../../ads/ad_manager.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_fonts.dart';
 import '../../core/audio_manager.dart';
-import '../../core/board_style.dart';
+import '../../core/economy_config.dart';
 import '../../data/meta_rules.dart';
 import '../../data/repositories/progress_repository.dart';
 import '../../game/game_state.dart';
 import '../../l10n/l10n.dart';
+import '../../ui/game_ui.dart';
+import '../../ui/widgets/gameplay_hud.dart';
+import '../../monetization/play_billing.dart';
+import '../../ui/widgets/monetization_modal.dart';
 
 class CoinShopScreen extends StatelessWidget {
-  const CoinShopScreen({super.key});
+  const CoinShopScreen({super.key, this.embedded = false});
+
+  /// Hides the back control when this screen is a tab, not a pushed route.
+  final bool embedded;
+
+  static final GlobalKey _rewardKey = GlobalKey();
+  static final GlobalKey _packsKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
     final progress = context.watch<ProgressRepository>();
+    final billing = context.watch<PlayBilling>();
+    final ads = context.read<AdManager>();
+    final l10n = context.l10n;
+    final packs = EconomyConfig.storeCoinPacks.entries.toList();
+    final rewarded = ads.isRewardedAvailable;
+    final storeReady = billing.hasPrices;
+
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(gradient: AppColors.bgGradient),
+        color: AppColors.isDark ? null : const Color(0xFFFFFFFF),
+        decoration: AppColors.isDark
+            ? BoxDecoration(gradient: AppColors.bgGradient)
+            : null,
         child: SafeArea(
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        AudioManager.instance.playClick();
-                        Navigator.pop(context);
-                      },
-                      icon: Icon(Icons.arrow_back_ios_new_rounded,
-                          color: AppColors.textPrimary),
-                    ),
-                    Text(
-                      context.l10n.shop,
-                      style: AppFonts.style(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const Spacer(),
-                    const Icon(LucideIcons.coins,
-                        color: Color(0xFFE2B93C), size: 18),
-                    const SizedBox(width: 4),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      child: Text(
-                        '${progress.coins}',
-                        key: ValueKey(progress.coins),
-                        style: AppFonts.style(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              _ShopHeader(
+                title: l10n.shop,
+                coins: progress.coins,
+                showBack: !embedded,
+                onCoins: _revealPacks,
+                onSettings: () {
+                  AudioManager.instance.playClick();
+                  Navigator.pushNamed(context, '/settings');
+                },
               ),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                   children: [
-                    _section(context.l10n.shopPowerUps),
-                    for (final type in PowerUpType.values)
-                      _ShopRow(
-                        title: context.l10n.powerUp(type),
-                        detail: context.l10n
-                            .ownedExtra(progress.bonusPowerUp(type)),
-                        price: MetaRules.powerUpCost(type),
-                        action: context.l10n.buy,
-                        enabled: progress.coins >= MetaRules.powerUpCost(type),
-                        onTap: () {
-                          if (!progress.buyPowerUp(type)) {
-                            _broke(context);
-                            return;
-                          }
-                          AudioManager.instance.playClick();
-                        },
+                    if (rewarded) ...[
+                      _section(l10n.getCoins, first: true),
+                      KeyedSubtree(
+                        key: _rewardKey,
+                        child: WatchAdRewardCard(
+                          coins: EconomyConfig.rewardedAdCoins,
+                          enabled: progress.canClaimRewardedCoins,
+                          onWatch: () => _watchAd(context, progress, ads),
+                        ),
                       ),
-                    _section(context.l10n.shopHearts),
-                    _ShopRow(
-                      title: context.l10n.refillHearts(MetaRules.heartCost),
-                      detail: progress.livesAreFull
-                          ? context.l10n.heartsFull
-                          : '${progress.lives} / ${progress.maxLives}',
-                      price: MetaRules.heartCost,
-                      action: context.l10n.buy,
-                      enabled: !progress.livesAreFull &&
-                          progress.coins >= MetaRules.heartCost,
-                      onTap: () {
-                        if (!progress.buyHeart()) {
-                          _broke(context);
-                          return;
-                        }
-                        AudioManager.instance.playClick();
-                      },
+                    ],
+                    _section(l10n.shopCoins, first: !rewarded),
+                    KeyedSubtree(
+                      key: _packsKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (!storeReady)
+                            Text(
+                              l10n.storeSoon,
+                              style: GameTypography.caption(GameColors.textMuted),
+                            ),
+                          const SizedBox(height: 12),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final columns =
+                                  constraints.maxWidth >= 480 ? 3 : 2;
+                              return _productGrid(
+                                columns: columns,
+                                children: [
+                                  for (final pack in packs)
+                                    CoinPackCard(
+                                      coins: pack.value,
+                                      price: billing.priceFor(pack.key),
+                                      action: l10n.buy,
+                                      onBuy: () => MonetizationPresenter.buy(
+                                        context,
+                                        pack.key,
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                    _section(context.l10n.arrowSkins),
-                    for (final offer
-                        in BoardStyle.offers.where((o) => o.isSkin))
-                      _cosmetic(context, progress, offer),
-                    _section(context.l10n.boardThemes),
-                    for (final offer
-                        in BoardStyle.offers.where((o) => !o.isSkin))
-                      _cosmetic(context, progress, offer),
+                    _section(l10n.shopPowerUps),
+                    _productGrid(
+                      columns: 2,
+                      children: [
+                        for (final type in PowerUpType.values)
+                          ShopBoosterTile(
+                            icon: _powerIcon(type),
+                            title: l10n.powerUp(type),
+                            owned: l10n.ownedExtra(progress.bonusPowerUp(type)),
+                            price: MetaRules.powerUpCost(type),
+                            action: l10n.buy,
+                            onBuy: () {
+                              if (!progress.buyPowerUp(type)) {
+                                _broke(context, MetaRules.powerUpCost(type));
+                                return;
+                              }
+                              AudioManager.instance.playClick();
+                            },
+                          ),
+                      ],
+                    ),
+                    if (!progress.adsRemoved) ...[
+                      _section(l10n.removeAds),
+                      RemoveAdsCard(
+                        active: false,
+                        price: billing.priceFor(EconomyConfig.removeAdsId),
+                        onPurchase: () => MonetizationPresenter.buy(
+                          context,
+                          EconomyConfig.removeAdsId,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -119,130 +148,152 @@ class CoinShopScreen extends StatelessWidget {
     );
   }
 
-  Widget _cosmetic(
+  void _revealPacks() {
+    AudioManager.instance.playClick();
+    final target = _packsKey.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+      alignment: 0.05,
+    );
+  }
+
+  void _watchAd(
     BuildContext context,
     ProgressRepository progress,
-    CosmeticOffer offer,
+    AdManager ads,
   ) {
-    final owned = progress.ownsCosmetic(offer.id);
-    final equipped = progress.isCosmeticEquipped(offer);
-    final free =
-        BoardStyle.unlockedByProgress(offer, progress.highestUnlockedLevel);
-    final l10n = context.l10n;
-    return _ShopRow(
-      title: l10n.cosmeticName(offer.id, offer.name),
-      detail: equipped
-          ? l10n.equipped
-          : owned
-              ? l10n.cosmeticBlurb(offer.id, offer.blurb)
-              : free
-                  ? l10n.unlockedByProgress
-                  : l10n.orReachLevel(offer.unlockLevel),
-      price: owned ? 0 : offer.coinCost,
-      action: equipped
-          ? l10n.equippedShort
-          : owned || free
-              ? l10n.equip
-              : l10n.buy,
-      enabled: !equipped,
-      onTap: () {
-        final ok = owned || free
-            ? progress.equipCosmetic(offer.id)
-            : progress.buyCosmetic(offer.id);
-        if (!ok) {
-          _broke(context);
-          return;
+    var rewarded = false;
+    ads.showRewardedWithLoader(
+      context,
+      onRewarded: () {
+        if (rewarded || !context.mounted) return;
+        rewarded = true;
+        final box = _rewardKey.currentContext?.findRenderObject() as RenderBox?;
+        final from = box == null || !box.hasSize
+            ? null
+            : box.localToGlobal(box.size.center(Offset.zero));
+        progress.claimRewardedCoins();
+        if (from != null && context.mounted) {
+          CoinFly.burst(context, from: from);
         }
-        AudioManager.instance.playClick();
       },
     );
   }
 
-  Widget _section(String title) {
+  Widget _section(String title, {bool first = false}) {
     return Padding(
-      padding: const EdgeInsets.only(top: 14, bottom: 6),
-      child: Text(
-        title,
-        style: AppFonts.style(
-          fontSize: 15,
-          fontWeight: FontWeight.w900,
-          color: AppColors.textPrimary,
-        ),
-      ),
+      padding: EdgeInsets.only(top: first ? 8 : 24, bottom: 10),
+      child: Text(title, style: GameTypography.section(GameColors.text)),
     );
   }
 
-  void _broke(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.l10n.notEnoughCoins, style: AppFonts.style()),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Widget _productGrid({
+    required int columns,
+    required List<Widget> children,
+  }) {
+    const gap = 12.0;
+    final rows = <Widget>[];
+    for (var i = 0; i < children.length; i += columns) {
+      final end = math.min(i + columns, children.length);
+      final slice = children.sublist(i, end);
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var j = 0; j < columns; j++) ...[
+              if (j > 0) const SizedBox(width: gap),
+              Expanded(
+                child: j < slice.length ? slice[j] : const SizedBox.shrink(),
+              ),
+            ],
+          ],
+        ),
+      );
+      if (end < children.length) rows.add(const SizedBox(height: gap));
+    }
+    return Column(children: rows);
+  }
+
+  GameIconKind _powerIcon(PowerUpType type) {
+    switch (type) {
+      case PowerUpType.hint:
+        return GameIconKind.hint;
+      case PowerUpType.eraser:
+        return GameIconKind.remove;
+      case PowerUpType.wand:
+        return GameIconKind.wand;
+      case PowerUpType.ruler:
+        return GameIconKind.ruler;
+    }
+  }
+
+  void _broke(BuildContext context, int need) {
+    MonetizationPresenter.lowCoins(context, need: need);
   }
 }
 
-class _ShopRow extends StatelessWidget {
-  final String title;
-  final String detail;
-  final int price;
-  final String action;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  const _ShopRow({
+class _ShopHeader extends StatelessWidget {
+  const _ShopHeader({
     required this.title,
-    required this.detail,
-    required this.price,
-    required this.action,
-    required this.enabled,
-    required this.onTap,
+    required this.coins,
+    required this.showBack,
+    required this.onCoins,
+    required this.onSettings,
   });
+
+  final String title;
+  final int coins;
+  final bool showBack;
+  final VoidCallback onCoins;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppFonts.style(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
+          Row(
+            children: [
+              if (showBack)
+                GameIconButton(
+                  kind: GameIconKind.back,
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                  onPressed: () {
+                    AudioManager.instance.playClick();
+                    Navigator.pop(context);
+                  },
+                )
+              else
+                const SizedBox(width: 48),
+              Expanded(
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: CoinBalancePill(amount: coins, onAdd: onCoins),
                   ),
                 ),
-                Text(
-                  detail,
-                  style: AppFonts.style(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              GameIconButton(
+                kind: GameIconKind.settings,
+                tooltip: context.l10n.settings,
+                onPressed: onSettings,
+              ),
+            ],
           ),
-          if (price > 0) ...[
-            const Icon(LucideIcons.coins, size: 14, color: Color(0xFFE2B93C)),
-            const SizedBox(width: 4),
-            Text(
-              '$price',
-              style: AppFonts.style(fontWeight: FontWeight.w800),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: AppFonts.style(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
             ),
-            const SizedBox(width: 8),
-          ],
-          TextButton(
-            onPressed: enabled ? onTap : null,
-            child: Text(action),
           ),
         ],
       ),

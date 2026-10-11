@@ -312,6 +312,11 @@ enum MaskShape {
   honeyPot,
   pretzel,
   castle,
+  // Layout motifs appended so existing binary mask indices stay valid.
+  wideRectangle,
+  cShape,
+  frame,
+  cornerCluster,
 }
 
 // ─── Difficulty Enum ──────────────────────────────────────────────────────────

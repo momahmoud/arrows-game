@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/constants.dart';
-import '../../data/repositories/progress_repository.dart';
 import '../../core/audio_manager.dart';
+import '../../data/repositories/progress_repository.dart';
 import '../../l10n/l10n.dart';
+import '../../ui/game_ui.dart';
 
 class LevelSelectScreen extends StatelessWidget {
   const LevelSelectScreen({super.key});
@@ -16,85 +14,33 @@ class LevelSelectScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = context.watch<ProgressRepository>();
-    const totalVisible = AppConstants.totalLevels;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final holdScroll = args is Map && args['focus'] == false;
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(gradient: AppColors.bgGradient),
+        color: AppColors.isDark ? null : const Color(0xFFFFFFFF),
+        decoration: AppColors.isDark
+            ? BoxDecoration(gradient: AppColors.bgGradient)
+            : null,
         child: SafeArea(
           child: Column(
             children: [
-              // Header
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        AudioManager.instance.playClick();
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(Icons.arrow_back_ios_new_rounded,
-                            color: AppColors.textPrimary, size: 18),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(context.l10n.selectLevel,
-                        style: AppFonts.style(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary)),
-                  ],
-                ),
-              ),
-
-              // Grid
+              LevelSelectHeader(title: context.l10n.selectLevel),
               Expanded(
-                child: GridView.builder(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 0.85,
-                  ),
-                  itemCount: totalVisible,
-                  itemBuilder: (context, index) {
-                    final levelNum = index + 1;
-                    final isUnlocked = progress.isLevelUnlocked(levelNum);
-                    final stars = progress.getStarsForLevel(levelNum);
-                    final levelType = AppConstants.levelTypeFor(levelNum);
-
-                    return _LevelCell(
-                      levelNumber: levelNum,
-                      isUnlocked: isUnlocked,
-                      stars: stars,
-                      levelType: levelType,
-                      onTap: isUnlocked
-                          ? () {
-                              AudioManager.instance.playClick();
-                              Navigator.pushReplacementNamed(
-                                context,
-                                '/game',
-                                arguments: {'level': levelNum},
-                              );
-                            }
-                          : null,
-                    )
-                        .animate(
-                            delay: Duration(milliseconds: (index % 20) * 20))
-                        .fadeIn(duration: 200.ms)
-                        .scale(
-                            begin: const Offset(0.7, 0.7),
-                            end: const Offset(1, 1));
+                child: LevelGrid(
+                  currentLevel: progress.currentLevel,
+                  total: AppConstants.totalLevels,
+                  unlocked: progress.isLevelUnlocked,
+                  starsFor: progress.getStarsForLevel,
+                  centerOnCurrent: !holdScroll,
+                  onOpen: (level) {
+                    AudioManager.instance.playClick();
+                    Navigator.pushReplacementNamed(
+                      context,
+                      '/game',
+                      arguments: {'level': level},
+                    );
                   },
                 ),
               ),
@@ -106,103 +52,118 @@ class LevelSelectScreen extends StatelessWidget {
   }
 }
 
-class _LevelCell extends StatelessWidget {
-  final int levelNumber;
-  final bool isUnlocked;
-  final int stars;
-  final LevelType levelType;
-  final VoidCallback? onTap;
+class LevelSelectHeader extends StatelessWidget {
+  const LevelSelectHeader({super.key, required this.title, this.onBack});
 
-  const _LevelCell({
-    required this.levelNumber,
-    required this.isUnlocked,
-    required this.stars,
-    required this.levelType,
-    required this.onTap,
+  final String title;
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return GameScreenHeader(title: title, onBack: onBack);
+  }
+}
+
+/// Five-column level path. Number order stays left to right in Arabic.
+class LevelGrid extends StatefulWidget {
+  const LevelGrid({
+    super.key,
+    required this.currentLevel,
+    required this.total,
+    required this.unlocked,
+    required this.starsFor,
+    required this.onOpen,
+    this.centerOnCurrent = true,
   });
 
-  Color get _borderColor {
-    if (!isUnlocked) return AppColors.surfaceLight;
-    switch (levelType) {
-      case LevelType.god:
-        return AppColors.accent; // Red
-      case LevelType.boss:
-        return const Color(0xFF8E44AD); // Purple for Boss level
-      case LevelType.tutorial:
-        return AppColors.accentGreen; // Green
-      case LevelType.normal:
-        return AppColors.primary.withValues(alpha: 0.4);
+  static const columns = 5;
+  static const gap = 12.0;
+  static const padding = EdgeInsets.fromLTRB(16, 8, 16, 16);
+  static const aspect = 0.82;
+
+  final int currentLevel;
+  final int total;
+  final bool Function(int level) unlocked;
+  final int Function(int level) starsFor;
+  final ValueChanged<int> onOpen;
+  final bool centerOnCurrent;
+
+  @override
+  State<LevelGrid> createState() => _LevelGridState();
+}
+
+class _LevelGridState extends State<LevelGrid> {
+  final ScrollController _scroll = ScrollController();
+  bool _centered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.centerOnCurrent) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _center());
     }
   }
 
   @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _center() {
+    if (!mounted || _centered) return;
+    if (!_scroll.hasClients || !_scroll.position.hasContentDimensions) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _center());
+      return;
+    }
+    _centered = true;
+    final width = context.size?.width ?? MediaQuery.sizeOf(context).width;
+    final viewport = _scroll.position.viewportDimension;
+    final target = _offsetFor(widget.currentLevel, width, viewport);
+    final max = _scroll.position.maxScrollExtent;
+    _scroll.jumpTo(target.clamp(0.0, max));
+  }
+
+  double _offsetFor(int level, double gridWidth, double viewport) {
+    const padH = 16.0;
+    const padV = 8.0;
+    final cellW =
+        (gridWidth - padH * 2 - LevelGrid.gap * (LevelGrid.columns - 1)) /
+            LevelGrid.columns;
+    final cellH = cellW / LevelGrid.aspect;
+    final row = (level - 1) ~/ LevelGrid.columns;
+    final top = padV + row * (cellH + LevelGrid.gap);
+    return top - (viewport - cellH) / 2;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: isUnlocked ? AppColors.surface : AppColors.background,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _borderColor, width: 1.5),
-          boxShadow: isUnlocked && levelType.isSpecial
-              ? [
-                  BoxShadow(
-                    color: _borderColor.withValues(alpha: 0.35),
-                    blurRadius: 10,
-                  )
-                ]
-              : null,
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: GridView.builder(
+        controller: _scroll,
+        padding: LevelGrid.padding,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: LevelGrid.columns,
+          mainAxisSpacing: LevelGrid.gap,
+          crossAxisSpacing: LevelGrid.gap,
+          childAspectRatio: LevelGrid.aspect,
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Level type badge
-            if (levelType == LevelType.god)
-              Icon(LucideIcons.flame, color: AppColors.accent, size: 12)
-            else if (levelType == LevelType.boss)
-              const Icon(LucideIcons.zap, color: Color(0xFF8E44AD), size: 12)
-            else if (levelType == LevelType.tutorial)
-              Icon(LucideIcons.bookOpen,
-                  color: AppColors.accentGreen, size: 12),
-
-            if (!isUnlocked)
-              Icon(Icons.lock_outline_rounded,
-                  color: AppColors.textMuted, size: 20)
-            else
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text('$levelNumber',
-                      style: AppFonts.style(
-                        fontSize: levelNumber >= 100 ? 13 : 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      )),
-                ),
-              ),
-
-            // Stars
-            if (isUnlocked && stars > 0) ...[
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                    3,
-                    (i) => Text(
-                          i < stars ? '⭐' : '·',
-                          style: TextStyle(
-                            fontSize: i < stars ? 8 : 10,
-                            color: i < stars
-                                ? AppColors.starYellow
-                                : AppColors.textMuted,
-                          ),
-                        )),
-              ),
-            ],
-          ],
-        ),
+        itemCount: widget.total,
+        itemBuilder: (context, index) {
+          final level = index + 1;
+          final open = widget.unlocked(level);
+          final stars = widget.starsFor(level);
+          final type = AppConstants.levelTypeFor(level);
+          return LevelCard(
+            levelNumber: level,
+            unlocked: open,
+            current: level == widget.currentLevel,
+            stars: stars,
+            levelType: type,
+            onTap: open ? () => widget.onOpen(level) : null,
+          );
+        },
       ),
     );
   }

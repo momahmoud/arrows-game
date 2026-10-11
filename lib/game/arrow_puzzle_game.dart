@@ -35,11 +35,10 @@ class ArrowPuzzleGame extends FlameGame {
 
   @override
   Future<void> onLoad() async {
-    final (gridSize, gridX, gridY) = _calcLayout(size);
-
+    final (gridPx, gridX, gridY) = _calcLayout(size);
     gridComponent = GridComponent(
       gameState: gameState,
-      gridPixelSize: gridSize,
+      gridPixelSize: gridPx,
       position: Vector2(gridX, gridY),
     );
 
@@ -49,59 +48,66 @@ class ArrowPuzzleGame extends FlameGame {
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
-
-    final (gridSize, gridX, gridY) = _calcLayout(size);
-
-    if (gridComponent != null) {
-      gridComponent!.position = Vector2(gridX, gridY);
-      gridComponent!.resize(gridSize);
-    }
+    final (gridPx, gridX, gridY) = _calcLayout(size);
+    if (gridComponent == null) return;
+    gridComponent!.position = Vector2(gridX, gridY);
+    gridComponent!.resize(gridPx);
   }
 
-  (double gridSize, double gridX, double gridY) _calcLayout(Vector2 screenSize) {
-    final levelType = AppConstants.levelTypeFor(level.levelNumber);
-    // Clamp scale to 1.0: values > 1.0 make gridPixelWidth > screenSize,
-    // giving a negative gridX so edge cells fall outside the Flutter SizedBox
-    // and their touch events get clipped. canvasScaleForType can still be set
-    // > 1.0 for visual zoom by the InteractiveViewer, not the Flame layout.
-    final scale = AppConstants.canvasScaleForType(levelType).clamp(0.1, 1.0);
+  /// Arrows use the same cell size on every level unless the board would not
+  /// fit; then cells shrink just enough to keep every arrow on screen. The
+  /// used part of the board is centered, and the grid stays inside this
+  /// widget, which is what taps are measured against.
+  (double gridPx, double gridX, double gridY) _calcLayout(Vector2 screenSize) {
+    final bounds = _contentBounds;
+    final cell = _cellSize(screenSize.x, screenSize.y, bounds);
+    final gridPx = level.gridSize * cell;
+    final gridX = screenSize.x / 2 - (bounds.left + bounds.right) / 2 * cell;
+    final gridY = screenSize.y / 2 - (bounds.top + bounds.bottom) / 2 * cell;
+    return (gridPx, gridX, gridY);
+  }
 
-    double activeCols = level.gridSize.toDouble();
-    double activeRows = level.gridSize.toDouble();
+  double _cellSize(double width, double height, Rect bounds) {
+    final shorter = width < height ? width : height;
+    if (shorter <= 0) return 1;
+    final spacing = AppConstants.boardCellSpacing;
+    final standard = (shorter / AppConstants.arrowCellSpan) * spacing;
+    final fit = (width / bounds.width < height / bounds.height
+            ? width / bounds.width
+            : height / bounds.height) *
+        spacing;
+    return standard < fit ? standard : fit;
+  }
 
-    if (level.mask.isNotEmpty) {
-      int minR = 999, maxR = -1, minC = 999, maxC = -1;
-      for (final cell in level.mask) {
-        final parts = cell.split(',');
-        final r = int.parse(parts[0]);
-        final c = int.parse(parts[1]);
-        if (r < minR) minR = r;
-        if (r > maxR) maxR = r;
-        if (c < minC) minC = c;
-        if (c > maxC) maxC = c;
-      }
-      if (minR <= maxR && minC <= maxC) {
-        activeRows = (maxR - minR + 1).toDouble();
-        activeCols = (maxC - minC + 1).toDouble();
-      }
+  /// Cells the level actually uses (mask, arrows, dots), in cell units.
+  late final Rect _contentBounds = () {
+    var minR = level.gridSize, minC = level.gridSize, maxR = -1, maxC = -1;
+    void include(int r, int c) {
+      if (r < minR) minR = r;
+      if (c < minC) minC = c;
+      if (r > maxR) maxR = r;
+      if (c > maxC) maxC = c;
     }
 
-    final maxW = screenSize.x * scale;
-    final maxH = screenSize.y * scale;
-
-    final cellW = maxW / activeCols;
-    final cellH = maxH / activeRows;
-    final cellSize =
-        (cellW < cellH ? cellW : cellH) * AppConstants.boardCellSpacing;
-
-    final gridPixelWidth  = level.gridSize * cellSize;
-    final gridPixelHeight = level.gridSize * cellSize;
-
-    final gridX = (screenSize.x - gridPixelWidth) / 2;
-    final gridY = (screenSize.y - gridPixelHeight) / 2;
-
-    return (gridPixelWidth, gridX, gridY);
-  }
+    for (final key in level.mask) {
+      final parts = key.split(',');
+      include(int.parse(parts[0]), int.parse(parts[1]));
+    }
+    for (final arrow in level.arrows) {
+      for (final pt in arrow.path) {
+        include(pt[0], pt[1]);
+      }
+    }
+    for (final dot in level.orphanDots) {
+      include(dot.row, dot.col);
+    }
+    if (maxR < 0) {
+      return Rect.fromLTWH(
+          0, 0, level.gridSize.toDouble(), level.gridSize.toDouble());
+    }
+    return Rect.fromLTRB(minC.toDouble(), minR.toDouble(),
+        (maxC + 1).toDouble(), (maxR + 1).toDouble());
+  }();
 
   /// Reset board to initial state (restart level)
   void resetLevel() {

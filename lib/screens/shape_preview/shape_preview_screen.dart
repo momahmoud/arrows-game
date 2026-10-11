@@ -10,6 +10,7 @@ import '../../core/audio_manager.dart';
 import '../../data/level_generator/level_generator_v2.dart';
 import '../../data/level_generator/mask_generator_v2.dart';
 import '../../data/models/level.dart';
+import '../../ui/game_ui.dart';
 
 class ShapePreviewGenerateArgs {
   final MaskShape maskShape;
@@ -386,7 +387,7 @@ class _ShapePreviewScreenState extends State<ShapePreviewScreen> {
                         AudioManager.instance.playClick();
                         Navigator.pop(context);
                       },
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                      icon: const GameIcon(kind: GameIconKind.back, size: 24),
                       color: AppColors.textPrimary,
                     ),
                     Expanded(
@@ -416,7 +417,7 @@ class _ShapePreviewScreenState extends State<ShapePreviewScreen> {
                       onChanged: (v) => setState(() => _filter = v),
                       decoration: InputDecoration(
                         hintText: 'Search shapes…',
-                        prefixIcon: const Icon(Icons.search_rounded),
+                        prefixIcon: const GameIcon(kind: GameIconKind.info, size: 22),
                         filled: true,
                         fillColor: AppColors.surface,
                         border: OutlineInputBorder(
@@ -478,7 +479,7 @@ class _ShapePreviewScreenState extends State<ShapePreviewScreen> {
                                   AudioManager.instance.playClick();
                                   setState(() => _seedSalt++);
                                 },
-                          icon: const Icon(Icons.casino_outlined),
+                          icon: const GameIcon(kind: GameIconKind.wheel, size: 22),
                         ),
                       ],
                     ),

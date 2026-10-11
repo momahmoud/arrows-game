@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../core/app_fonts.dart';
 import '../core/app_colors.dart';
 import '../core/constants.dart';
 import '../l10n/l10n.dart';
+import '../ui/icons/game_assets.dart';
+import '../ui/icons/game_icon.dart';
 
 class StreakBadge extends StatelessWidget {
   final int days;
@@ -15,12 +16,6 @@ class StreakBadge extends StatelessWidget {
     if (days >= AppConstants.streakMilestone2) return AppColors.accentOrange;
     if (days >= AppConstants.streakMilestone1) return AppColors.accentGold;
     return AppColors.textSecondary;
-  }
-
-  String get _emoji {
-    if (days >= AppConstants.streakMilestone2) return '🔥';
-    if (days >= AppConstants.streakMilestone1) return '🔥';
-    return '📅';
   }
 
   @override
@@ -43,18 +38,12 @@ class StreakBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(_emoji, style: const TextStyle(fontSize: 16))
-              .animate(onPlay: (c) => c.repeat())
-              .scale(
-                  begin: const Offset(0.9, 0.9),
-                  end: const Offset(1.1, 1.1),
-                  duration: 800.ms,
-                  curve: Curves.easeInOut)
-              .then()
-              .scale(
-                  begin: const Offset(1.1, 1.1),
-                  end: const Offset(0.9, 0.9),
-                  duration: 800.ms),
+          GameIcon(
+            kind: days >= AppConstants.streakMilestone1
+                ? GameAssets.flame
+                : GameAssets.daily,
+            size: 22,
+          ),
           const SizedBox(width: 6),
           Text('$days',
               style: AppFonts.style(

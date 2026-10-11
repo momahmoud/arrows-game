@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
-import '../../core/audio_manager.dart';
 import '../../data/meta_rules.dart';
 import '../../data/repositories/progress_repository.dart';
 import '../../l10n/l10n.dart';
+import '../../ui/game_ui.dart';
 
 class AchievementsScreen extends StatelessWidget {
   const AchievementsScreen({super.key});
@@ -21,76 +20,24 @@ class AchievementsScreen extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      AudioManager.instance.playClick();
-                      Navigator.pop(context);
-                    },
-                    icon: Icon(Icons.arrow_back_ios_new_rounded,
-                        color: AppColors.textPrimary),
-                  ),
-                  Text(
-                    context.l10n.achievements,
-                    style: AppFonts.style(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
+              GameScreenHeader(title: context.l10n.achievements),
               Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: MetaRules.achievements.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 8),
-                  itemBuilder: (context, i) {
-                    final item = MetaRules.achievements[i];
-                    final unlocked = item.unlocked(stats);
-                    return Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: unlocked
-                            ? const Color(0xFFE2B93C).withValues(alpha: 0.18)
-                            : AppColors.surface,
-                        borderRadius: BorderRadius.circular(16),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  children: [
+                    if (!MetaRules.achievements.any((item) => item.unlocked(stats)))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          context.l10n.awardsEmpty,
+                          style: GameTypography.body(GameColors.textMuted),
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            unlocked ? Icons.emoji_events_rounded : Icons.lock_outline,
-                            color: unlocked
-                                ? const Color(0xFFE2B93C)
-                                : AppColors.textMuted,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  context.l10n.achievementTitle(item),
-                                  style: AppFonts.style(
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  context.l10n.achievementDescription(item),
-                                  style: AppFonts.style(
-                                    fontSize: 13,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                    for (final item in MetaRules.achievements) ...[
+                      _AwardCard(item: item, stats: stats),
+                      const SizedBox(height: 8),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -98,5 +45,92 @@ class AchievementsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _AwardCard extends StatelessWidget {
+  const _AwardCard({required this.item, required this.stats});
+
+  final AchievementDef item;
+  final AchievementSnapshot stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final unlocked = item.unlocked(stats);
+    final meter = _meter(item, stats);
+    final current = meter.$1.clamp(0, meter.$2);
+    final started = current > 0;
+    return Opacity(
+      opacity: unlocked || started ? 1 : 0.55,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: GameDecor.card(highlight: unlocked),
+        child: Row(
+          children: [
+            GameIcon(
+              kind: unlocked ? GameIconKind.trophy : GameIconKind.levelLocked,
+              size: GameIconSizes.feature,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.l10n.achievementTitle(item),
+                    style: GameTypography.section(GameColors.text),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    context.l10n.achievementDescription(item),
+                    style: GameTypography.caption(GameColors.textMuted),
+                  ),
+                  if (!unlocked && meter.$2 > 1) ...[
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(GameRadius.sm),
+                      child: LinearProgressIndicator(
+                        value: current / meter.$2,
+                        minHeight: 6,
+                        backgroundColor: GameColors.line,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (unlocked) ...[
+              const SizedBox(width: 8),
+              const GameIcon(kind: GameIconKind.check, size: 22),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Current and target taken from the existing unlock rule. No new goals.
+  (int, int) _meter(AchievementDef item, AchievementSnapshot stats) {
+    switch (item.id) {
+      case 'hintless_50':
+        return (stats.hintFreeClears, 50);
+      case 'perfect_10':
+        return (stats.perfectClears, 10);
+      case 'collector':
+        return (stats.shapesCollected, 10);
+      case 'streak_7':
+        return (stats.streakDays, 7);
+      case 'coins_500':
+        return (stats.lifetimeCoins, 500);
+      case 'boss':
+        return (stats.bossesCleared, 1);
+      case 'god':
+        return (stats.godsCleared, 1);
+      case 'first_clear':
+        return (stats.highestLevel > 1 ? 1 : 0, 1);
+      default:
+        return (item.unlocked(stats) ? 1 : 0, 1);
+    }
   }
 }

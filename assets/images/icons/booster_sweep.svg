@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!--
+    The wand: a tapered teal stick with three four-pointed sparkles off its
+    tip, as the design draws it. Flat fills only.
+  -->
+  <defs>
+    <linearGradient id="stick" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#12A8A0"/>
+      <stop offset="0.55" stop-color="#22C7B8"/>
+      <stop offset="1" stop-color="#57E0CE"/>
+    </linearGradient>
+  </defs>
+
+  <!-- The stick, from the grip at the bottom left to the tip at the top right. -->
+  <path d="M13.8 50.2c-1.4-1.4-1.4-3.6 0-5L38.4 20.6c1.4-1.4 3.6-1.4 5 0s1.4 3.6 0 5L18.8 50.2c-1.4 1.4-3.6 1.4-5 0z" fill="url(#stick)"/>
+  <!-- A lighter collar where the grip ends and the wand begins. -->
+  <path d="M24.4 39.6l4.2-4.2 4.2 4.2-4.2 4.2z" fill="#FFFFFF" fill-opacity="0.35"/>
+
+  <!-- Sparkles: a big one off the tip, two smaller ones beside it. -->
+  <path d="M48.8 8.6c.4-1.1 2-1.1 2.4 0l1.6 4.4c.13.35.4.63.76.76l4.4 1.6c1.1.4 1.1 2 0 2.4l-4.4 1.6c-.36.13-.63.4-.76.76l-1.6 4.4c-.4 1.1-2 1.1-2.4 0l-1.6-4.4a1.3 1.3 0 0 0-.76-.76l-4.4-1.6c-1.1-.4-1.1-2 0-2.4l4.4-1.6c.36-.13.63-.4.76-.76z" fill="#22C7B8"/>
+  <path d="M35.6 5.4c.26-.72 1.28-.72 1.54 0l.86 2.34c.09.23.26.4.49.49l2.34.86c.72.26.72 1.28 0 1.54l-2.34.86c-.23.09-.4.26-.49.49l-.86 2.34c-.26.72-1.28.72-1.54 0l-.86-2.34a.86.86 0 0 0-.49-.49l-2.34-.86c-.72-.26-.72-1.28 0-1.54l2.34-.86c.23-.09.4-.26.49-.49z" fill="#57E0CE"/>
+  <path d="M53.2 30.6c.24-.66 1.16-.66 1.4 0l.78 2.12c.08.22.24.38.46.46l2.12.78c.66.24.66 1.16 0 1.4l-2.12.78c-.22.08-.38.24-.46.46l-.78 2.12c-.24.66-1.16.66-1.4 0l-.78-2.12a.78.78 0 0 0-.46-.46l-2.12-.78c-.66-.24-.66-1.16 0-1.4l2.12-.78c.22-.08.38-.24.46-.46z" fill="#57E0CE"/>
+</svg>

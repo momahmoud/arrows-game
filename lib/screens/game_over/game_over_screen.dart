@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-
 import '../../core/app_colors.dart';
+import '../../ui/game_ui.dart';
 import '../../core/constants.dart';
 import '../../ads/ad_manager.dart';
 import '../../core/audio_manager.dart';
@@ -31,11 +30,7 @@ class GameOverScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Broken heart
-                const Icon(
-                  LucideIcons.heartOff,
-                  size: 80,
-                  color: Color(0xFFE74C3C),
-                )
+                const GameIcon(kind: GameIconKind.heartBroken, size: 80)
                     .animate()
                     .shake(duration: 600.ms)
                     .then()
@@ -72,10 +67,9 @@ class GameOverScreen extends StatelessWidget {
                       (_) => const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 6),
                             child: Opacity(
-                              opacity: 0.22,
-                              child: Icon(
-                                Icons.favorite,
-                                color: Color(0xFFFF2D55), // Solid pinkish red heart
+                              opacity: 0.35,
+                              child: GameIcon(
+                                kind: GameIconKind.heartEmpty,
                                 size: 32,
                               ),
                             ),
@@ -85,10 +79,10 @@ class GameOverScreen extends StatelessWidget {
                 const SizedBox(height: 48),
 
                 _ActionButton(
-                  icon: LucideIcons.clapperboard,
+                  icon: GameIconKind.watchAd,
+                  variant: GameButtonVariant.reward,
                   label: context.l10n.getOneMoreLife,
                   subtitle: context.l10n.watchAdForLife,
-                  gradient: AppColors.successGradient,
                   onTap: () {
                     bool rewarded = false;
                     adManager.showRewardedWithLoader(
@@ -129,11 +123,10 @@ class GameOverScreen extends StatelessWidget {
 
                 // Restart level (full lives)
                 _ActionButton(
-                  icon: LucideIcons.rotateCcw,
+                  icon: GameIconKind.restart,
+                  variant: GameButtonVariant.secondary,
                   label: context.l10n.restartLevel,
                   subtitle: context.l10n.startOverWithLives(AppConstants.maxLives),
-                  gradient: LinearGradient(
-                      colors: [AppColors.surfaceLight, AppColors.surface]),
                   onTap: () {
                     Navigator.pushReplacementNamed(context, '/game',
                         arguments: {'level': levelNumber});
@@ -143,14 +136,14 @@ class GameOverScreen extends StatelessWidget {
                 const SizedBox(height: 14),
 
                 // Back to menu
-                TextButton(
+                GameButton(
+                  icon: GameIconKind.home,
+                  variant: GameButtonVariant.secondary,
+                  label: context.l10n.mainMenu,
                   onPressed: () {
                     AudioManager.instance.playClick();
                     Navigator.pushReplacementNamed(context, '/menu');
                   },
-                  child: Text(context.l10n.mainMenu,
-                      style: AppFonts.style(
-                          color: AppColors.textSecondary, fontSize: 16)),
                 ).animate(delay: 700.ms).fadeIn(),
               ],
             ),
@@ -162,60 +155,31 @@ class GameOverScreen extends StatelessWidget {
 }
 
 class _ActionButton extends StatelessWidget {
-  final IconData icon;
+  final GameIconKind icon;
+  final GameButtonVariant variant;
   final String label;
   final String subtitle;
-  final Gradient gradient;
   final VoidCallback onTap;
 
   const _ActionButton({
     required this.icon,
+    required this.variant,
     required this.label,
     required this.subtitle,
-    required this.gradient,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
+    return GameButton(
+      icon: icon,
+      variant: variant,
+      label: label,
+      subtitle: subtitle,
+      onPressed: () {
         AudioManager.instance.playClick();
         onTap();
       },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 12,
-                offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 28, color: Colors.white),
-            const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: AppFonts.style(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white)),
-                Text(subtitle,
-                    style: AppFonts.style(
-                        fontSize: 12, color: Colors.white60)),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

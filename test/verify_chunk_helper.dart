@@ -2,8 +2,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:arrow_escape/data/level_generator/campaign_validators.dart';
+import 'package:arrow_escape/data/level_generator/level_fingerprint.dart';
 import 'package:arrow_escape/data/level_generator/level_generator_v2.dart';
 import 'package:arrow_escape/data/level_generator/solver.dart';
+import 'package:arrow_escape/data/level_layout_profile.dart';
 import 'package:arrow_escape/data/models/arrow.dart';
 import 'package:arrow_escape/data/models/level.dart';
 import 'package:arrow_escape/core/constants.dart';
@@ -41,6 +44,8 @@ void runVerifyChunk({
 
   write('=== Verify Chunk $startLevel-$endLevel ===');
 
+  final fingerprints = _loadFingerprints();
+
   // Load shared progress — we will only re-run levels without status=="pass".
   final progress = _loadProgress(progressFile);
   final toRun = <int>[];
@@ -64,7 +69,7 @@ void runVerifyChunk({
   int pass = 0, fail = 0;
 
   for (final lvl in toRun) {
-    final result = _verifyLevel(lvl);
+    final result = _verifyLevel(lvl, fingerprints);
 
     // Atomic save: load latest progress, merge our result, save back.
     final latest = _loadProgress(progressFile);
@@ -95,6 +100,7 @@ void runVerifyChunk({
   }
 
   sw.stop();
+  _saveFingerprints(fingerprints);
   write('');
   write('=== Chunk $startLevel-$endLevel done: $pass pass, $fail fail [${sw.elapsed.inSeconds}s] ===');
 }
@@ -103,17 +109,85 @@ void runVerifyChunk({
 
 /// Generates [levelNum] and runs every chunk check on it. Returns the same
 /// `{status, ms, level | errors}` entry the progress files store.
-Map<String, dynamic> verifyLevel(int levelNum) => _verifyLevel(levelNum);
+Map<String, dynamic> verifyLevel(int levelNum) =>
+    _verifyLevel(levelNum, _loadFingerprints());
 
-Map<String, dynamic> _verifyLevel(int levelNum) {
+Map<String, dynamic> _verifyLevel(
+  int levelNum,
+  Set<String> fingerprints,
+) {
   final sw     = Stopwatch()..start();
   final errors = <String>[];
   LevelModel? level;
 
   try {
     final type = AppConstants.levelTypeFor(levelNum);
-    level = LevelGeneratorV2.generateLevel(levelNum);
+    for (var salt = 0; salt < 24; salt++) {
+      errors.clear();
+      level = LevelGeneratorV2.generateLevel(levelNum, generationSalt: salt);
+      _appendStandardChecks(levelNum, type, level, errors);
 
+      if (level.patternName != 'fallback') {
+        final profile = LevelLayoutProfile.analyze(
+          arrows: level.arrows,
+          gridSize: level.gridSize,
+          maskCells: level.mask.length,
+          shapeType: level.maskShape.name,
+        );
+        for (final issue in CampaignValidators.validateLevel(
+          levelNumber: levelNum,
+          type: type,
+          arrows: level.arrows,
+          profile: profile,
+          maskCells: level.mask.length,
+          attempt: 0,
+        )) {
+          errors.add('${issue.code}: ${issue.message}');
+        }
+        if (Platform.environment['SKIP_FP_DEDUP'] != '1') {
+          final fp = LevelFingerprint.canonicalHash(level);
+          if (LevelFingerprint.collidesWith(fp, fingerprints)) {
+            errors.add('NEAR_DUPLICATE fingerprint');
+          }
+        }
+      }
+
+      if (errors.isEmpty) break;
+    }
+
+    if (level == null) {
+      errors.add('No level generated');
+    }
+  } catch (e, st) {
+    errors.add('EXCEPTION: $e\n$st');
+  }
+
+  sw.stop();
+
+  if (errors.isEmpty && level != null) {
+    if (Platform.environment['SKIP_FP_DEDUP'] != '1') {
+      fingerprints.add(LevelFingerprint.canonicalHash(level));
+    }
+    // PASS: cache full level JSON so build_levels_bin.dart never re-generates.
+    return {
+      'status': 'pass',
+      'ms': sw.elapsedMilliseconds,
+      'level': level.toJson(),
+    };
+  }
+  return {
+    'status': 'fail',
+    'errors': errors,
+    'ms': sw.elapsedMilliseconds,
+  };
+}
+
+void _appendStandardChecks(
+  int levelNum,
+  LevelType type,
+  LevelModel level,
+  List<String> errors,
+) {
     // 1. Fallback check
     if (level.patternName == 'fallback') errors.add('FALLBACK generated');
 
@@ -202,25 +276,6 @@ Map<String, dynamic> _verifyLevel(int levelNum) {
         errors.add('${type.name.toUpperCase()} missing color pairs');
       }
     }
-  } catch (e, st) {
-    errors.add('EXCEPTION: $e\n$st');
-  }
-
-  sw.stop();
-
-  if (errors.isEmpty && level != null) {
-    // PASS: cache full level JSON so build_levels_bin.dart never re-generates.
-    return {
-      'status': 'pass',
-      'ms': sw.elapsedMilliseconds,
-      'level': level.toJson(),
-    };
-  }
-  return {
-    'status': 'fail',
-    'errors': errors,
-    'ms': sw.elapsedMilliseconds,
-  };
 }
 
 // ─── Progress helpers ─────────────────────────────────────────────────────────
@@ -238,6 +293,27 @@ Map<String, Map<String, dynamic>> _loadProgress(String progressFile) {
 
 void _saveProgress(String progressFile, Map<String, Map<String, dynamic>> progress) {
   File(progressFile).writeAsStringSync(jsonEncode(progress), flush: true);
+}
+
+const _fingerprintFile = 'assets/campaign_fingerprints.json';
+
+Set<String> _loadFingerprints() {
+  final f = File(_fingerprintFile);
+  if (!f.existsSync()) return {};
+  try {
+    final list = jsonDecode(f.readAsStringSync()) as List<dynamic>;
+    return list.cast<String>().toSet();
+  } catch (_) {
+    return {};
+  }
+}
+
+void _saveFingerprints(Set<String> fingerprints) {
+  Directory('assets').createSync(recursive: true);
+  File(_fingerprintFile).writeAsStringSync(
+    jsonEncode(fingerprints.toList()..sort()),
+    flush: true,
+  );
 }
 
 

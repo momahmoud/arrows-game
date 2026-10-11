@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/app_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/app_colors.dart';
 import '../../core/constants.dart';
 import '../../core/economy_config.dart';
 import '../../data/repositories/progress_repository.dart';
 import '../../data/repositories/level_repository.dart';
 import '../../data/models/level.dart';
-import '../../widgets/maze_background.dart';
 import '../../widgets/unified_banner_ad.dart';
-import '../../widgets/meta_shortcuts.dart';
+import '../../ui/game_ui.dart';
+import '../../ui/widgets/home_nav.dart';
 import '../../core/audio_manager.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_update/in_app_update.dart';
 import '../../l10n/l10n.dart';
+import '../../ui/widgets/monetization_modal.dart';
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -28,72 +27,16 @@ class MainMenuScreen extends StatefulWidget {
 
 class _MainMenuScreenState extends State<MainMenuScreen> {
   bool _isNavigating = false; // prevents double-tap and shows instant feedback
-  late final ScrollController _timelineScrollController;
-
-  int _lastTickIndex = -1;
 
   @override
   void initState() {
     super.initState();
-    _timelineScrollController = ScrollController();
-    _timelineScrollController.addListener(_onScroll);
-    // Record daily play + pre-warm current level in background after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<ProgressRepository>().recordDailyPlay();
       _preWarmLevels();
-      _scrollToCurrentLevel(animate: false);
       _checkPlayStoreUpdate();
     });
-  }
-
-  void _onScroll() {
-    if (!mounted) return;
-    final progress = context.read<ProgressRepository>();
-    if (!progress.vibrationEnabled) return;
-
-    const itemWidth = 60.0;
-    // Tick index is offset divided by itemWidth
-    final index = (_timelineScrollController.offset / itemWidth).round();
-    if (index != _lastTickIndex) {
-      _lastTickIndex = index;
-      HapticFeedback.selectionClick();
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToCurrentLevel(animate: false);
-    });
-  }
-
-  @override
-  void dispose() {
-    _timelineScrollController.dispose();
-    super.dispose();
-  }
-
-  void _scrollToCurrentLevel({bool animate = true}) {
-    if (!_timelineScrollController.hasClients) return;
-    final currentLevel = context.read<ProgressRepository>().currentLevel;
-    const itemWidth = 60.0;
-    final targetOffset = (currentLevel - 1) * itemWidth;
-    final clampedOffset = targetOffset.clamp(
-      0.0,
-      _timelineScrollController.position.maxScrollExtent,
-    );
-
-    if (animate) {
-      _timelineScrollController.animateTo(
-        clampedOffset,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    } else {
-      _timelineScrollController.jumpTo(clampedOffset);
-    }
   }
 
   /// Pre-generate the current level and next 3 in background isolates so that
@@ -128,10 +71,17 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 
   String _getDifficultyLabel(int levelNum) {
     final type = AppConstants.levelTypeFor(levelNum);
-    if (type == LevelType.god) return context.l10n.difficultySuperHard;
-    if (type == LevelType.boss) return context.l10n.difficultyHard;
-    final difficulty = Difficulty.forLevel(levelNum);
-    return context.l10n.difficulty(difficulty);
+    final String base;
+    if (type == LevelType.god) {
+      base = context.l10n.difficultySuperHard;
+    } else if (type == LevelType.boss) {
+      base = context.l10n.difficultyHard;
+    } else {
+      base = context.l10n.difficulty(Difficulty.forLevel(levelNum));
+    }
+    final special = context.l10n.levelType(type);
+    if (special.isEmpty) return base;
+    return '$base • $special';
   }
 
   @override
@@ -140,210 +90,35 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(gradient: AppColors.bgGradient),
-        child: Stack(
+        color: AppColors.isDark ? null : const Color(0xFFFFFFFF),
+        decoration: AppColors.isDark
+            ? BoxDecoration(gradient: AppColors.bgGradient)
+            : null,
+        child: Column(
           children: [
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: BlendedMazeBackground(height: 380),
-            ),
+            Expanded(child: _HomeTab(progress: progress)),
             SafeArea(
-              child: Column(
-                children: [
-                  // ── Top Bar ───────────────────────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Coins counter (replaced water drops with coins icon)
-                        Row(
-                          children: [
-                            const Icon(
-                              LucideIcons.coins,
-                              color:
-                                  Color(0xFFF1C40F), // Premium gold coin color
-                              size: 22,
-                            ),
-                            const SizedBox(width: 6),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 220),
-                              child: Text(
-                                '${progress.coins}',
-                                key: ValueKey(progress.coins),
-                                style: AppFonts.style(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        Row(
-                          children: [
-                            // Level Select grid icon
-                            GestureDetector(
-                              onTap: () {
-                                AudioManager.instance.playClick();
-                                Navigator.pushNamed(context, '/levels');
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceLight,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  LucideIcons.layoutGrid,
-                                  color: AppColors.textPrimary,
-                                  size: 22,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-
-                            // Settings icon
-                            GestureDetector(
-                              onTap: () {
-                                AudioManager.instance.playClick();
-                                Navigator.pushNamed(context, '/settings');
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceLight,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.settings_outlined,
-                                  color: AppColors.textPrimary,
-                                  size: 22,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  if (progress.pendingLoginDay != null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-                      child: _LoginClaim(
-                        day: progress.pendingLoginDay!,
-                        onClaim: () {
-                          AudioManager.instance.playClick();
-                          progress.claimLoginReward();
-                        },
+              top: false,
+              child: SizedBox(
+                height: 50,
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: UnifiedBannerAd(
+                        admobUnitId: AppConstants.admobBannerUnitId,
+                        unityPlacementId: AppConstants.unityBannerAdId,
                       ),
                     ),
-
-                  const Spacer(flex: 2),
-
-                  // ── Center Title "ARROW ESCAPE" (Long-press to toggle Demo Mode) ──
-                  GestureDetector(
-                    onLongPress: kReleaseMode
-                        ? null
-                        : () {
-                            HapticFeedback.heavyImpact();
-                            progress.toggleDemoMode();
-                            ScaffoldMessenger.of(context).clearSnackBars();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  progress.isDemoMode
-                                      ? '🚀 DEMO MODE ACTIVATED: Unlimited Lives, Unlimited Time & All Levels Unlocked!'
-                                      : 'DEMO MODE DEACTIVATED',
-                                  style: AppFonts.style(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                backgroundColor: progress.isDemoMode
-                                    ? const Color(0xFFE67E22)
-                                    : Colors.grey[800],
-                                duration: const Duration(seconds: 3),
-                              ),
-                            );
-                          },
-                    child: Column(
-                      children: [
-                        Text(
-                          AppConstants.appName,
-                          style: AppFonts.style(
-                            fontSize: 40,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary,
-                            letterSpacing: 2,
-                            shadows: [
-                              Shadow(
-                                color: AppColors.accentGold
-                                    .withValues(alpha: 0.15),
-                                offset: const Offset(0, 2),
-                                blurRadius: 4,
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (progress.isDemoMode)
-                          Container(
-                            margin: const EdgeInsets.only(top: 4),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE67E22),
-                              borderRadius: BorderRadius.circular(8),
+                    if (!progress.adsRemoved)
+                      RemoveAdsEntry(
+                        onTap: () =>
+                            MonetizationPresenter.buy(
+                              context,
+                              EconomyConfig.removeAdsId,
                             ),
-                            child: Text(
-                              'DEMO MODE ACTIVE',
-                              style: AppFonts.style(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ).animate().scale(
-                      begin: const Offset(0.9, 0.9),
-                      end: const Offset(1.0, 1.0),
-                      duration: 500.ms,
-                      curve: Curves.elasticOut),
-
-                  const Spacer(flex: 2),
-
-                  // ── Level Slider / Timeline ───────────────────────────────────
-                  _buildLevelTimeline(progress),
-
-                  const SizedBox(height: 16),
-                  const MetaShortcuts(),
-                  const SizedBox(height: 20),
-
-                  // ── Big Play Button ───────────────────────────────────────────
-                  _buildBigPlayButton(context, progress),
-
-                  const Spacer(flex: 3),
-
-                  // ── Banner Ad ──────────────────────────────────────────────────
-                  Container(
-                    alignment: Alignment.center,
-                    width: double.infinity,
-                    height: 50,
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: const UnifiedBannerAd(
-                      admobUnitId: AppConstants.admobBannerUnitId,
-                      unityPlacementId: AppConstants.unityBannerAdId,
-                    ),
-                  ),
-                ],
+                      ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -352,370 +127,205 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     );
   }
 
-  Widget _buildLevelTimeline(ProgressRepository progress) {
-    final currentLevel = progress.currentLevel;
-    const totalLevels = AppConstants.totalLevels;
-    const itemWidth = 60.0;
+  Widget _HomeTab({required ProgressRepository progress}) {
+    final finished = progress.currentLevel > AppConstants.totalLevels;
+    final level = finished ? AppConstants.totalLevels : progress.currentLevel;
+    final type = AppConstants.levelTypeFor(level);
 
-    return SizedBox(
-      height: 80,
-      child: ShaderMask(
-        shaderCallback: (Rect bounds) {
-          return const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [
-              Colors.transparent,
-              Colors.black,
-              Colors.black,
-              Colors.transparent,
-            ],
-            stops: [
-              0.0,
-              0.15,
-              0.85,
-              1.0,
-            ],
-          ).createShader(bounds);
-        },
-        blendMode: BlendMode.dstIn,
-        child: ListView.builder(
-          controller: _timelineScrollController,
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: totalLevels,
-          padding: EdgeInsets.symmetric(
-            horizontal: MediaQuery.of(context).size.width / 2 - itemWidth / 2,
+    return SafeArea(
+      bottom: false,
+      child: Column(
+        children: [
+          HomeHeader(
+            coins: progress.coins,
+            onSettings: () {
+              AudioManager.instance.playClick();
+              Navigator.pushNamed(context, '/settings');
+            },
+            onCoins: () => _push('/shop'),
           ),
-          itemBuilder: (context, index) {
-            final lvl = index + 1;
-            final isCurrent = lvl == currentLevel;
-            final isUnlocked = progress.isLevelUnlocked(lvl);
-            final type = AppConstants.levelTypeFor(lvl);
-
-            Color bubbleColor;
-            Color textColor;
-            double size = isCurrent ? 48.0 : 38.0;
-            final isDark = AppColors.isDark;
-
-            if (!isUnlocked) {
-              bubbleColor = isDark
-                  ? const Color(0xFF2A3027)
-                  : const Color(0xFFD3CFC9); // Dark green-gray vs Grey
-              textColor = isDark
-                  ? const Color(0xFF5E6B56)
-                  : const Color(0xFF8B7365).withValues(alpha: 0.5);
-            } else if (type == LevelType.god) {
-              bubbleColor = const Color(0xFFB33939); // Red for God levels
-              textColor = Colors.white;
-            } else if (type == LevelType.boss) {
-              bubbleColor = const Color(0xFF8E44AD); // Purple for Boss levels
-              textColor = Colors.white;
-            } else {
-              bubbleColor = isCurrent
-                  ? (isDark ? const Color(0xFFD48A55) : const Color(0xFFC08255))
-                  : (isDark
-                      ? const Color(0xFF3D473A)
-                      : const Color(0xFFE6DCC8));
-              textColor = isCurrent
-                  ? Colors.white
-                  : (isDark
-                      ? const Color(0xFFECF0EB)
-                      : const Color(0xFF8B7365));
-            }
-
-            return Container(
-              width: itemWidth,
-              alignment: Alignment.center,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Connecting line behind bubbles
-                  Row(
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                GestureDetector(
+                  onLongPress: kReleaseMode ? null : () => _toggleDemo(progress),
+                  child: CurrentLevelSection(
+                    level: level,
+                    difficulty: _getDifficultyLabel(level),
+                    levelType: type,
+                    finished: finished,
+                  ),
+                ),
+                if (!finished) ...[
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: PlayNowButton(
+                      label: _isNavigating
+                          ? context.l10n.loading
+                          : context.l10n.playNow,
+                      loading: _isNavigating,
+                      onPressed: _isNavigating
+                          ? null
+                          : () => _play(progress.currentLevel),
+                    ),
+                  ),
+                ],
+                if (progress.isDemoMode)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: _DemoBadge(),
+                  ),
+                const SizedBox(height: 20),
+                LevelProgressPreview(
+                  currentLevel: progress.currentLevel.clamp(
+                    1,
+                    AppConstants.totalLevels,
+                  ),
+                  totalLevels: AppConstants.totalLevels,
+                  isUnlocked: progress.isLevelUnlocked,
+                  starsFor: progress.getStarsForLevel,
+                  onSelect: (selected) {
+                    AudioManager.instance.playClick();
+                    progress.setCurrentLevel(selected);
+                  },
+                  onLocked: (locked) {
+                    AudioManager.instance.playClick();
+                    ScaffoldMessenger.of(context).clearSnackBars();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          context.l10n.levelLocked(locked),
+                          style: AppFonts.style(
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        backgroundColor: const Color(0xFFC0392B),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                  onViewAll: () {
+                    AudioManager.instance.playClick();
+                    Navigator.pushNamed(context, '/levels');
+                  },
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
                     children: [
                       Expanded(
-                        child: Container(
-                          height: 4,
-                          color: lvl == 1
-                              ? Colors.transparent
-                              : (isDark
-                                  ? const Color(0xFF2A3027)
-                                  : const Color(0xFFE5DEC9)),
+                        child: FeatureShortcut(
+                          icon: GameIconKind.calendar,
+                          label: context.l10n.navDaily,
+                          onTap: () => _push('/daily'),
                         ),
                       ),
-                      SizedBox(width: size),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: Container(
-                          height: 4,
-                          color: lvl == totalLevels
-                              ? Colors.transparent
-                              : (isDark
-                                  ? const Color(0xFF2A3027)
-                                  : const Color(0xFFE5DEC9)),
+                        child: FeatureShortcut(
+                          icon: GameIconKind.shop,
+                          label: context.l10n.navShop,
+                          onTap: () => _push('/shop'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FeatureShortcut(
+                          icon: GameIconKind.medal,
+                          label: context.l10n.navAwards,
+                          onTap: () => _push('/achievements'),
                         ),
                       ),
                     ],
                   ),
-
-                  // Bubble
-                  GestureDetector(
-                    onTap: () {
-                      AudioManager.instance.playClick();
-                      if (progress.vibrationEnabled) {
-                        HapticFeedback.selectionClick();
-                      }
-                      if (isUnlocked) {
-                        progress.setCurrentLevel(lvl);
-                        // Auto scroll to center the selected bubble
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          _scrollToCurrentLevel();
-                        });
-                      } else {
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              context.l10n.levelLocked(lvl),
-                              style: AppFonts.style(
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                            backgroundColor: const Color(0xFFC0392B),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            duration: const Duration(seconds: 1),
-                          ),
-                        );
-                      }
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                      width: size,
-                      height: size,
-                      decoration: BoxDecoration(
-                        color: bubbleColor,
-                        shape: BoxShape.circle,
-                        border: isCurrent
-                            ? Border.all(color: Colors.white, width: 3)
-                            : null,
-                        boxShadow: isCurrent
-                            ? [
-                                BoxShadow(
-                                  color: bubbleColor.withValues(alpha: 0.4),
-                                  blurRadius: 12,
-                                  spreadRadius: 3,
-                                )
-                              ]
-                            : null,
-                      ),
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 3.0),
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              '$lvl',
-                              style: AppFonts.style(
-                                fontSize: isCurrent
-                                    ? (lvl >= 100 ? 14 : 18)
-                                    : (lvl >= 100 ? 11 : 14),
-                                fontWeight: isCurrent
-                                    ? FontWeight.w900
-                                    : FontWeight.w700,
-                                color: textColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            );
-          },
-        ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildBigPlayButton(
-      BuildContext context, ProgressRepository progress) {
-    final diffLabel = _getDifficultyLabel(progress.currentLevel);
-    final difficulty = Difficulty.forLevel(progress.currentLevel);
+  void _push(String route) {
+    AudioManager.instance.playClick();
+    Navigator.pushNamed(context, route);
+  }
 
-    final levelType = AppConstants.levelTypeFor(progress.currentLevel);
+  Future<void> _play(int level) async {
+    AudioManager.instance.playClick();
+    if (!mounted) return;
+    setState(() => _isNavigating = true);
+    await Navigator.pushNamed(
+      context,
+      '/game',
+      arguments: {'level': level},
+    );
+    if (!mounted) return;
+    setState(() => _isNavigating = false);
+    await MonetizationPresenter.removeAds(context);
+  }
 
-    final Color baseColor;
-    if (levelType == LevelType.god) {
-      baseColor = const Color(0xFFB33939); // Red for God levels
-    } else if (levelType == LevelType.boss) {
-      baseColor = const Color(0xFF8E44AD); // Purple for Boss levels
-    } else {
-      switch (difficulty) {
-        case Difficulty.tutorial:
-        case Difficulty.easy:
-          baseColor = AppColors.easy;
-          break;
-        case Difficulty.medium:
-          baseColor = AppColors.medium;
-          break;
-        case Difficulty.hard:
-          baseColor = AppColors.hard;
-          break;
-        case Difficulty.expert:
-          baseColor = AppColors.expert;
-          break;
-        case Difficulty.master:
-        case Difficulty.legend:
-          baseColor = AppColors.master;
-          break;
-      }
-    }
-
-    final Color darkerColor =
-        Color.lerp(baseColor, Colors.black, 0.25) ?? baseColor;
-    final Color color1 =
-        _isNavigating ? Color.lerp(baseColor, Colors.black, 0.45)! : baseColor;
-    final Color color2 = _isNavigating
-        ? Color.lerp(darkerColor, Colors.black, 0.45)!
-        : darkerColor;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: GestureDetector(
-        onTap: _isNavigating
-            ? null
-            : () async {
-                AudioManager.instance.playClick();
-                if (!mounted) return;
-                setState(() => _isNavigating = true);
-                await Navigator.pushNamed(
-                  context,
-                  '/game',
-                  arguments: {'level': progress.currentLevel},
-                );
-                if (mounted) setState(() => _isNavigating = false);
-              },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.fastOutSlowIn,
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [color1, color2],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: color2.withValues(alpha: _isNavigating ? 0.15 : 0.35),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_isNavigating)
-                const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white,
-                  ),
-                )
-              else
-                const Icon(
-                  LucideIcons.play,
-                  color: Colors.white,
-                  size: 26,
-                ),
-              const SizedBox(width: 14),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _isNavigating ? context.l10n.loading : context.l10n.playNow,
-                    style: AppFonts.style(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  Text(
-                    context.l10n
-                        .levelWithDifficulty(progress.currentLevel, diffLabel),
-                    style: AppFonts.style(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white.withValues(alpha: 0.85),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+  void _toggleDemo(ProgressRepository progress) {
+    HapticFeedback.heavyImpact();
+    progress.toggleDemoMode();
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          progress.isDemoMode
+              ? '🚀 DEMO MODE ACTIVATED: Unlimited Lives, Unlimited Time & All Levels Unlocked!'
+              : 'DEMO MODE DEACTIVATED',
+          style: AppFonts.style(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
-      ).animate(onPlay: (controller) => controller.repeat(reverse: true)).scale(
-            begin: const Offset(1.0, 1.0),
-            end: const Offset(1.02, 1.02),
-            duration: 1.2.seconds,
-            curve: Curves.easeInOut,
-          ),
+        backgroundColor:
+            progress.isDemoMode ? const Color(0xFFE67E22) : Colors.grey[800],
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 }
 
-class _LoginClaim extends StatelessWidget {
-  final int day;
-  final VoidCallback onClaim;
-
-  const _LoginClaim({required this.day, required this.onClaim});
+class _DemoBadge extends StatelessWidget {
+  const _DemoBadge();
 
   @override
   Widget build(BuildContext context) {
-    final amount = EconomyConfig.loginCoins(day);
-    return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onClaim,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            children: [
-              const Icon(LucideIcons.coins,
-                  color: Color(0xFFE2B93C), size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  context.l10n.loginReward(day, amount),
-                  style: AppFonts.style(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              Text(
-                context.l10n.claim,
-                style: AppFonts.style(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.accentGold,
-                ),
-              ),
-            ],
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE67E22),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'DEMO MODE ACTIVE',
+          style: AppFonts.style(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+            letterSpacing: 1.2,
           ),
         ),
       ),

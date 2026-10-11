@@ -118,6 +118,21 @@
   "navShop": "Shop",
   "navWheel": "Wheel",
   "navAwards": "Awards",
+  "navHome": "Home",
+  "navMore": "More",
+  "viewAllLevels": "View all levels",
+  "shopCoins": "Coins",
+  "dailyLogin": "Daily login",
+  "albumEmpty": "No collections yet",
+  "awardsEmpty": "No awards completed yet",
+  "awardsEarned": "{count} earned",
+  "@awardsEarned": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "shapeAlbum": "Shape Album",
   "shapesUncovered": "{count} uncovered",
   "@shapesUncovered": {
@@ -159,7 +174,7 @@
   "playTodaysLevel": "Play today’s level",
   "dailyRewardsInfo": "One clear a day. A perfect clear pays more.",
   "shop": "Shop",
-  "shopPowerUps": "Power-ups",
+  "shopPowerUps": "Boosters",
   "ownedExtra": "Owned {count} extra",
   "@ownedExtra": {
     "placeholders": {
@@ -295,7 +310,21 @@
   },
   "startTutorial": "Start Tutorial",
   "pairBadge": "PAIR",
-  "levelComplete": "Level Complete!",
+  "levelComplete": "Level complete",
+  "bossComplete": "Boss complete",
+  "godComplete": "God level complete",
+  "perfectClear": "Perfect!",
+  "newBest": "New best",
+  "levelFailed": "Level failed",
+  "retry": "Retry",
+  "starsEarned": "{earned} of 3 stars",
+  "@starsEarned": {
+    "placeholders": {
+      "earned": {
+        "type": "int"
+      }
+    }
+  },
   "dailyBonus": "Daily +{amount}",
   "@dailyBonus": {
     "placeholders": {
@@ -346,6 +375,60 @@
     }
   },
   "claim": "Claim",
+  "removeAds": "Remove Ads",
+  "removeAdsBody": "Play with fewer interruptions.",
+  "rewardedAdsRemain": "Ads you choose to watch can still give rewards.",
+  "maybeLater": "Maybe later",
+  "youNeedCoins": "You need {count} coins.",
+  "@youNeedCoins": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "currentBalance": "Current: {count}",
+  "@currentBalance": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "getCoins": "Get coins",
+  "notNow": "Not now",
+  "getWithCoins": "Get with coins",
+  "outOfItem": "Out of {name}",
+  "@outOfItem": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "getAnother": "Get another {name}",
+  "@getAnother": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "lowOnCoins": "Low on coins?",
+  "lowOnCoinsBody": "Get more coins to use on boosters.",
+  "purchaseCouldNot": "Purchase could not be completed. Try again later.",
+  "purchaseCompleteTitle": "Purchase complete",
+  "addedToAccount": "Added to your account",
+  "removeAdsActive": "Ads are off",
+  "storeSoon": "Store purchases are not available in this build yet.",
+  "watchVideo": "Watch a Video",
+  "receive": "Receive",
+  "freeCoinsTitle": "Free Coins",
+  "dayLabel": "Day {day}",
+  "@dayLabel": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "rewardClaimed": "Claimed",
+  "rewardLocked": "Locked",
+  "rewardMissed": "Missed",
+  "jackpot": "Jackpot",
+  "coinsEarned": "Coins earned",
   "deadlockTitle": "Deadlock Reached!",
   "deadlockBody": "All remaining arrows are blocked. This can happen if they are cleared in the wrong sequence.\n\n💡 Hint: Try to trace the paths and see which arrows must escape first to clear the way for others!",
   "inspectBoard": "Inspect Board",

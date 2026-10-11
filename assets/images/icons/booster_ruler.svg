@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="rl" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#9BE8FF"/><stop offset="0.5" stop-color="#4FC8F5"/>
+      <stop offset="1" stop-color="#1E9AD4"/>
+    </linearGradient>
+  </defs>
+  <!-- A set square: outer triangle, inner cut-out, ticks along the long edge. -->
+  <path d="M50 10v44c0 2.2-1.8 4-4 4H12c-3.4 0-5.2-4.1-2.8-6.5l34-42C45.6 6.9 50 7.4 50 10z" fill="#0E5F87"/>
+  <path d="M50 8v42c0 2.2-1.8 4-4 4H12c-3.4 0-5.2-4.1-2.8-6.5l34-40C45.6 4.9 50 5.4 50 8z" fill="url(#rl)"/>
+  <path d="M42 22v24H20z" fill="#0E5F87" opacity="0.45"/>
+  <g fill="none" stroke="#0E5F87" stroke-opacity="0.7" stroke-width="2.6" stroke-linecap="round">
+    <path d="M46 16h-5"/><path d="M46 24h-8"/><path d="M46 32h-5"/><path d="M46 40h-8"/>
+  </g>
+  <path d="M45 9.5v6" fill="none" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="3" stroke-linecap="round"/>
+</svg>

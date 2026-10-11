@@ -17,7 +17,7 @@ class AdManager {
 
   RewardedAd? _admobRewarded;
   bool _isAdmobRewardedLoaded = false;
-  int _levelsSinceLastInterstitial = 0;
+  DateTime? _lastLeaveAdAt;
 
   // ── Unity Ads state ───────────────────────────────────────────────────────────
   bool _isUnityInitialized = false;
@@ -130,12 +130,31 @@ class AdManager {
   BannerAd? get bannerAd => null;
 
   // ── Interstitial Logic (Waterfall) ───────────────────────────────────────────
-  Future<void> onLevelComplete(int levelNumber, bool isSpecialLevel) async {
-    if (isSpecialLevel) return; // No ads on boss/god levels
-    _levelsSinceLastInterstitial++;
-    if (_levelsSinceLastInterstitial >= AppConstants.interstitialEveryNLevels) {
-      await showInterstitial();
+  /// Levels 5, 7, 9, and so on. Earlier levels never show a break ad.
+  Future<void> onLevelComplete(int levelNumber) async {
+    if (levelNumber < AppConstants.interstitialStartLevel) return;
+    final step = levelNumber - AppConstants.interstitialStartLevel;
+    if (step % AppConstants.interstitialLevelInterval != 0) return;
+    await showInterstitial();
+  }
+
+  /// Shown when the player leaves a level, at most once per cooldown.
+  Future<void> showLeaveInterstitial() async {
+    final last = _lastLeaveAdAt;
+    if (last != null &&
+        DateTime.now().difference(last) <
+            AppConstants.interstitialLeaveCooldown) {
+      return;
     }
+    final ready = (AppConstants.enableAdMob &&
+            _isAdmobInterstitialLoaded &&
+            _admobInterstitial != null) ||
+        (AppConstants.enableUnityAds &&
+            _isUnityInitialized &&
+            _isUnityInterstitialLoaded);
+    if (!ready) return;
+    _lastLeaveAdAt = DateTime.now();
+    await showInterstitial();
   }
 
   Future<void> showInterstitial() async {
@@ -145,7 +164,6 @@ class AdManager {
     if (AppConstants.enableAdMob &&
         _isAdmobInterstitialLoaded &&
         _admobInterstitial != null) {
-      _levelsSinceLastInterstitial = 0;
       _admobInterstitial!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
@@ -174,7 +192,6 @@ class AdManager {
     if (AppConstants.enableUnityAds &&
         _isUnityInitialized &&
         _isUnityInterstitialLoaded) {
-      _levelsSinceLastInterstitial = 0;
       UnityAds.showVideoAd(
         placementId: AppConstants.unityInterstitialAdId,
         onComplete: (placementId) {
@@ -439,7 +456,6 @@ class AdManager {
       final ad = _admobInterstitial!;
       _admobInterstitial = null;
       _isAdmobInterstitialLoaded = false;
-      _levelsSinceLastInterstitial = 0;
 
       ad.fullScreenContentCallback = FullScreenContentCallback(
         onAdShowedFullScreenContent: (ad) {

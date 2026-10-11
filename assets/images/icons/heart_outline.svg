@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- A life the meter has spent: the same silhouette as heart.svg, drawn as
+       an outline rather than greyed out, which is how the design shows it. -->
+  <path d="M32 54S8 39.4 8 23.2C8 15.4 14.2 9 22 9c4.6 0 8.6 2.2 10.6 5.6C34.6 11.2 38.6 9 43.2 9 51 9 57 15.4 57 23.2 57 39.4 32 54 32 54z"
+        fill="none" stroke="#F2295B" stroke-width="4.5" stroke-linejoin="round"/>
+</svg>

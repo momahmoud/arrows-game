@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="tk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE9A0"/><stop offset="0.5" stop-color="#FFC62B"/>
+      <stop offset="1" stop-color="#E8890B"/>
+    </linearGradient>
+  </defs>
+  <!-- A ticket with a notch bitten out of each long edge. -->
+  <path d="M8 17h48v10a5.5 5.5 0 000 11v10H8V38a5.5 5.5 0 000-11z" fill="#9C5B03"/>
+  <path d="M8 15h48v10a5.5 5.5 0 000 11v10H8V36a5.5 5.5 0 000-11z" fill="url(#tk)"/>
+  <g fill="none" stroke="#9C5B03" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="3 4">
+    <path d="M22 20v22"/><path d="M42 20v22"/>
+  </g>
+  <path d="M12 19h8" fill="none" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="3" stroke-linecap="round"/>
+  <path d="M32 24l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="#FFFFFF" opacity="0.85"/>
+</svg>

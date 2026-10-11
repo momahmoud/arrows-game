@@ -19,10 +19,18 @@ class MaskGeneratorV2 {
 
   // ── Shape name pools — used by LevelGeneratorV2 for the no-repeat rule ────
 
-  /// Normal levels rotate through these in order. Each fills roughly as much
-  /// of the grid as the old long rectangle did, so difficulty stays put.
+  /// Vocabulary of normal silhouettes. Which level uses which family is decided
+  /// by the campaign composition plan, not by walking this list.
   static const List<String> normalShapeNames = [
-    'circle', 'diamond', 'hexagon', 'octagon', 'pentagon', 'plus', 'heart',
+    'square', 'wideRectangle', 'longRectangle',
+    'lShape', 'chevron', 'cornerCluster',
+    'uShape', 'cShape', 'tShape',
+    'staircase', 'zShape', 'parallelogram',
+    'plus', 'diamond', 'xCross',
+    'frame', 'hShape', 'hexagon',
+    'octagon', 'ribbon', 'pinwheel',
+    'trapezoid', 'lightningBolt', 'blob',
+    'pentagon', 'heart', 'circle',
   ];
 
   static const List<String> bossShapeNames = [
@@ -136,8 +144,12 @@ class MaskGeneratorV2 {
 
   static Set<String> shapeByName(String name, int side, Random rng) {
     switch (name) {
-      case 'square':        return squareMask(side);
-      case 'longRectangle': return longRectangleMask(side);
+      case 'square':         return squareMask(side);
+      case 'longRectangle':  return longRectangleMask(side);
+      case 'wideRectangle':  return wideRectangleMask(side);
+      case 'cShape':         return cShapeMask(side);
+      case 'frame':          return frameMask(side);
+      case 'cornerCluster':  return cornerClusterMask(side);
       // ── Original V1 shapes ────────────────────────────────────────────────
       case 'cat':         return catMask(side);
       case 'dog':         return dogMask(side);
@@ -441,6 +453,61 @@ class MaskGeneratorV2 {
       }
     }
     return mask;
+  }
+
+  /// Short, wide bar. Parallel lanes read left-to-right.
+  static Set<String> wideRectangleMask(int side) {
+    final mask = <String>{};
+    final s = side.toDouble();
+    _rect(mask, side, s * 0.04, s * 0.28, s * 0.96, s * 0.72);
+    return _clean(mask, side);
+  }
+
+  /// Three-sided bay opening to the right. The opening is empty space, not a hole.
+  static Set<String> cShapeMask(int side) {
+    final mask = <String>{};
+    final s = side.toDouble();
+    _rect(mask, side, s * 0.08, s * 0.08, s * 0.40, s * 0.92);
+    _rect(mask, side, s * 0.08, s * 0.08, s * 0.90, s * 0.34);
+    _rect(mask, side, s * 0.08, s * 0.66, s * 0.90, s * 0.92);
+    return _clean(mask, side);
+  }
+
+  /// Square frame. The hollow center is outside the mask, so it stays clear.
+  static Set<String> frameMask(int side) {
+    final mask = <String>{};
+    final s = side.toDouble();
+    final t = (s * 0.28).clamp(2.0, s * 0.36);
+    _rect(mask, side, s * 0.06, s * 0.06, s * 0.94, s * 0.94);
+    final hole = <String>{};
+    _rect(hole, side, s * 0.06 + t, s * 0.06 + t, s * 0.94 - t, s * 0.94 - t);
+    final frame = mask.difference(hole);
+    return frame.isEmpty ? squareMask(side) : _clean(frame, side);
+  }
+
+  /// Two offset blocks sharing a bridge. Dense on one side, open on the other.
+  static Set<String> cornerClusterMask(int side) {
+    final mask = <String>{};
+    final s = side.toDouble();
+    _rect(mask, side, s * 0.04, s * 0.04, s * 0.64, s * 0.56);
+    _rect(mask, side, s * 0.36, s * 0.40, s * 0.96, s * 0.96);
+    return _clean(mask, side);
+  }
+
+  /// Moves a mask built on a smaller window into the middle of [toSide].
+  static Set<String> placeCentered(Set<String> small, int fromSide, int toSide) {
+    if (fromSide >= toSide || small.isEmpty) return small;
+    final off = (toSide - fromSide) ~/ 2;
+    final placed = <String>{};
+    for (final cell in small) {
+      final comma = cell.indexOf(',');
+      final r = int.parse(cell.substring(0, comma)) + off;
+      final c = int.parse(cell.substring(comma + 1)) + off;
+      if (r >= 0 && c >= 0 && r < toSide && c < toSide) {
+        placed.add('$r,$c');
+      }
+    }
+    return placed;
   }
 
   static void _ellipse(Set<String> mask, int side,

@@ -14,6 +14,8 @@ import 'app.dart';
 import 'data/repositories/progress_repository.dart';
 import 'data/repositories/level_repository.dart';
 import 'ads/ad_manager.dart';
+import 'monetization/monetization_policy.dart';
+import 'monetization/play_billing.dart';
 import 'core/audio_manager.dart';
 
 void main() async {
@@ -102,12 +104,19 @@ void main() async {
     debugPrint('AdManager init error: $e');
   }
 
+  final billing = PlayBilling(progressRepo);
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    billing.start();
+  });
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => progressRepo),
         Provider<LevelRepository>(create: (_) => levelRepo),
         Provider<AdManager>(create: (_) => adManager),
+        ChangeNotifierProvider(create: (_) => MonetizationPolicy()),
+        ChangeNotifierProvider(create: (_) => billing),
       ],
       child: const ArrowPuzzleApp(),
     ),

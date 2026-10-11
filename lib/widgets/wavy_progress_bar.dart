@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
-import '../core/app_colors.dart';
 
-/// A custom progress bar with a horizontal liquid filling animation.
-/// The height is completely filled, the progress transition is smoothed out,
-/// and it ripples dynamically along the leading edge (filling front).
+import '../core/app_colors.dart';
+import '../ui/theme/game_tokens.dart';
+
+/// Rounded level progress. The fill eases forward when arrows escape.
 class WavyProgressBar extends StatefulWidget {
   final double progress;
   final double width;
   final double height;
+  final Color? color;
 
   const WavyProgressBar({
     super.key,
     required this.progress,
     this.width = 100,
-    this.height = 8,
+    this.height = 6,
+    this.color,
   });
 
   @override
@@ -22,70 +23,64 @@ class WavyProgressBar extends StatefulWidget {
 }
 
 class _WavyProgressBarState extends State<WavyProgressBar>
-    with TickerProviderStateMixin {
-  late AnimationController _waveController;
-  late AnimationController _progressController;
+    with SingleTickerProviderStateMixin {
+  static const _fill = Duration(milliseconds: 260);
+
+  late final AnimationController _progressController;
   late Animation<double> _progressAnimation;
+  bool _started = false;
 
   @override
   void initState() {
     super.initState();
-    // Controls the wave ripple animation speed
-    _waveController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat();
-
-    // Controls the smooth transitions when progress changes
-    _progressController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
+    _progressController = AnimationController(vsync: this, duration: _fill);
+    _progressAnimation = Tween<double>(begin: 0, end: widget.progress).animate(
+      CurvedAnimation(parent: _progressController, curve: Curves.easeOutCubic),
     );
+  }
 
-    _progressAnimation = Tween<double>(
-      begin: 0.0,
-      end: widget.progress,
-    ).animate(CurvedAnimation(
-      parent: _progressController,
-      curve: Curves.easeOutCubic,
-    ));
-
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _progressController.duration =
+        GameMotion.reduce(context) ? Duration.zero : _fill;
+    if (_started) return;
+    _started = true;
     _progressController.forward();
   }
 
   @override
   void didUpdateWidget(WavyProgressBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.progress != widget.progress) {
-      _progressAnimation = Tween<double>(
-        begin: _progressAnimation.value,
-        end: widget.progress,
-      ).animate(CurvedAnimation(
-        parent: _progressController,
-        curve: Curves.easeOutCubic,
-      ));
-      _progressController.reset();
-      _progressController.forward();
-    }
+    if (oldWidget.progress == widget.progress) return;
+    _progressAnimation = Tween<double>(
+      begin: _progressAnimation.value,
+      end: widget.progress,
+    ).animate(
+      CurvedAnimation(parent: _progressController, curve: Curves.easeOutCubic),
+    );
+    _progressController
+      ..duration = GameMotion.reduce(context) ? Duration.zero : _fill
+      ..forward(from: 0);
   }
 
   @override
   void dispose() {
-    _waveController.dispose();
     _progressController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final color = widget.color ?? AppColors.primary;
     return AnimatedBuilder(
-      animation: Listenable.merge([_waveController, _progressAnimation]),
+      animation: _progressAnimation,
       builder: (context, child) {
         return CustomPaint(
           size: Size(widget.width, widget.height),
-          painter: _WavyProgressBarPainter(
+          painter: _ProgressPainter(
             progress: _progressAnimation.value,
-            animationValue: _waveController.value,
+            color: color,
           ),
         );
       },
@@ -93,71 +88,38 @@ class _WavyProgressBarState extends State<WavyProgressBar>
   }
 }
 
-class _WavyProgressBarPainter extends CustomPainter {
-  final double progress;
-  final double animationValue;
+class _ProgressPainter extends CustomPainter {
+  _ProgressPainter({required this.progress, required this.color});
 
-  _WavyProgressBarPainter({
-    required this.progress,
-    required this.animationValue,
-  });
+  final double progress;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final width = size.width;
-    final height = size.height;
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, width, height),
-      Radius.circular(height / 2),
+    final radius = Radius.circular(size.height / 2);
+    final track = RRect.fromRectAndRadius(Offset.zero & size, radius);
+    canvas.drawRRect(
+      track,
+      Paint()
+        ..color = Color.alphaBlend(
+          AppColors.textMuted.withValues(alpha: 0.28),
+          AppColors.surfaceLight,
+        ),
     );
-
-    // Draw background track (using sage green from theme)
-    final bgPaint = Paint()
-      ..color = AppColors.surfaceLight.withValues(alpha: 0.4)
-      ..style = PaintingStyle.fill;
-    canvas.drawRRect(rrect, bgPaint);
-
-    if (progress <= 0.0) return;
-
-    canvas.save();
-    // Clip to the progress bar rounded rectangle shape
-    canvas.clipRRect(rrect);
-
-    // Draw wavy liquid fill using solid forest green color
-    final fillPaint = Paint()
-      ..color = AppColors.primary
-      ..style = PaintingStyle.fill;
-
-    final fillWidth = progress * width;
-    final wavePath = Path();
-
-    // Wave properties for the vertical front edge (dampened to 0 at 100% progress for a flat, solid finish)
-    final waveAmplitude = height * 0.12 * (1.0 - progress);
-    const waveFrequency = 1.0; // 1 full cycle along the height
-
-    final xStart = fillWidth + sin(-animationValue * 2 * pi) * waveAmplitude;
-    wavePath.moveTo(0, 0);
-    wavePath.lineTo(max(0.0, xStart), 0);
-
-    // Draw a wavy vertical front edge from top (y = 0) to bottom (y = height)
-    for (double y = 0; y <= height; y++) {
-      final x = fillWidth +
-          sin((y / height * waveFrequency * 2 * pi) -
-                  (animationValue * 2 * pi)) *
-              waveAmplitude;
-      wavePath.lineTo(max(0.0, x), y);
-    }
-
-    wavePath.lineTo(0, height);
-    wavePath.close();
-
-    canvas.drawPath(wavePath, fillPaint);
-    canvas.restore();
+    if (progress <= 0) return;
+    final fillWidth = (size.width * progress).clamp(0.0, size.width);
+    if (fillWidth <= 0) return;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, fillWidth, size.height),
+        radius,
+      ),
+      Paint()..color = color,
+    );
   }
 
   @override
-  bool shouldRepaint(covariant _WavyProgressBarPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.animationValue != animationValue;
+  bool shouldRepaint(covariant _ProgressPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
 }
