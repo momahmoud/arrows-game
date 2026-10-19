@@ -308,8 +308,7 @@ class _ShapePreviewScreenState extends State<ShapePreviewScreen> {
   String _filter = '';
 
   static final List<MaskShape> _shapes = MaskShape.values
-      .where((s) =>
-          s != MaskShape.square && s != MaskShape.longRectangle)
+      .where((s) => s != MaskShape.square && s != MaskShape.longRectangle)
       .toList();
 
   Future<void> _playShape(MaskShape shape) async {
@@ -417,18 +416,17 @@ class _ShapePreviewScreenState extends State<ShapePreviewScreen> {
                       onChanged: (v) => setState(() => _filter = v),
                       decoration: InputDecoration(
                         hintText: 'Search shapes…',
-                        prefixIcon: const GameIcon(kind: GameIconKind.info, size: 22),
+                        prefixIcon:
+                            const GameIcon(kind: GameIconKind.info, size: 22),
                         filled: true,
                         fillColor: AppColors.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide:
-                              BorderSide(color: AppColors.surfaceLight),
+                          borderSide: BorderSide(color: AppColors.surfaceLight),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide:
-                              BorderSide(color: AppColors.surfaceLight),
+                          borderSide: BorderSide(color: AppColors.surfaceLight),
                         ),
                       ),
                     ),
@@ -479,7 +477,8 @@ class _ShapePreviewScreenState extends State<ShapePreviewScreen> {
                                   AudioManager.instance.playClick();
                                   setState(() => _seedSalt++);
                                 },
-                          icon: const GameIcon(kind: GameIconKind.wheel, size: 22),
+                          icon: const GameIcon(
+                              kind: GameIconKind.wheel, size: 22),
                         ),
                       ],
                     ),

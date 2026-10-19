@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../ads/ad_manager.dart';
-import '../../core/app_colors.dart';
 import '../../core/constants.dart';
 import '../../core/app_fonts.dart';
 import '../../core/audio_manager.dart';
@@ -39,73 +38,16 @@ class MonetizationModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: Material(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(GameRadius.xl),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 12),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GameIcon(kind: icon, size: GameIconSizes.xl),
-                  const SizedBox(height: 12),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: GameTypography.title(GameColors.text),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    body,
-                    textAlign: TextAlign.center,
-                    style: GameTypography.body(GameColors.textMuted),
-                  ),
-                  if (note != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      note!,
-                      textAlign: TextAlign.center,
-                      style: GameTypography.caption(GameColors.textMuted),
-                    ),
-                  ],
-                  if (value != null) ...[
-                    const SizedBox(height: 12),
-                    value!,
-                  ],
-                  const SizedBox(height: 16),
-                  for (final action in actions) ...[
-                    action,
-                    const SizedBox(height: 8),
-                  ],
-                  if (dismissLabel != null)
-                    TextButton(
-                      onPressed: () {
-                        AudioManager.instance.playClick();
-                        onDismiss?.call();
-                      },
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(48, 48),
-                      ),
-                      child: Text(
-                        dismissLabel!,
-                        style: AppFonts.style(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return GameDialog(
+      icon: icon,
+      iconSize: GameIconSizes.xl,
+      title: title,
+      message: body,
+      note: note,
+      body: value,
+      actions: actions,
+      dismissLabel: dismissLabel,
+      onDismiss: onDismiss,
     );
   }
 }
@@ -124,7 +66,8 @@ class MonetizationPresenter {
     }
     if (!context.mounted) return;
     final l10n = context.l10n;
-    final price = context.read<PlayBilling>().priceFor(EconomyConfig.removeAdsId);
+    final price =
+        context.read<PlayBilling>().priceFor(EconomyConfig.removeAdsId);
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -171,8 +114,7 @@ class MonetizationPresenter {
     }
     if (!context.mounted) return;
     final l10n = context.l10n;
-    final canWatch =
-        ads.isRewardedAvailable && progress.canClaimRewardedCoins;
+    final canWatch = ads.isRewardedAvailable && progress.canClaimRewardedCoins;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -183,7 +125,7 @@ class MonetizationPresenter {
         value: Text(
           l10n.currentBalance(progress.coins),
           textAlign: TextAlign.center,
-          style: GameTypography.section(GameColors.coinInk),
+          style: GameTypography.section(GameColors.rewardText),
         ),
         actions: [
           if (canWatch)

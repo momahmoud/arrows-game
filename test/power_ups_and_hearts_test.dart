@@ -155,9 +155,12 @@ void main() {
     });
 
     test('spendCoins refuses when balance is too low', () async {
+      SharedPreferences.setMockInitialValues(
+        {'coins': EconomyConfig.heartRefillCost - 1},
+      );
       final repo = ProgressRepository(await SharedPreferences.getInstance());
-      repo.spendCoins(EconomyConfig.heartRefillCost);
       final before = repo.coins;
+      expect(before, lessThan(EconomyConfig.heartRefillCost));
       expect(repo.spendCoins(EconomyConfig.heartRefillCost), isFalse);
       expect(repo.coins, before);
     });

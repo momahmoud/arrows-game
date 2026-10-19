@@ -27,6 +27,12 @@ LEVELS_PART=1-1000 LEVELS_JOBS=6 SKIP_FP_DEDUP=1 \
 LEVELS_MERGE=1 flutter test test/rebuild_levels_bin_test.dart
 ```
 
+These tests are tagged `generator` and never run in CI. After a deliberate
+regeneration, run the strict campaign audit and update
+`scripts/release/levels.bin.sha256` (see [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)).
+Compare `LEVEL_QUALITY_JSON=build/level_quality.json flutter test test/level_quality_test.dart`
+against the acceptance checklist in [LEVEL_QUALITY_AUDIT.md](LEVEL_QUALITY_AUDIT.md).
+
 ## Outputs
 
 - `assets/levels.bin` — production (1,000 levels)

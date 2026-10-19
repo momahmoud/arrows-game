@@ -757,4 +757,44 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get loadingMessagesGod =>
       'نستشير المخطوطات القديمة…|نصفّ النجوم…|نستجمع الطاقة الكونية…|ننسج الواقع عُقدًا…|نطلب لغزًا من العرّافة…|نقطّر جوهر الجنون…|نطوي الزمان والمكان…|نستدعي أساطير الألغاز القديمة…|نعيد كتابة قوانين الفيزياء…|نستحضر التنوير الخالص…';
+
+  @override
+  String get pause => 'إيقاف مؤقت';
+
+  @override
+  String get pausedTitle => 'اللعبة متوقفة';
+
+  @override
+  String get keepPlaying => 'متابعة اللعب';
+
+  @override
+  String get restartConfirmTitle => 'إعادة هذه المرحلة؟';
+
+  @override
+  String get restartConfirmBody =>
+      'ستبدأ اللوحة والقلوب والمعززات لهذه المرحلة من جديد.';
+
+  @override
+  String get leaveConfirmTitle => 'مغادرة هذه المرحلة؟';
+
+  @override
+  String get leaveConfirmBody => 'لن يُحفظ تقدّمك في هذه اللوحة.';
+
+  @override
+  String get leaveLevel => 'مغادرة';
+
+  @override
+  String heartsLeft(int lives, int max) {
+    return 'متبقٍ $lives من $max قلوب';
+  }
+
+  @override
+  String boosterLeft(String name, int count) {
+    return '$name، متبقٍ $count';
+  }
+
+  @override
+  String boosterEmpty(String name) {
+    return '$name، لم يتبقَّ شيء';
+  }
 }

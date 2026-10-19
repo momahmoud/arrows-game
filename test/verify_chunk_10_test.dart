@@ -1,4 +1,8 @@
 // ignore_for_file: avoid_print
+
+@Tags(['generator'])
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'verify_chunk_helper.dart';
 

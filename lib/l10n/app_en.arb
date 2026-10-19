@@ -435,5 +435,43 @@
   "resumeGame": "Resume Game",
   "loadingMessagesNormal": "Generating puzzle…|Placing arrows…|Shuffling the grid…|Building your challenge…|Crafting the layout…",
   "loadingMessagesBoss": "Cooking devil sauce…|Summoning the beast…|Sharpening the claws…|Brewing chaos in a cauldron…|Waking the dungeon keeper…|Forging traps from darkness…|Stirring the dark arts…|Luring the monster out…|Preparing your punishment…|Cranking up the difficulty…",
-  "loadingMessagesGod": "Consulting the ancient scrolls…|Aligning the stars…|Channelling cosmic energy…|Weaving reality into knots…|Asking the oracle for a riddle…|Distilling the essence of madness…|Folding space and time…|Summoning the elder puzzle gods…|Rewriting the laws of physics…|Manifesting pure enlightenment…"
+  "loadingMessagesGod": "Consulting the ancient scrolls…|Aligning the stars…|Channelling cosmic energy…|Weaving reality into knots…|Asking the oracle for a riddle…|Distilling the essence of madness…|Folding space and time…|Summoning the elder puzzle gods…|Rewriting the laws of physics…|Manifesting pure enlightenment…",
+  "pause": "Pause",
+  "pausedTitle": "Paused",
+  "keepPlaying": "Keep playing",
+  "restartConfirmTitle": "Restart this level?",
+  "restartConfirmBody": "The board, hearts, and boosters for this level start over.",
+  "leaveConfirmTitle": "Leave this level?",
+  "leaveConfirmBody": "Your progress on this board won't be saved.",
+  "leaveLevel": "Leave",
+  "heartsLeft": "{lives} of {max} hearts left",
+  "@heartsLeft": {
+    "placeholders": {
+      "lives": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "boosterLeft": "{name}, {count} left",
+  "@boosterLeft": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "boosterEmpty": "{name}, none left",
+  "@boosterEmpty": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

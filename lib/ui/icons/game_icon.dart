@@ -51,7 +51,7 @@ class GameIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final flip = mirror ?? (rtl && kind.mirrorsInRtl);
-    final icon = _buildIcon();
+    final icon = _buildIcon(size * GameIconSizes.scale);
     return Semantics(
       label: semanticLabel,
       image: semanticLabel != null,
@@ -60,7 +60,7 @@ class GameIcon extends StatelessWidget {
     );
   }
 
-  Widget _buildIcon() {
+  Widget _buildIcon(double size) {
     final art = gameArt[kind];
     if (art == null) {
       return CustomPaint(

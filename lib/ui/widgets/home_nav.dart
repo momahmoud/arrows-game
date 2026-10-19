@@ -185,7 +185,6 @@ class PlayNowButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GameButton(
       label: label,
-      compact: true,
       icon: loading ? null : GameIconKind.play,
       leading: loading
           ? const SizedBox(
@@ -575,14 +574,16 @@ class _FeatureShortcutState extends State<FeatureShortcut> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                GameIcon(kind: widget.icon, size: 26),
-                const SizedBox(height: 4),
-                Text(
-                  widget.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: GameTypography.caption(GameColors.text),
+                GameIcon(kind: widget.icon, size: 40),
+                const SizedBox(height: 6),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    style: GameTypography.caption(GameColors.text),
+                  ),
                 ),
               ],
             ),

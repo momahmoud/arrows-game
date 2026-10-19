@@ -193,7 +193,8 @@ class CampaignComposition {
       final allowed = _compositionsFor(level);
       final visit = visits[shape] ?? 0;
       visits[shape] = visit + 1;
-      var composition = allowed[(visit + unlocked.indexOf(shape)) % allowed.length];
+      var composition =
+          allowed[(visit + unlocked.indexOf(shape)) % allowed.length];
       if (composition.name == lastComposition && allowed.length > 1) {
         final i = allowed.indexOf(composition);
         composition = allowed[(i + 1 + visit) % allowed.length];
@@ -201,7 +202,8 @@ class CampaignComposition {
       lastComposition = composition.name;
 
       final arrows = _arrowBand(level);
-      final target = arrows.$1 + ((level * 5 + visit) % (arrows.$2 - arrows.$1 + 1));
+      final target =
+          arrows.$1 + ((level * 5 + visit) % (arrows.$2 - arrows.$1 + 1));
       final style = _style(composition);
       out[level] = CampaignBrief(
         level: level,
@@ -256,9 +258,8 @@ class CampaignComposition {
     var choices = pool(false);
     if (choices.isEmpty) choices = pool(true);
     if (choices.isEmpty) {
-      choices = shapeQuotas.keys
-          .where((name) => (remaining[name] ?? 0) > 0)
-          .toList();
+      choices =
+          shapeQuotas.keys.where((name) => (remaining[name] ?? 0) > 0).toList();
     }
 
     double debt(String name) {

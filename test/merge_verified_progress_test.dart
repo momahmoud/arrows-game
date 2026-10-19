@@ -1,4 +1,8 @@
 // ignore_for_file: avoid_print
+
+@Tags(['generator'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 

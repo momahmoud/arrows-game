@@ -1,4 +1,8 @@
 // ignore_for_file: avoid_print
+
+@Tags(['generator'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,7 +27,8 @@ void main() {
       final progressF = File(progressFile);
       if (progressF.existsSync()) {
         try {
-          final chunkProgress = jsonDecode(progressF.readAsStringSync()) as Map<String, dynamic>;
+          final chunkProgress =
+              jsonDecode(progressF.readAsStringSync()) as Map<String, dynamic>;
           rawProgress.addAll(chunkProgress);
         } catch (e) {
           print('WARNING: Failed to parse $progressFile: $e');
@@ -31,11 +36,10 @@ void main() {
       }
     }
 
-
     // 2. Check all levels are passing and have cached JSON.
     final failing = <int>[];
     final missing = <int>[];
-    final noJson  = <int>[];
+    final noJson = <int>[];
 
     for (int lvl = 1; lvl <= totalLevels; lvl++) {
       final key = lvl.toString();
@@ -54,13 +58,16 @@ void main() {
     if (missing.isNotEmpty || failing.isNotEmpty || noJson.isNotEmpty) {
       print('Cannot build levels.bin — some levels are not ready.');
       if (missing.isNotEmpty) {
-        print('  Not yet run (${missing.length}): ${missing.take(20).join(", ")}${missing.length > 20 ? " ..." : ""}');
+        print(
+            '  Not yet run (${missing.length}): ${missing.take(20).join(", ")}${missing.length > 20 ? " ..." : ""}');
       }
       if (failing.isNotEmpty) {
-        print('  Failing    (${failing.length}): ${failing.take(20).join(", ")}${failing.length > 20 ? " ..." : ""}');
+        print(
+            '  Failing    (${failing.length}): ${failing.take(20).join(", ")}${failing.length > 20 ? " ..." : ""}');
       }
       if (noJson.isNotEmpty) {
-        print('  Missing JSON (${noJson.length}): ${noJson.take(20).join(", ")}${noJson.length > 20 ? " ..." : ""}');
+        print(
+            '  Missing JSON (${noJson.length}): ${noJson.take(20).join(", ")}${noJson.length > 20 ? " ..." : ""}');
       }
       fail('Some levels failed, are missing, or lack cached JSON.');
     }
@@ -72,7 +79,7 @@ void main() {
     final sw = Stopwatch()..start();
 
     for (int lvl = 1; lvl <= totalLevels; lvl++) {
-      final entry    = rawProgress[lvl.toString()] as Map<String, dynamic>;
+      final entry = rawProgress[lvl.toString()] as Map<String, dynamic>;
       final levelMap = entry['level'] as Map<String, dynamic>;
       levels.add(LevelModel.fromJson(levelMap));
 

@@ -12,7 +12,8 @@ void main() {
       final s = Stopwatch()..start();
       final level = LevelGenerator.generateLevel(i);
       s.stop();
-      logFile.appendTextSync('Level $i generated in ${s.elapsedMilliseconds} ms. Grid: ${level.gridSize}, Arrows: ${level.arrows.length}, Orphans: ${level.orphanDots.length}\n');
+      logFile.appendTextSync(
+          'Level $i generated in ${s.elapsedMilliseconds} ms. Grid: ${level.gridSize}, Arrows: ${level.arrows.length}, Orphans: ${level.orphanDots.length}\n');
     }
     logFile.appendTextSync('Trace completed successfully!\n');
   });

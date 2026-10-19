@@ -1453,6 +1453,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Consulting the ancient scrolls…|Aligning the stars…|Channelling cosmic energy…|Weaving reality into knots…|Asking the oracle for a riddle…|Distilling the essence of madness…|Folding space and time…|Summoning the elder puzzle gods…|Rewriting the laws of physics…|Manifesting pure enlightenment…'**
   String get loadingMessagesGod;
+
+  /// No description provided for @pause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pause;
+
+  /// No description provided for @pausedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get pausedTitle;
+
+  /// No description provided for @keepPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep playing'**
+  String get keepPlaying;
+
+  /// No description provided for @restartConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart this level?'**
+  String get restartConfirmTitle;
+
+  /// No description provided for @restartConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The board, hearts, and boosters for this level start over.'**
+  String get restartConfirmBody;
+
+  /// No description provided for @leaveConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave this level?'**
+  String get leaveConfirmTitle;
+
+  /// No description provided for @leaveConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your progress on this board won\'t be saved.'**
+  String get leaveConfirmBody;
+
+  /// No description provided for @leaveLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get leaveLevel;
+
+  /// No description provided for @heartsLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{lives} of {max} hearts left'**
+  String heartsLeft(int lives, int max);
+
+  /// No description provided for @boosterLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {count} left'**
+  String boosterLeft(String name, int count);
+
+  /// No description provided for @boosterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, none left'**
+  String boosterEmpty(String name);
 }
 
 class _AppLocalizationsDelegate

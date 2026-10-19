@@ -143,7 +143,7 @@ class LevelStars extends StatelessWidget {
       children: List.generate(3, (i) {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 0.5),
-          child:             StarIcon(
+          child: StarIcon(
             size: 12,
             state: i < stars ? StarState.earned : StarState.empty,
           ),

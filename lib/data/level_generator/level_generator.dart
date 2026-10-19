@@ -286,7 +286,8 @@ class LevelGenerator {
 
     bool fillEntireGrid = type != LevelType.tutorial && attempt < 12;
     if (levelNumber == 213 || levelNumber == 395 || levelNumber == 437) {
-      fillEntireGrid = false; // Never fill 100% for these custom lengthy levels!
+      fillEntireGrid =
+          false; // Never fill 100% for these custom lengthy levels!
     }
 
     int targetCount = fillEntireGrid ? mask.length : params.arrowCount;

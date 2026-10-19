@@ -8,11 +8,13 @@ import '../../core/board_style.dart';
 import '../../core/constants.dart';
 import '../../core/app_colors.dart';
 import '../../data/models/level.dart';
-import '../../data/models/arrow.dart';
 import '../game_state.dart';
 import 'arrow_component.dart';
+import 'arrow_hit_resolver.dart';
+import 'arrow_visual_config.dart';
 import 'floating_text_component.dart';
 import 'impact_pulse_component.dart';
+import 'orphan_dot_painter.dart';
 import 'particle_effect.dart';
 
 /// Renders the puzzle grid, mask boundary dots, and all arrow components.
@@ -40,15 +42,41 @@ class GridComponent extends PositionComponent {
   bool _isDarkCached = AppColors.isDark;
   BoardTheme? _cachedTheme;
 
+  ArrowHitResolver? _hitResolver;
+
+  Map<String, OrphanDotType>? _orphanSource;
+  int _orphanSourceLength = -1;
+  final List<(Offset, OrphanDotType)> _orphanCells = [];
+
   void _invalidateDotGrid() {
     _cachedDotGridPicture?.dispose();
     _cachedDotGridPicture = null;
   }
 
+  void _invalidateHits() => _hitResolver = null;
+
+  @override
+  void onMount() {
+    super.onMount();
+    gameState.addListener(_invalidateHits);
+  }
+
   @override
   void onRemove() {
+    gameState.removeListener(_invalidateHits);
     _invalidateDotGrid();
     super.onRemove();
+  }
+
+  /// Id of the arrow that owns a touch at [point] (grid-local pixels).
+  String? arrowIdAt(Offset point) {
+    final resolver = _hitResolver ??= ArrowHitResolver(
+      gridSize: gameState.level.gridSize,
+      cellSize: cellSize,
+      slop: ArrowVisualConfig.hitSlop(cellSize),
+      arrows: gameState.arrows,
+    );
+    return resolver.arrowAt(point);
   }
 
   GridComponent({
@@ -177,6 +205,8 @@ class GridComponent extends PositionComponent {
     _refreshMask();
     _buildArrows();
     _invalidateDotGrid();
+    _invalidateHits();
+    _orphanSource = null;
   }
 
   void resize(double newGridPixelSize) {
@@ -187,6 +217,28 @@ class GridComponent extends PositionComponent {
       if (child is ArrowComponent) child.updateCellSize(cellSize);
     }
     _invalidateDotGrid();
+    _invalidateHits();
+    _orphanSource = null;
+  }
+
+  /// Orphan dot centres, re-parsed only when the live dot map changes.
+  List<(Offset, OrphanDotType)> _orphanDotCells() {
+    final source = gameState.orphanDots;
+    if (!identical(source, _orphanSource) ||
+        source.length != _orphanSourceLength) {
+      _orphanSource = source;
+      _orphanSourceLength = source.length;
+      final cs = cellSize;
+      _orphanCells
+        ..clear()
+        ..addAll(source.entries.map((e) {
+          final parts = e.key.split(',');
+          final r = int.parse(parts[0]);
+          final c = int.parse(parts[1]);
+          return (Offset((c + 0.5) * cs, (r + 0.5) * cs), e.value);
+        }));
+    }
+    return _orphanCells;
   }
 
   void _recacheDotGrid() {
@@ -264,13 +316,8 @@ class GridComponent extends PositionComponent {
     canvas.drawPicture(_cachedDotGridPicture!);
 
     // ── Orphan deflector dots (drawn on top of background dots) ────────────
-    final orphanDots = gameState.orphanDots;
-    for (final entry in orphanDots.entries) {
-      final parts = entry.key.split(',');
-      final dotR = int.parse(parts[0]);
-      final dotC = int.parse(parts[1]);
-      _drawOrphanDot(canvas, Offset((dotC + 0.5) * cs, (dotR + 0.5) * cs),
-          entry.value, cs);
+    for (final (center, type) in _orphanDotCells()) {
+      OrphanDotPainter.paint(canvas, center, type, cs);
     }
 
     if (settling) {
@@ -279,95 +326,6 @@ class GridComponent extends PositionComponent {
     }
 
     super.render(canvas);
-  }
-
-  static void _drawOrphanDot(
-      Canvas canvas, Offset center, OrphanDotType type, double cs) {
-    if (type == OrphanDotType.neutral)
-      return; // Neutral empty dots can be left empty
-
-    const Color baseColor = Color(0xFFFFAA00); // Gold/orange redirect plate
-
-    // Solid dot body (plate) - enlarged to be highly visible
-    canvas.drawCircle(
-      center,
-      cs * 0.36, // Much larger plate (72% of cell size!)
-      Paint()
-        ..color = baseColor
-        ..style = PaintingStyle.fill,
-    );
-
-    // Darker outline for contrast
-    canvas.drawCircle(
-      center,
-      cs * 0.36,
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.18)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = cs * 0.045,
-    );
-
-    // Drawing the arrow in the middle of the gold plate
-    if (type != OrphanDotType.neutral) {
-      final ArrowDirection dir;
-      switch (type) {
-        case OrphanDotType.up:
-          dir = ArrowDirection.up;
-          break;
-        case OrphanDotType.down:
-          dir = ArrowDirection.down;
-          break;
-        case OrphanDotType.left:
-          dir = ArrowDirection.left;
-          break;
-        case OrphanDotType.right:
-          dir = ArrowDirection.right;
-          break;
-        default:
-          return;
-      }
-
-      final double angle = dir.rotationRadians; // Right is 0 rad
-
-      canvas.save();
-      canvas.translate(center.dx, center.dy);
-      canvas.rotate(angle);
-
-      final linePaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = cs * 0.075 // Thick lines
-        ..strokeCap = StrokeCap.round;
-
-      // Draw the arrow shaft in the middle
-      canvas.drawLine(Offset(-cs * 0.22, 0), Offset(cs * 0.06, 0), linePaint);
-
-      // Draw a large centered arrowhead pointing right
-      final arrowheadPath = Path()
-        ..moveTo(cs * 0.28, 0) // Tip of the arrow
-        ..lineTo(cs * 0.04, -cs * 0.18) // Back corner top
-        ..lineTo(cs * 0.10, 0) // Recess center point
-        ..lineTo(cs * 0.04, cs * 0.18) // Back corner bottom
-        ..close();
-
-      canvas.drawPath(
-        arrowheadPath,
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.fill,
-      );
-
-      canvas.restore();
-    } else {
-      // Draw a small solid white dot in the center of neutral dots for a clean focal point
-      canvas.drawCircle(
-        center,
-        cs * 0.075,
-        Paint()
-          ..color = Colors.white.withValues(alpha: 0.85)
-          ..style = PaintingStyle.fill,
-      );
-    }
   }
 
   // ── Update ────────────────────────────────────────────────────────────────

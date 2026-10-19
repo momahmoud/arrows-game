@@ -7,7 +7,8 @@ void main() {
       final s = Stopwatch()..start();
       final level = LevelGenerator.generateLevel(i);
       s.stop();
-      print('Level $i generated in ${s.elapsedMilliseconds} ms. Grid: ${level.gridSize}, Arrows: ${level.arrows.length}, Orphans: ${level.orphanDots.length}, Pattern: ${level.patternName}');
+      print(
+          'Level $i generated in ${s.elapsedMilliseconds} ms. Grid: ${level.gridSize}, Arrows: ${level.arrows.length}, Orphans: ${level.orphanDots.length}, Pattern: ${level.patternName}');
     }
   });
 }

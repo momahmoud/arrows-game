@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/billing_client_wrappers.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 
 import '../core/economy_config.dart';
@@ -17,12 +18,15 @@ class StorePurchaseOutcome {
 
 /// Play purchases for the existing coin packs and Remove Ads.
 /// Prices come from the store. A finished purchase grants through
-/// [ProgressRepository].
+/// [ProgressRepository], and is consumed or acknowledged only after that
+/// grant is saved. Checks are client-side; there is no server verification.
 class PlayBilling extends ChangeNotifier {
-  PlayBilling(this._progress);
+  PlayBilling(this._progress, {InAppPurchase? store})
+      : _store = store ?? InAppPurchase.instance;
 
   final ProgressRepository _progress;
-  final InAppPurchase _store = InAppPurchase.instance;
+  final InAppPurchase _store;
+  final Map<String, Future<bool>> _delivering = {};
 
   bool isReady = false;
   final Map<String, String> _prices = {};
@@ -64,12 +68,14 @@ class PlayBilling extends ChangeNotifier {
       _prices
         ..clear()
         ..addEntries(
-          response.productDetails.map((product) => MapEntry(product.id, product.price)),
+          response.productDetails
+              .map((product) => MapEntry(product.id, product.price)),
         );
       _products
         ..clear()
         ..addEntries(
-          response.productDetails.map((product) => MapEntry(product.id, product)),
+          response.productDetails
+              .map((product) => MapEntry(product.id, product)),
         );
       notifyListeners();
       await _store.restorePurchases();
@@ -131,37 +137,69 @@ class PlayBilling extends ChangeNotifier {
           break;
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
-          await _deliver(purchase);
-          if (_waitingId != null && purchase.productID == _waitingId) {
-            _finish(const StorePurchaseOutcome(StorePurchaseStatus.purchased));
+          final delivered = await _deliver(purchase);
+          if (purchase.status == PurchaseStatus.purchased &&
+              _waitingId != null &&
+              purchase.productID == _waitingId) {
+            _finish(StorePurchaseOutcome(
+              delivered
+                  ? StorePurchaseStatus.purchased
+                  : StorePurchaseStatus.failed,
+            ));
           }
           break;
       }
     }
   }
 
-  Future<void> _deliver(PurchaseDetails purchase) async {
-    final productId = purchase.productID;
+  /// True when the purchase is granted (now or earlier). The same purchase
+  /// arriving twice at once shares one delivery.
+  Future<bool> _deliver(PurchaseDetails purchase) {
     final token = purchase.verificationData.serverVerificationData;
-    if (productId.isEmpty || token.isEmpty || !productIds.contains(productId)) {
-      return;
-    }
-    _progress.grantStorePurchase(
+    if (token.isEmpty) return Future.value(false);
+    return _delivering[token] ??=
+        _deliverOnce(purchase, token).whenComplete(() {
+      _delivering.remove(token);
+    });
+  }
+
+  Future<bool> _deliverOnce(PurchaseDetails purchase, String token) async {
+    final productId = purchase.productID;
+    if (productId.isEmpty || !productIds.contains(productId)) return false;
+    if (!_isPaid(purchase)) return false;
+    final grant = await _progress.grantStorePurchase(
       productId: productId,
       transactionId: token,
     );
+    if (grant != StoreGrant.granted && grant != StoreGrant.alreadyGranted) {
+      return false;
+    }
     final consumable = EconomyConfig.storeCoins(productId) != null;
     try {
       if (consumable && defaultTargetPlatform == TargetPlatform.android) {
-        final android = _store
-            .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
-        await android.consumePurchase(purchase);
+        final android =
+            _store.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+        final result = await android.consumePurchase(purchase);
+        if (result.responseCode != BillingResponse.ok) {
+          debugPrint('PlayBilling consume failed: ${result.responseCode}');
+        }
       } else if (purchase.pendingCompletePurchase) {
         await _store.completePurchase(purchase);
       }
     } catch (e) {
       debugPrint('PlayBilling finish error: $e');
     }
+    return true;
+  }
+
+  /// Android restore reports every owned purchase as restored, including
+  /// ones whose payment is still pending.
+  bool _isPaid(PurchaseDetails purchase) {
+    if (purchase is GooglePlayPurchaseDetails) {
+      return purchase.billingClientPurchase.purchaseState ==
+          PurchaseStateWrapper.purchased;
+    }
+    return true;
   }
 
   Future<void> _recoverOwned() async {

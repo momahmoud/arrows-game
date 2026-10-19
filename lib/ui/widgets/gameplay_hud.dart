@@ -15,7 +15,8 @@ import 'game_badges.dart';
 import 'game_button.dart';
 import 'heart_display.dart';
 
-/// Home, level, coins, and settings, with progress and hearts underneath.
+/// Pause and home around a centered level title, then progress, then hearts
+/// and the coin balance.
 class GameplayHeader extends StatelessWidget {
   const GameplayHeader({
     super.key,
@@ -42,8 +43,7 @@ class GameplayHeader extends StatelessWidget {
         levelType == LevelType.god ? AppColors.streakFire : AppColors.primary;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final inset =
-            GameplayMetrics.horizontalPadding(constraints.maxWidth);
+        final inset = GameplayMetrics.horizontalPadding(constraints.maxWidth);
         return Padding(
           padding: EdgeInsets.fromLTRB(inset, 4, inset, 4),
           child: Column(
@@ -51,48 +51,32 @@ class GameplayHeader extends StatelessWidget {
               Row(
                 children: [
                   _HudButton(
-                    kind: GameIconKind.settings,
-                    tooltip: context.l10n.settings,
+                    kind: GameIconKind.pause,
+                    tooltip: context.l10n.pause,
                     onPressed: onSettings,
                   ),
-                  const SizedBox(width: GameplayMetrics.headerControlGap),
-                  Flexible(
-                    flex: 3,
-                    child: Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: AlignmentDirectional.centerStart,
-                        child: CoinBalancePill(
-                          amount: coins,
-                          onAdd: () {
-                            AudioManager.instance.playClick();
-                            Navigator.pushNamed(context, '/shop');
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
                   Expanded(
-                    flex: 4,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: GameplayMetrics.headerControlGap,
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (levelType.isSpecial)
-                            _LevelBadge(levelType: levelType),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              title,
-                              maxLines: 1,
-                              style: GameTypography.level(GameColors.text),
+                      child: Semantics(
+                        header: true,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (levelType.isSpecial)
+                              _LevelBadge(levelType: levelType),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                title,
+                                maxLines: 1,
+                                style: GameTypography.level(GameColors.text),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -105,12 +89,25 @@ class GameplayHeader extends StatelessWidget {
               ),
               const SizedBox(height: GameplayMetrics.progressSpacing),
               LevelProgress(progress: progress, color: accent),
-              const SizedBox(height: GameplayMetrics.heartSpacing),
-              HeartDisplay(
-                lives: lives,
-                maxLives: AppConstants.maxLives,
-                iconSize: 22,
-                spacing: 8,
+              const SizedBox(height: GameSpacing.xs),
+              Row(
+                children: [
+                  HeartDisplay(
+                    lives: lives,
+                    maxLives: AppConstants.maxLives,
+                    iconSize: 22,
+                    spacing: 3,
+                  ),
+                  const Spacer(),
+                  CoinBalancePill(
+                    amount: coins,
+                    compact: true,
+                    onAdd: () {
+                      AudioManager.instance.playClick();
+                      Navigator.pushNamed(context, '/shop');
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -159,88 +156,108 @@ class _HudButton extends StatelessWidget {
   }
 }
 
-/// Balance plus a shop entry. The plus opens the shop and does not grant coins.
+/// Balance plus a shop entry. The whole pill opens the shop and never grants
+/// coins by itself.
 class CoinBalancePill extends StatelessWidget {
   const CoinBalancePill({
     super.key,
     required this.amount,
     required this.onAdd,
+    this.compact = false,
   });
 
   final int amount;
   final VoidCallback onAdd;
 
+  /// Shorter pill for the gameplay HUD.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(GameRadius.pill),
-        border: Border.all(color: AppColors.surfaceLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: AppColors.isDark ? 0.22 : 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          GameplayMetrics.coinPillPadding,
-          4,
-          4,
-          4,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CoinAnchor(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const GameIcon(kind: GameIconKind.coin, size: 22),
-                  const SizedBox(width: 6),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: Text(
-                      formatCoins(context, amount),
-                      key: ValueKey(amount),
-                      style: GameTypography.amount(GameColors.text),
-                    ),
-                  ),
-                ],
+    final plus = compact ? 26.0 : 32.0;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(GameRadius.pill),
+      side: BorderSide(color: AppColors.surfaceLight),
+    );
+    return Semantics(
+      button: true,
+      label: '${context.l10n.coinsAmount(amount)}, ${context.l10n.getCoins}',
+      child: ExcludeSemantics(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(GameRadius.pill),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black
+                    .withValues(alpha: AppColors.isDark ? 0.22 : 0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-            ),
-            const SizedBox(width: 8),
-            Semantics(
-              button: true,
-              label: context.l10n.getCoins,
-              child: Material(
-                color: AppColors.primary,
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: onAdd,
-                  child: const SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: Center(
+            ],
+          ),
+          child: Material(
+            color: AppColors.surface,
+            shape: shape,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onAdd,
+              child: Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(
+                  compact ? 8 : GameplayMetrics.coinPillPadding,
+                  compact ? 3 : 4,
+                  compact ? 3 : 4,
+                  compact ? 3 : 4,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CoinAnchor(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GameIcon(
+                            kind: GameIconKind.coin,
+                            size: compact ? 18 : 22,
+                          ),
+                          const SizedBox(width: 6),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            child: Text(
+                              formatCoins(context, amount),
+                              key: ValueKey(amount),
+                              style: compact
+                                  ? GameTypography.caption(GameColors.text)
+                                      .copyWith(fontWeight: FontWeight.w800)
+                                  : GameTypography.amount(GameColors.text),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: compact ? 6 : 8),
+                    Container(
+                      width: plus,
+                      height: plus,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
                       child: Text(
                         '+',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: compact ? 17 : 20,
                           fontWeight: FontWeight.w800,
                           height: 1,
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

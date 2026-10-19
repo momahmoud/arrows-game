@@ -57,8 +57,7 @@ class CampaignValidators {
       }
     }
 
-    if (CampaignLevelSpec.isCampaignLevel(levelNumber, type) &&
-        attempt < 22) {
+    if (CampaignLevelSpec.isCampaignLevel(levelNumber, type) && attempt < 22) {
       if (profile.participationRatio <
           CampaignLevelSpec.minParticipation(levelNumber)) {
         issues.add(CampaignValidationIssue(
@@ -75,11 +74,8 @@ class CampaignValidators {
       }
     }
 
-    final maxOpen =
-        CampaignLevelSpec.maxOpeningMoves(levelNumber, type);
-    if (levelNumber >= 8 &&
-        profile.openingMoves > maxOpen &&
-        attempt < 35) {
+    final maxOpen = CampaignLevelSpec.maxOpeningMoves(levelNumber, type);
+    if (levelNumber >= 8 && profile.openingMoves > maxOpen && attempt < 35) {
       issues.add(CampaignValidationIssue(
         'DIFFICULTY',
         'opening moves ${profile.openingMoves} > $maxOpen',
@@ -87,8 +83,8 @@ class CampaignValidators {
     }
 
     if (profile.isImmediatelySolved && levelNumber >= 6 && attempt < 24) {
-      issues.add(CampaignValidationIssue(
-          'DIFFICULTY', 'all arrows immediately free'));
+      issues.add(
+          CampaignValidationIssue('DIFFICULTY', 'all arrows immediately free'));
     }
 
     return issues;
@@ -105,8 +101,8 @@ class CampaignValidators {
       for (var s = 0; s < a.path.length; s++) {
         final key = '${a.path[s][0]},${a.path[s][1]}';
         if (seen.contains(key)) {
-          issues.add(CampaignValidationIssue(
-              'GEOMETRY', 'self intersect ${a.id}'));
+          issues.add(
+              CampaignValidationIssue('GEOMETRY', 'self intersect ${a.id}'));
           break;
         }
         seen.add(key);
@@ -116,8 +112,7 @@ class CampaignValidators {
           final dr2 = a.path[s][0] - a.path[s - 1][0];
           final dc2 = a.path[s][1] - a.path[s - 1][1];
           if (dr1 + dr2 == 0 && dc1 + dc2 == 0) {
-            issues.add(
-                CampaignValidationIssue('GEOMETRY', '180 turn ${a.id}'));
+            issues.add(CampaignValidationIssue('GEOMETRY', '180 turn ${a.id}'));
             break;
           }
         }

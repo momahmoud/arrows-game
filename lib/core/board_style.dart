@@ -226,7 +226,8 @@ class BoardStyle {
   static LinearGradient playfield(BoardTheme theme) {
     switch (theme) {
       case BoardTheme.classic:
-        return const LinearGradient(colors: [Color(0xFFFAF6F0), Color(0xFFF3EDE3)]);
+        return const LinearGradient(
+            colors: [Color(0xFFFAF6F0), Color(0xFFF3EDE3)]);
       case BoardTheme.neon:
         return const LinearGradient(
           begin: Alignment.topCenter,

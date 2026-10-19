@@ -91,6 +91,7 @@ class GameState extends ChangeNotifier {
   bool get isDeadlocked => _isDeadlocked;
   int get arrowsRemaining => _arrows.length;
   LevelModel get level => _currentLevel;
+
   /// Live orphan dots remaining (consumed dots are absent from this map).
   Map<String, OrphanDotType> get orphanDots => _orphanDots;
   String? get hintArrowId => _hintArrowId;
@@ -273,8 +274,12 @@ class GameState extends ChangeNotifier {
         final exitInfo2 = _computeExitInfo(arrow2, arrow1.id);
 
         if (exitInfo1.blocked || exitInfo2.blocked) {
-          return _handleGroupBlocked(grp, groupArrows,
-              {exitInfo1.blockerId, exitInfo2.blockerId}.whereType<String>().toSet());
+          return _handleGroupBlocked(
+              grp,
+              groupArrows,
+              {exitInfo1.blockerId, exitInfo2.blockerId}
+                  .whereType<String>()
+                  .toSet());
         } else {
           _recordConsumedDots(arrow1.id, exitInfo1.consumed);
           _recordConsumedDots(arrow2.id, exitInfo2.consumed);
@@ -431,7 +436,10 @@ class GameState extends ChangeNotifier {
           if (ignoreId != null && other.id == ignoreId) continue;
           if (other.state == ArrowState.sliding) continue;
           for (final pt in other.path) {
-            if (pt[0] == nr && pt[1] == nc) { hit = true; break; }
+            if (pt[0] == nr && pt[1] == nc) {
+              hit = true;
+              break;
+            }
           }
           if (hit) return _ExitInfo(true, const [], other.id);
         }
@@ -447,7 +455,9 @@ class GameState extends ChangeNotifier {
   // ── Reset ─────────────────────────────────────────────────────────────────────
 
   void resetLevel() {
-    _arrows = _currentLevel.arrows.map((a) => a.copyWith(state: ArrowState.idle)).toList();
+    _arrows = _currentLevel.arrows
+        .map((a) => a.copyWith(state: ArrowState.idle))
+        .toList();
     _orphanDots = {for (final od in _currentLevel.orphanDots) od.key: od.type};
     _consumedDotsByArrow.clear();
     _eraserArmed = false;

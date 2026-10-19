@@ -1,0 +1,14 @@
+# Test tags used to select suites. See docs/dev/RELEASE_CHECKLIST.md.
+tags:
+  # Regenerates or rewrites content (assets/levels.bin, chunk JSON, logs,
+  # docs/dev/level_manifest.json). Run deliberately, never in CI.
+  generator: {}
+  # Full audit of the packaged assets/levels.bin (all campaign levels).
+  campaign: {}
+  # Long-running regression tests (legacy LevelGenerator, ~6-7 min).
+  slow: {}
+  # Needs real release configuration (lib/core/ad_secrets.dart).
+  release: {}
+  # Builds development level candidates under build/candidates/. Never
+  # writes assets/; run deliberately.
+  candidates: {}

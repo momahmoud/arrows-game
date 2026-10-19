@@ -11,14 +11,30 @@ class AppConstants {
       bool.fromEnvironment('ENABLE_SHAPE_PREVIEW', defaultValue: false) ||
           !kReleaseMode;
 
+  /// Dev-only first-500 candidate playtest hub. Requires an explicit
+  /// `--dart-define=ENABLE_FIRST500_PLAYTEST=true` and is never available in
+  /// release builds. Does not register candidate binaries as assets.
+  static const bool enableFirst500Playtest =
+      bool.fromEnvironment('ENABLE_FIRST500_PLAYTEST', defaultValue: false) &&
+          !kReleaseMode;
+
+  /// Host path to the integrated candidate binary for the playtest hub.
+  /// Default matches the documented build output; override when the file is
+  /// copied elsewhere (e.g. device storage).
+  static const String first500PlaytestBinPath = String.fromEnvironment(
+    'FIRST500_PLAYTEST_BIN',
+    defaultValue: 'build/candidates/first_500_quality/levels_candidate.bin',
+  );
+
   // App identity
   static const String appName = 'Arrow Escape';
   static const String packageId = 'com.arrows.fluxylabs';
 
-  // Grid sizes: 10×10 minimum at level 1, up to 35×35 target (hard cap 40).
-  // • Normal: 10×10 at level 4 → 35×35 around level 300+
-  // • Boss:   20×20 at first boss → 30×30 at high cycles
-  // • God:    22×22 at first god  → 35×35 at high cycles
+  // Grid sizes (see [gridSizeForLevel]):
+  // • Tutorial: 10×10
+  // • Normal:   15×15 at level 4 → 24×24 by level 19, then 25×25 → 35×35
+  // • Boss/God: 27×27 at first cycle → 40×40 by ~cycle 20
+  // Level type cadence is owned only by [levelTypeFor].
   static const int startingGridSize = 10;
   static const int maxGridSize = 40;
   static const int tutorialLevels = 3;
@@ -30,10 +46,6 @@ class AppConstants {
   /// Starting inventory per power-up (hint, eraser, wand, ruler).
   static const int powerUpsPerLevel = 1;
   static const int powerUpsPerRewardedAd = 1;
-
-  // Special level cadence
-  static const int bossLevelEvery = 3; // Every 3rd level is BOSS
-  static const int godLevelEvery = 5; // Every 5th level is GOD (overrides boss)
 
   // Ads
   static const String admobAppIdAndroid = AdSecrets.admobAppIdAndroid;

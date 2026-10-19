@@ -7,7 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('icons and reward chrome paint in English and Arabic', (tester) async {
+  testWidgets('icons and reward chrome paint in English and Arabic',
+      (tester) async {
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -22,12 +23,16 @@ void main() {
           body: ListView(
             children: [
               GameButton(
-                label: locale.languageCode == 'ar' ? 'المرحلة التالية' : 'Next Level',
+                label: locale.languageCode == 'ar'
+                    ? 'المرحلة التالية'
+                    : 'Next Level',
                 icon: GameIconKind.play,
                 onPressed: () {},
               ),
               RewardButton(
-                label: locale.languageCode == 'ar' ? 'شاهد فيديو' : 'Watch a Video',
+                label: locale.languageCode == 'ar'
+                    ? 'شاهد فيديو'
+                    : 'Watch a Video',
                 coins: EconomyConfig.rewardedAdCoins,
                 onPressed: () {},
               ),
@@ -56,7 +61,8 @@ void main() {
               LevelCompleteReward(stars: 3, coins: EconomyConfig.normalClear),
               for (final kind in GameIconKind.values)
                 GameIcon(kind: kind, size: 48),
-              const GameIcon(key: Key('icon-end'), kind: GameIconKind.check, size: 48),
+              const GameIcon(
+                  key: Key('icon-end'), kind: GameIconKind.check, size: 48),
             ],
           ),
         ),

@@ -20,7 +20,8 @@ class ExitParticleEffect extends ParticleSystemComponent {
               final rng = Random();
               final angle = (i / 14) * 2 * pi + rng.nextDouble() * 0.4;
               final speed = (40 + rng.nextDouble() * 90) * scale;
-              final tint = i.isEven ? color : _accentColors[i % _accentColors.length];
+              final tint =
+                  i.isEven ? color : _accentColors[i % _accentColors.length];
               return AcceleratedParticle(
                 position: Vector2.zero(),
                 speed: Vector2(cos(angle) * speed, sin(angle) * speed),

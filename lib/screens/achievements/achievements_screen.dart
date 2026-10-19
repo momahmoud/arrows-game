@@ -25,7 +25,8 @@ class AchievementsScreen extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   children: [
-                    if (!MetaRules.achievements.any((item) => item.unlocked(stats)))
+                    if (!MetaRules.achievements
+                        .any((item) => item.unlocked(stats)))
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Text(

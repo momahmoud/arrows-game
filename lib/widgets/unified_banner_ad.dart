@@ -91,8 +91,6 @@ class _UnifiedBannerAdState extends State<UnifiedBannerAd> {
       }
     }
 
-
-
     // 3. Unity Ads (Priority 3)
     if (AppConstants.enableUnityAds) {
       return SizedBox(

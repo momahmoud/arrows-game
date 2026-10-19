@@ -73,99 +73,104 @@ class _SplashScreenState extends State<SplashScreen>
                 children: [
                   // Arrow icons
                   _ArrowsBackground(),
-              const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-              // Logo
-              _buildLogo(),
+                  // Logo
+                  _buildLogo(),
 
-              const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-              // Tagline
-              Text(
-                context.l10n.splashTagline,
-                style: AppFonts.style(
-                  fontSize: 16,
-                  color: AppColors.textSecondary,
-                  letterSpacing: 2,
-                  fontWeight: FontWeight.w600,
-                ),
-              )
-                  .animate(delay: 600.ms)
-                  .fadeIn(duration: 600.ms)
-                  .slideY(begin: 0.3, end: 0),
+                  // Tagline
+                  Text(
+                    context.l10n.splashTagline,
+                    style: AppFonts.style(
+                      fontSize: 16,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                      .animate(delay: 600.ms)
+                      .fadeIn(duration: 600.ms)
+                      .slideY(begin: 0.3, end: 0),
 
-              const SizedBox(height: 52),
+                  const SizedBox(height: 52),
 
-              // ── Animated progress bar ─────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 56),
-                child: Column(
-                  children: [
-                    AnimatedBuilder(
-                      animation: _progressController,
-                      builder: (context, _) {
-                        // Ease the fill for a more natural loading feel
-                        final progress = CurvedAnimation(
-                          parent: _progressController,
-                          curve: Curves.easeInOut,
-                        ).value;
+                  // ── Animated progress bar ─────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 56),
+                    child: Column(
+                      children: [
+                        AnimatedBuilder(
+                          animation: _progressController,
+                          builder: (context, _) {
+                            // Ease the fill for a more natural loading feel
+                            final progress = CurvedAnimation(
+                              parent: _progressController,
+                              curve: Curves.easeInOut,
+                            ).value;
 
-                        return Column(
-                          children: [
-                            // Progress bar track
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                height: 4,
-                                width: double.infinity,
-                                color: AppColors.primary.withValues(alpha: 0.15),
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: FractionallySizedBox(
-                                    widthFactor: progress,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            AppColors.primary.withValues(alpha: 0.7),
-                                            AppColors.primary,
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: AppColors.primary.withValues(alpha: 0.4),
-                                            blurRadius: 6,
+                            return Column(
+                              children: [
+                                // Progress bar track
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    height: 4,
+                                    width: double.infinity,
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.15),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: FractionallySizedBox(
+                                        widthFactor: progress,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                AppColors.primary
+                                                    .withValues(alpha: 0.7),
+                                                AppColors.primary,
+                                              ],
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: AppColors.primary
+                                                    .withValues(alpha: 0.4),
+                                                blurRadius: 6,
+                                              ),
+                                            ],
                                           ),
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            // Status label that changes with progress
-                            Text(
-                              progress < 0.5
-                                  ? context.l10n.splashLoadingAssets
-                                  : progress < 0.9
-                                      ? context.l10n.splashGeneratingLevels
-                                      : context.l10n.splashAlmostReady,
-                              style: AppFonts.style(
-                                fontSize: 12,
-                                color: AppColors.textSecondary.withValues(alpha: 0.8),
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                                const SizedBox(height: 14),
+                                // Status label that changes with progress
+                                Text(
+                                  progress < 0.5
+                                      ? context.l10n.splashLoadingAssets
+                                      : progress < 0.9
+                                          ? context.l10n.splashGeneratingLevels
+                                          : context.l10n.splashAlmostReady,
+                                  style: AppFonts.style(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary
+                                        .withValues(alpha: 0.8),
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ).animate(delay: 800.ms).fadeIn(duration: 500.ms),
+                  ).animate(delay: 800.ms).fadeIn(duration: 500.ms),
                 ],
               ),
             ),

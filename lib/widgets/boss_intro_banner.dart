@@ -29,7 +29,10 @@ class BossIntroBanner extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [colors[0].withValues(alpha: 0.94), colors[1].withValues(alpha: 0.92)],
+            colors: [
+              colors[0].withValues(alpha: 0.94),
+              colors[1].withValues(alpha: 0.92)
+            ],
           ),
         ),
         child: Center(
@@ -44,7 +47,9 @@ class BossIntroBanner extends StatelessWidget {
                   letterSpacing: 3,
                   color: colors[2],
                   shadows: [
-                    Shadow(color: colors[2].withValues(alpha: 0.55), blurRadius: 18),
+                    Shadow(
+                        color: colors[2].withValues(alpha: 0.55),
+                        blurRadius: 18),
                   ],
                 ),
               ).animate().scaleXY(

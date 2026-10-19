@@ -111,11 +111,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                     ),
                     if (!progress.adsRemoved)
                       RemoveAdsEntry(
-                        onTap: () =>
-                            MonetizationPresenter.buy(
-                              context,
-                              EconomyConfig.removeAdsId,
-                            ),
+                        onTap: () => MonetizationPresenter.buy(
+                          context,
+                          EconomyConfig.removeAdsId,
+                        ),
                       ),
                   ],
                 ),
@@ -145,119 +144,126 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             onCoins: () => _push('/shop'),
           ),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                GestureDetector(
-                  onLongPress: kReleaseMode ? null : () => _toggleDemo(progress),
-                  child: CurrentLevelSection(
-                    level: level,
-                    difficulty: _getDifficultyLabel(level),
-                    levelType: type,
-                    finished: finished,
-                  ),
-                ),
-                if (!finished) ...[
-                  const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: PlayNowButton(
-                      label: _isNavigating
-                          ? context.l10n.loading
-                          : context.l10n.playNow,
-                      loading: _isNavigating,
-                      onPressed: _isNavigating
-                          ? null
-                          : () => _play(progress.currentLevel),
-                    ),
-                  ),
-                ],
-                if (progress.isDemoMode)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8),
-                    child: _DemoBadge(),
-                  ),
-                const SizedBox(height: 20),
-                LevelProgressPreview(
-                  currentLevel: progress.currentLevel.clamp(
-                    1,
-                    AppConstants.totalLevels,
-                  ),
-                  totalLevels: AppConstants.totalLevels,
-                  isUnlocked: progress.isLevelUnlocked,
-                  starsFor: progress.getStarsForLevel,
-                  onSelect: (selected) {
-                    AudioManager.instance.playClick();
-                    progress.setCurrentLevel(selected);
-                  },
-                  onLocked: (locked) {
-                    AudioManager.instance.playClick();
-                    ScaffoldMessenger.of(context).clearSnackBars();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          context.l10n.levelLocked(locked),
-                          style: AppFonts.style(
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
+            child: CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Column(
+                    children: [
+                      const Spacer(flex: 3),
+                      GestureDetector(
+                        onLongPress:
+                            kReleaseMode ? null : () => _toggleDemo(progress),
+                        child: CurrentLevelSection(
+                          level: level,
+                          difficulty: _getDifficultyLabel(level),
+                          levelType: type,
+                          finished: finished,
+                        ),
+                      ),
+                      if (!finished) ...[
+                        const SizedBox(height: GameSpacing.md),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: GameSpacing.lg,
+                          ),
+                          child: PlayNowButton(
+                            label: _isNavigating
+                                ? context.l10n.loading
+                                : context.l10n.playNow,
+                            loading: _isNavigating,
+                            onPressed: _isNavigating
+                                ? null
+                                : () => _play(progress.currentLevel),
                           ),
                         ),
-                        backgroundColor: const Color(0xFFC0392B),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      ],
+                      if (progress.isDemoMode)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: _DemoBadge(),
                         ),
-                        duration: const Duration(seconds: 1),
+                      const SizedBox(height: GameSpacing.lg),
+                      LevelProgressPreview(
+                        currentLevel: progress.currentLevel.clamp(
+                          1,
+                          AppConstants.totalLevels,
+                        ),
+                        totalLevels: AppConstants.totalLevels,
+                        isUnlocked: progress.isLevelUnlocked,
+                        starsFor: progress.getStarsForLevel,
+                        onSelect: (selected) {
+                          AudioManager.instance.playClick();
+                          progress.setCurrentLevel(selected);
+                        },
+                        onLocked: (locked) {
+                          AudioManager.instance.playClick();
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                context.l10n.levelLocked(locked),
+                                style: AppFonts.style(
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              backgroundColor: const Color(0xFFC0392B),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              duration: const Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                        onViewAll: () {
+                          AudioManager.instance.playClick();
+                          Navigator.pushNamed(context, '/levels');
+                        },
                       ),
-                    );
-                  },
-                  onViewAll: () {
-                    AudioManager.instance.playClick();
-                    Navigator.pushNamed(context, '/levels');
-                  },
-                ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: FeatureShortcut(
-                          icon: GameIconKind.calendar,
-                          label: context.l10n.navDaily,
-                          onTap: () => _push('/daily'),
+                      const Spacer(flex: 2),
+                      const SizedBox(height: GameSpacing.md),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: GameSpacing.md,
+                        ),
+                        child: Row(
+                          children: [
+                            for (final (i, item) in [
+                              (
+                                GameIconKind.calendar,
+                                context.l10n.navDaily,
+                                '/daily'
+                              ),
+                              (
+                                GameIconKind.shop,
+                                context.l10n.navShop,
+                                '/shop'
+                              ),
+                              (
+                                GameIconKind.medal,
+                                context.l10n.navAwards,
+                                '/achievements'
+                              ),
+                            ].indexed) ...[
+                              if (i > 0) const SizedBox(width: GameSpacing.xs),
+                              Expanded(
+                                child: FeatureShortcut(
+                                  icon: item.$1,
+                                  label: item.$2,
+                                  onTap: () => _push(item.$3),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FeatureShortcut(
-                          icon: GameIconKind.shop,
-                          label: context.l10n.navShop,
-                          onTap: () => _push('/shop'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FeatureShortcut(
-                          icon: GameIconKind.medal,
-                          label: context.l10n.navAwards,
-                          onTap: () => _push('/achievements'),
-                        ),
-                      ),
+                      const SizedBox(height: GameSpacing.md),
                     ],
                   ),
                 ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+              ],
             ),
           ),
         ],

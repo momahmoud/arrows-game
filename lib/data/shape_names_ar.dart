@@ -271,4 +271,8 @@ const Map<String, String> shapeNamesAr = {
   'honeyPot': 'جرة عسل',
   'pretzel': 'بريتزل',
   'castle': 'قلعة',
+  'wideRectangle': 'مستطيل عريض',
+  'cShape': 'حرف C',
+  'frame': 'إطار',
+  'cornerCluster': 'زوايا متجمعة',
 };

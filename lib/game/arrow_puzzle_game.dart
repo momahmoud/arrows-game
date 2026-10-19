@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/constants.dart';
 import '../../data/models/level.dart';
+import 'board_layout.dart';
 import 'components/grid_component.dart';
 import 'game_state.dart';
 
@@ -54,60 +54,13 @@ class ArrowPuzzleGame extends FlameGame {
     gridComponent!.resize(gridPx);
   }
 
-  /// Arrows use the same cell size on every level unless the board would not
-  /// fit; then cells shrink just enough to keep every arrow on screen. The
-  /// used part of the board is centered, and the grid stays inside this
-  /// widget, which is what taps are measured against.
+  late final Rect _contentBounds = BoardLayout.contentBounds(level);
+
   (double gridPx, double gridX, double gridY) _calcLayout(Vector2 screenSize) {
-    final bounds = _contentBounds;
-    final cell = _cellSize(screenSize.x, screenSize.y, bounds);
-    final gridPx = level.gridSize * cell;
-    final gridX = screenSize.x / 2 - (bounds.left + bounds.right) / 2 * cell;
-    final gridY = screenSize.y / 2 - (bounds.top + bounds.bottom) / 2 * cell;
-    return (gridPx, gridX, gridY);
+    final layout = BoardLayout.fit(
+        _contentBounds, level.gridSize, Size(screenSize.x, screenSize.y));
+    return (layout.gridPixelSize, layout.origin.dx, layout.origin.dy);
   }
-
-  double _cellSize(double width, double height, Rect bounds) {
-    final shorter = width < height ? width : height;
-    if (shorter <= 0) return 1;
-    final spacing = AppConstants.boardCellSpacing;
-    final standard = (shorter / AppConstants.arrowCellSpan) * spacing;
-    final fit = (width / bounds.width < height / bounds.height
-            ? width / bounds.width
-            : height / bounds.height) *
-        spacing;
-    return standard < fit ? standard : fit;
-  }
-
-  /// Cells the level actually uses (mask, arrows, dots), in cell units.
-  late final Rect _contentBounds = () {
-    var minR = level.gridSize, minC = level.gridSize, maxR = -1, maxC = -1;
-    void include(int r, int c) {
-      if (r < minR) minR = r;
-      if (c < minC) minC = c;
-      if (r > maxR) maxR = r;
-      if (c > maxC) maxC = c;
-    }
-
-    for (final key in level.mask) {
-      final parts = key.split(',');
-      include(int.parse(parts[0]), int.parse(parts[1]));
-    }
-    for (final arrow in level.arrows) {
-      for (final pt in arrow.path) {
-        include(pt[0], pt[1]);
-      }
-    }
-    for (final dot in level.orphanDots) {
-      include(dot.row, dot.col);
-    }
-    if (maxR < 0) {
-      return Rect.fromLTWH(
-          0, 0, level.gridSize.toDouble(), level.gridSize.toDouble());
-    }
-    return Rect.fromLTRB(minC.toDouble(), minR.toDouble(),
-        (maxC + 1).toDouble(), (maxR + 1).toDouble());
-  }();
 
   /// Reset board to initial state (restart level)
   void resetLevel() {

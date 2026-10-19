@@ -79,7 +79,8 @@ class CoinShopScreen extends StatelessWidget {
                           if (!storeReady)
                             Text(
                               l10n.storeSoon,
-                              style: GameTypography.caption(GameColors.textMuted),
+                              style:
+                                  GameTypography.caption(GameColors.textMuted),
                             ),
                           const SizedBox(height: 12),
                           LayoutBuilder(

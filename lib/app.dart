@@ -18,6 +18,8 @@ import 'screens/daily/daily_challenge_screen.dart';
 import 'screens/shop/coin_shop_screen.dart';
 import 'screens/wheel/lucky_wheel_screen.dart';
 import 'screens/achievements/achievements_screen.dart';
+import 'core/constants.dart';
+import 'dev/first500_playtest_screen.dart';
 
 class ArrowPuzzleApp extends StatelessWidget {
   const ArrowPuzzleApp({super.key});
@@ -88,6 +90,8 @@ class ArrowPuzzleApp extends StatelessWidget {
         '/shop': (_) => const CoinShopScreen(),
         '/wheel': (_) => const LuckyWheelScreen(),
         '/achievements': (_) => const AchievementsScreen(),
+        if (AppConstants.enableFirst500Playtest)
+          '/first500_playtest': (_) => const First500PlaytestScreen(),
       },
     );
   }

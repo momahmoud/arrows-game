@@ -33,6 +33,5 @@ class AppFonts {
     );
   }
 
-  static TextTheme textTheme(TextTheme base) =>
-      base.apply(fontFamily: family);
+  static TextTheme textTheme(TextTheme base) => base.apply(fontFamily: family);
 }

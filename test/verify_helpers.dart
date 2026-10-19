@@ -8,16 +8,18 @@ import 'package:arrow_escape/data/models/level.dart';
 /// Runs all checks on a range of levels and logs progress to the given file.
 void verifyLevelRange(int start, int end, String logFileName) {
   final logFile = File(logFileName);
-  logFile.writeAsStringSync('Starting verification for levels $start to $end...\n');
+  logFile.writeAsStringSync(
+      'Starting verification for levels $start to $end...\n');
   final overallSw = Stopwatch()..start();
 
   for (int i = start; i <= end; i++) {
     final sw = Stopwatch()..start();
-    
+
     // 1. Generate the level (exactly ONCE)
     final level = LevelGenerator.generateLevel(i);
     expect(level.arrows.isNotEmpty, true, reason: 'Level $i has no arrows');
-    expect(level.patternName, isNot('fallback'), reason: 'Level $i fell back to fallback');
+    expect(level.patternName, isNot('fallback'),
+        reason: 'Level $i fell back to fallback');
 
     // 2. Solve the level (DFS only reliable on small grids ≤20).
     // Large grids (>20) are solvable by construction (reverse-placement
@@ -47,7 +49,8 @@ void verifyLevelRange(int start, int end, String logFileName) {
       while (nr >= 0 && nr < level.gridSize && nc >= 0 && nc < level.gridSize) {
         final key = '$nr,$nc';
         expect(visited.contains(key), false,
-            reason: 'Level $i arrow ${arrow.id} has infinite deflection loop at $key');
+            reason:
+                'Level $i arrow ${arrow.id} has infinite deflection loop at $key');
         if (visited.contains(key)) break;
         visited.add(key);
 
@@ -87,7 +90,8 @@ void verifyLevelRange(int start, int end, String logFileName) {
     }
     for (final entry in colorGroups.entries) {
       expect(entry.value.length, 2,
-          reason: 'Level $i color group ${entry.key} has ${entry.value.length} arrows (expected 2)');
+          reason:
+              'Level $i color group ${entry.key} has ${entry.value.length} arrows (expected 2)');
       final a1 = entry.value[0];
       final a2 = entry.value[1];
 
@@ -98,11 +102,14 @@ void verifyLevelRange(int start, int end, String logFileName) {
       for (final pt in a1.path) allOccupied.remove('${pt[0]},${pt[1]}');
       for (final pt in a2.path) allOccupied.remove('${pt[0]},${pt[1]}');
 
-      final a1Blocked = _isExitBlocked(a1, level.gridSize, allOccupied, orphanMap);
-      final a2Blocked = _isExitBlocked(a2, level.gridSize, allOccupied, orphanMap);
+      final a1Blocked =
+          _isExitBlocked(a1, level.gridSize, allOccupied, orphanMap);
+      final a2Blocked =
+          _isExitBlocked(a2, level.gridSize, allOccupied, orphanMap);
 
       expect(a1Blocked || a2Blocked, false,
-          reason: 'Level $i color group ${entry.key}: mutual blocking deadlock');
+          reason:
+              'Level $i color group ${entry.key}: mutual blocking deadlock');
     }
 
     final ms = sw.elapsedMilliseconds;

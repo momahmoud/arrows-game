@@ -97,8 +97,7 @@ class LevelLayoutProfile {
     for (var i = 0; i < arrows.length; i++) {
       if (blockedBy[i] >= 0 || blocks[i].isNotEmpty) participating++;
     }
-    final participation =
-        arrows.isEmpty ? 0.0 : participating / arrows.length;
+    final participation = arrows.isEmpty ? 0.0 : participating / arrows.length;
 
     final depthMemo = List<int>.filled(arrows.length, 0);
     final seen = List<bool>.filled(arrows.length, false);

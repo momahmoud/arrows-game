@@ -28,8 +28,7 @@ class DailyChallengeScreen extends StatelessWidget {
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
     final lead = DateTime(now.year, now.month, 1).weekday - 1;
     final pending = progress.pendingLoginDay;
-    final loginCoins =
-        pending == null ? 0 : EconomyConfig.loginCoins(pending);
+    final loginCoins = pending == null ? 0 : EconomyConfig.loginCoins(pending);
 
     return Scaffold(
       body: Container(

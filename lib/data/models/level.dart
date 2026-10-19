@@ -15,16 +15,16 @@ class OrphanDot {
   String get key => '$row,$col';
 
   Map<String, dynamic> toJson() => {
-    'row': row,
-    'col': col,
-    'type': type.index,
-  };
+        'row': row,
+        'col': col,
+        'type': type.index,
+      };
 
   factory OrphanDot.fromJson(Map<String, dynamic> json) => OrphanDot(
-    row: json['row'] as int,
-    col: json['col'] as int,
-    type: OrphanDotType.values[json['type'] as int],
-  );
+        row: json['row'] as int,
+        col: json['col'] as int,
+        type: OrphanDotType.values[json['type'] as int],
+      );
 }
 
 // ─── Mask Shape Enum ──────────────────────────────────────────────────────────
@@ -100,6 +100,7 @@ enum MaskShape {
   snowflake,
   teddyBear,
   globe,
+
   /// Gulf / desert palm silhouette (Siham-style god level shape).
   palmTree,
   dallah,
@@ -332,13 +333,20 @@ enum Difficulty {
 
   String get label {
     switch (this) {
-      case Difficulty.tutorial: return 'Tutorial';
-      case Difficulty.easy:     return 'Easy';
-      case Difficulty.medium:   return 'Medium';
-      case Difficulty.hard:     return 'Hard';
-      case Difficulty.expert:   return 'Expert';
-      case Difficulty.master:   return 'Master';
-      case Difficulty.legend:   return 'Legend';
+      case Difficulty.tutorial:
+        return 'Tutorial';
+      case Difficulty.easy:
+        return 'Easy';
+      case Difficulty.medium:
+        return 'Medium';
+      case Difficulty.hard:
+        return 'Hard';
+      case Difficulty.expert:
+        return 'Expert';
+      case Difficulty.master:
+        return 'Master';
+      case Difficulty.legend:
+        return 'Legend';
     }
   }
 
@@ -381,16 +389,16 @@ class LevelModel {
   int get totalArrows => arrows.length;
 
   LevelModel copy() => LevelModel(
-    levelNumber: levelNumber,
-    gridSize: gridSize,
-    arrows: arrows.map((a) => a.copyWith()).toList(),
-    patternName: patternName,
-    difficulty: difficulty,
-    solutionOrder: List.from(solutionOrder),
-    maskShape: maskShape,
-    mask: Set.from(mask),
-    orphanDots: List.from(orphanDots),
-  );
+        levelNumber: levelNumber,
+        gridSize: gridSize,
+        arrows: arrows.map((a) => a.copyWith()).toList(),
+        patternName: patternName,
+        difficulty: difficulty,
+        solutionOrder: List.from(solutionOrder),
+        maskShape: maskShape,
+        mask: Set.from(mask),
+        orphanDots: List.from(orphanDots),
+      );
 
   LevelModel copyWith({
     int? levelNumber,
@@ -402,52 +410,53 @@ class LevelModel {
     MaskShape? maskShape,
     Set<String>? mask,
     List<OrphanDot>? orphanDots,
-  }) => LevelModel(
-    levelNumber: levelNumber ?? this.levelNumber,
-    gridSize: gridSize ?? this.gridSize,
-    arrows: arrows ?? this.arrows,
-    patternName: patternName ?? this.patternName,
-    difficulty: difficulty ?? this.difficulty,
-    solutionOrder: solutionOrder ?? this.solutionOrder,
-    maskShape: maskShape ?? this.maskShape,
-    mask: mask ?? this.mask,
-    orphanDots: orphanDots ?? this.orphanDots,
-  );
+  }) =>
+      LevelModel(
+        levelNumber: levelNumber ?? this.levelNumber,
+        gridSize: gridSize ?? this.gridSize,
+        arrows: arrows ?? this.arrows,
+        patternName: patternName ?? this.patternName,
+        difficulty: difficulty ?? this.difficulty,
+        solutionOrder: solutionOrder ?? this.solutionOrder,
+        maskShape: maskShape ?? this.maskShape,
+        mask: mask ?? this.mask,
+        orphanDots: orphanDots ?? this.orphanDots,
+      );
 
   Map<String, dynamic> toJson() => {
-    'levelNumber': levelNumber,
-    'gridSize': gridSize,
-    'arrows': arrows.map((a) => a.toJson()).toList(),
-    'patternName': patternName,
-    'difficulty': difficulty.index,
-    'solutionOrder': solutionOrder,
-    'maskShape': maskShape.index,
-    'mask': mask.toList(),
-    'orphanDots': orphanDots.map((d) => d.toJson()).toList(),
-  };
+        'levelNumber': levelNumber,
+        'gridSize': gridSize,
+        'arrows': arrows.map((a) => a.toJson()).toList(),
+        'patternName': patternName,
+        'difficulty': difficulty.index,
+        'solutionOrder': solutionOrder,
+        'maskShape': maskShape.index,
+        'mask': mask.toList(),
+        'orphanDots': orphanDots.map((d) => d.toJson()).toList(),
+      };
 
   factory LevelModel.fromJson(Map<String, dynamic> json) => LevelModel(
-    levelNumber: json['levelNumber'] as int,
-    gridSize: json['gridSize'] as int,
-    arrows: (json['arrows'] as List)
-        .map((a) => ArrowModel.fromJson(a as Map<String, dynamic>))
-        .toList(),
-    patternName: json['patternName'] as String,
-    difficulty: Difficulty.values[json['difficulty'] as int],
-    solutionOrder: List<String>.from(json['solutionOrder'] as List? ?? []),
-    maskShape: json['maskShape'] != null
-        ? MaskShape.values[(json['maskShape'] as int)
-            .clamp(0, MaskShape.values.length - 1)]
-        : MaskShape.square,
-    mask: json['mask'] != null
-        ? Set<String>.from((json['mask'] as List).cast<String>())
-        : const {},
-    orphanDots: json['orphanDots'] != null
-        ? (json['orphanDots'] as List)
-            .map((d) => OrphanDot.fromJson(d as Map<String, dynamic>))
-            .toList()
-        : const [],
-  );
+        levelNumber: json['levelNumber'] as int,
+        gridSize: json['gridSize'] as int,
+        arrows: (json['arrows'] as List)
+            .map((a) => ArrowModel.fromJson(a as Map<String, dynamic>))
+            .toList(),
+        patternName: json['patternName'] as String,
+        difficulty: Difficulty.values[json['difficulty'] as int],
+        solutionOrder: List<String>.from(json['solutionOrder'] as List? ?? []),
+        maskShape: json['maskShape'] != null
+            ? MaskShape.values[(json['maskShape'] as int)
+                .clamp(0, MaskShape.values.length - 1)]
+            : MaskShape.square,
+        mask: json['mask'] != null
+            ? Set<String>.from((json['mask'] as List).cast<String>())
+            : const {},
+        orphanDots: json['orphanDots'] != null
+            ? (json['orphanDots'] as List)
+                .map((d) => OrphanDot.fromJson(d as Map<String, dynamic>))
+                .toList()
+            : const [],
+      );
 }
 
 // ─── Level Result Model ───────────────────────────────────────────────────────
@@ -472,22 +481,22 @@ class LevelResult {
   });
 
   Map<String, dynamic> toJson() => {
-    'levelNumber': levelNumber,
-    'stars': stars,
-    'score': score,
-    'movesUsed': movesUsed,
-    'livesLost': livesLost,
-    'completed': completed,
-    'completedAt': completedAt.toIso8601String(),
-  };
+        'levelNumber': levelNumber,
+        'stars': stars,
+        'score': score,
+        'movesUsed': movesUsed,
+        'livesLost': livesLost,
+        'completed': completed,
+        'completedAt': completedAt.toIso8601String(),
+      };
 
   factory LevelResult.fromJson(Map<String, dynamic> json) => LevelResult(
-    levelNumber: json['levelNumber'] as int,
-    stars: json['stars'] as int,
-    score: json['score'] as int,
-    movesUsed: json['movesUsed'] as int,
-    livesLost: json['livesLost'] as int,
-    completed: json['completed'] as bool,
-    completedAt: DateTime.parse(json['completedAt'] as String),
-  );
+        levelNumber: json['levelNumber'] as int,
+        stars: json['stars'] as int,
+        score: json['score'] as int,
+        movesUsed: json['movesUsed'] as int,
+        livesLost: json['livesLost'] as int,
+        completed: json['completed'] as bool,
+        completedAt: DateTime.parse(json['completedAt'] as String),
+      );
 }

@@ -78,6 +78,10 @@ class GameRadius {
 class GameIconSizes {
   GameIconSizes._();
 
+  /// Applied by GameIcon to every requested size. Icons inside a fixed box
+  /// stay within that box.
+  static const double scale = 1.2;
+
   static const double xs = 18;
   static const double small = 26;
   static const double sm = 28;
@@ -100,6 +104,10 @@ class GameColors {
   static const Color coinMid = Color(0xFFF0A51E);
   static const Color coinDeep = Color(0xFFC47A10);
   static const Color coinInk = Color(0xFF6B4108);
+
+  /// Reward text drawn directly on a panel surface. [coinInk] is too dark on
+  /// the dark surface, so dark mode uses the bright coin gold instead.
+  static Color get rewardText => AppColors.isDark ? coin : coinInk;
 
   static const Color leafHi = Color(0xFFD7F5C8);
   static const Color leaf = Color(0xFF3EAF62);

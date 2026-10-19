@@ -44,10 +44,7 @@ class LevelFingerprint {
       final dir = level.arrows[i].direction.delta;
       var r = level.arrows[i].row + dir[0];
       var c = level.arrows[i].col + dir[1];
-      while (r >= 0 &&
-          r < level.gridSize &&
-          c >= 0 &&
-          c < level.gridSize) {
+      while (r >= 0 && r < level.gridSize && c >= 0 && c < level.gridSize) {
         final id = occupied[r * 1000 + c];
         if (id != null && id != i) {
           edges.add('$id>$i');
@@ -133,8 +130,7 @@ class _Transform {
     }
   });
 
-  static List<int> r180(int r, int c, int size) =>
-      [size - 1 - r, size - 1 - c];
+  static List<int> r180(int r, int c, int size) => [size - 1 - r, size - 1 - c];
   static final rotate180 = _Transform(r180, (d) {
     switch (d) {
       case ArrowDirection.up:

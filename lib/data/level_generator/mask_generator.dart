@@ -37,9 +37,20 @@ class MaskGenerator {
   // ── Boss shapes: animals + objects ────────────────────────────────────────────
 
   static const List<String> _bossShapeNames = [
-    'cat', 'dog', 'frog', 'fox', 'tiger', 'panda',
-    'fish', 'bird', 'butterfly',
-    'guitar', 'tree', 'house', 'crown', 'saturn',
+    'cat',
+    'dog',
+    'frog',
+    'fox',
+    'tiger',
+    'panda',
+    'fish',
+    'bird',
+    'butterfly',
+    'guitar',
+    'tree',
+    'house',
+    'crown',
+    'saturn',
   ];
 
   static Set<String> _randomBossShape(int side, Random rng) {
@@ -50,7 +61,12 @@ class MaskGenerator {
   // ── God shapes: dramatic geometric ───────────────────────────────────────────
 
   static const List<String> _godShapeNames = [
-    'heart', 'star', 'diamond', 'hexagon', 'blob', 'circle',
+    'heart',
+    'star',
+    'diamond',
+    'hexagon',
+    'blob',
+    'circle',
   ];
 
   static Set<String> _randomGodShape(int side, Random rng) {
@@ -63,29 +79,50 @@ class MaskGenerator {
   static Set<String> shapeByName(String name, int side, Random rng) {
     switch (name) {
       // Animals
-      case 'cat':       return catMask(side);
-      case 'dog':       return dogMask(side);
-      case 'frog':      return frogMask(side);
-      case 'fox':       return foxMask(side);
-      case 'tiger':     return tigerMask(side);
-      case 'panda':     return pandaMask(side);
-      case 'fish':      return fishMask(side);
-      case 'bird':      return birdMask(side);
-      case 'butterfly': return butterflyMask(side);
+      case 'cat':
+        return catMask(side);
+      case 'dog':
+        return dogMask(side);
+      case 'frog':
+        return frogMask(side);
+      case 'fox':
+        return foxMask(side);
+      case 'tiger':
+        return tigerMask(side);
+      case 'panda':
+        return pandaMask(side);
+      case 'fish':
+        return fishMask(side);
+      case 'bird':
+        return birdMask(side);
+      case 'butterfly':
+        return butterflyMask(side);
       // Objects
-      case 'guitar':    return guitarMask(side);
-      case 'tree':      return treeMask(side);
-      case 'house':     return houseMask(side);
-      case 'crown':     return crownMask(side);
-      case 'saturn':    return saturnMask(side);
+      case 'guitar':
+        return guitarMask(side);
+      case 'tree':
+        return treeMask(side);
+      case 'house':
+        return houseMask(side);
+      case 'crown':
+        return crownMask(side);
+      case 'saturn':
+        return saturnMask(side);
       // Geometric
-      case 'heart':     return heartMask(side);
-      case 'star':      return starMask(side, 5);
-      case 'diamond':   return diamondMask(side);
-      case 'hexagon':   return hexagonMask(side);
-      case 'blob':      return blobMask(side, rng.nextInt(9999));
-      case 'circle':    return circleMask(side);
-      default:          return squareMask(side);
+      case 'heart':
+        return heartMask(side);
+      case 'star':
+        return starMask(side, 5);
+      case 'diamond':
+        return diamondMask(side);
+      case 'hexagon':
+        return hexagonMask(side);
+      case 'blob':
+        return blobMask(side, rng.nextInt(9999));
+      case 'circle':
+        return circleMask(side);
+      default:
+        return squareMask(side);
     }
   }
 
@@ -94,8 +131,8 @@ class MaskGenerator {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /// Add cells whose center lies inside the ellipse cx,cy,rx,ry (in cell units).
-  static void _ellipse(Set<String> mask, int side,
-      double cx, double cy, double rx, double ry) {
+  static void _ellipse(
+      Set<String> mask, int side, double cx, double cy, double rx, double ry) {
     for (int r = 0; r < side; r++) {
       for (int c = 0; c < side; c++) {
         final dx = (c + 0.5 - cx) / rx;
@@ -106,8 +143,8 @@ class MaskGenerator {
   }
 
   /// Add cells whose center lies inside the rectangle [x1,x2] × [y1,y2].
-  static void _rect(Set<String> mask, int side,
-      double x1, double y1, double x2, double y2) {
+  static void _rect(
+      Set<String> mask, int side, double x1, double y1, double x2, double y2) {
     for (int r = 0; r < side; r++) {
       for (int c = 0; c < side; c++) {
         final px = c + 0.5, py = r + 0.5;
@@ -117,8 +154,8 @@ class MaskGenerator {
   }
 
   /// Add cells whose center lies inside a triangle (ax,ay)–(bx,by)–(cx2,cy2).
-  static void _triangle(Set<String> mask, int side,
-      double ax, double ay, double bx, double by, double cx2, double cy2) {
+  static void _triangle(Set<String> mask, int side, double ax, double ay,
+      double bx, double by, double cx2, double cy2) {
     for (int r = 0; r < side; r++) {
       for (int c = 0; c < side; c++) {
         final px = c + 0.5, py = r + 0.5;
@@ -132,8 +169,8 @@ class MaskGenerator {
     }
   }
 
-  static double _cross(double px, double py,
-      double ax, double ay, double bx, double by) =>
+  static double _cross(
+          double px, double py, double ax, double ay, double bx, double by) =>
       (px - bx) * (ay - by) - (ax - bx) * (py - by);
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -244,8 +281,9 @@ class MaskGenerator {
       for (int c = 0; c < side; c++) {
         final dx = c + 0.5 - cx, dy = r + 0.5 - cy;
         final angle = atan2(dy, dx);
-        final dist  = sqrt(dx * dx + dy * dy);
-        final limit = baseR * (1.0 + a1 * sin(f1 * angle + phi1) + a2 * sin(f2 * angle + phi2));
+        final dist = sqrt(dx * dx + dy * dy);
+        final limit = baseR *
+            (1.0 + a1 * sin(f1 * angle + phi1) + a2 * sin(f2 * angle + phi2));
         if (dist <= limit) mask.add('$r,$c');
       }
     }
@@ -263,15 +301,18 @@ class MaskGenerator {
     // Head circle — centre slightly below mid, radius 42%
     _ellipse(mask, side, s * 0.5, s * 0.56, s * 0.42, s * 0.40);
     // Left ear (triangle)
-    _triangle(mask, side,
-        s * 0.18, s * 0.28,   // base-left
-        s * 0.38, s * 0.28,   // base-right
-        s * 0.27, s * 0.05);  // tip
+    _triangle(
+        mask,
+        side,
+        s * 0.18,
+        s * 0.28, // base-left
+        s * 0.38,
+        s * 0.28, // base-right
+        s * 0.27,
+        s * 0.05); // tip
     // Right ear
-    _triangle(mask, side,
-        s * 0.62, s * 0.28,
-        s * 0.82, s * 0.28,
-        s * 0.73, s * 0.05);
+    _triangle(
+        mask, side, s * 0.62, s * 0.28, s * 0.82, s * 0.28, s * 0.73, s * 0.05);
     return _clean(mask, side);
   }
 
@@ -313,15 +354,11 @@ class MaskGenerator {
     // Face — slightly tall ellipse
     _ellipse(mask, side, s * 0.5, s * 0.55, s * 0.34, s * 0.38);
     // Large pointed left ear
-    _triangle(mask, side,
-        s * 0.10, s * 0.42,
-        s * 0.38, s * 0.30,
-        s * 0.22, s * 0.04);
+    _triangle(
+        mask, side, s * 0.10, s * 0.42, s * 0.38, s * 0.30, s * 0.22, s * 0.04);
     // Large pointed right ear
-    _triangle(mask, side,
-        s * 0.62, s * 0.30,
-        s * 0.90, s * 0.42,
-        s * 0.78, s * 0.04);
+    _triangle(
+        mask, side, s * 0.62, s * 0.30, s * 0.90, s * 0.42, s * 0.78, s * 0.04);
     // Narrow snout bridge
     _ellipse(mask, side, s * 0.5, s * 0.76, s * 0.14, s * 0.10);
     return _clean(mask, side);
@@ -360,15 +397,11 @@ class MaskGenerator {
     // Body (oval)
     _ellipse(mask, side, s * 0.42, s * 0.5, s * 0.38, s * 0.24);
     // Tail — upper triangle
-    _triangle(mask, side,
-        s * 0.78, s * 0.32,
-        s * 0.98, s * 0.18,
-        s * 0.88, s * 0.50);
+    _triangle(
+        mask, side, s * 0.78, s * 0.32, s * 0.98, s * 0.18, s * 0.88, s * 0.50);
     // Tail — lower triangle
-    _triangle(mask, side,
-        s * 0.78, s * 0.68,
-        s * 0.98, s * 0.82,
-        s * 0.88, s * 0.50);
+    _triangle(
+        mask, side, s * 0.78, s * 0.68, s * 0.98, s * 0.82, s * 0.88, s * 0.50);
     return _clean(mask, side);
   }
 
@@ -383,10 +416,8 @@ class MaskGenerator {
     // Right wing
     _ellipse(mask, side, s * 0.79, s * 0.48, s * 0.24, s * 0.14);
     // Tail (small downward triangle)
-    _triangle(mask, side,
-        s * 0.38, s * 0.70,
-        s * 0.62, s * 0.70,
-        s * 0.50, s * 0.90);
+    _triangle(
+        mask, side, s * 0.38, s * 0.70, s * 0.62, s * 0.70, s * 0.50, s * 0.90);
     // Small round head
     _ellipse(mask, side, s * 0.50, s * 0.31, s * 0.12, s * 0.12);
     return _clean(mask, side);
@@ -446,10 +477,8 @@ class MaskGenerator {
     // Walls
     _rect(mask, side, s * 0.10, s * 0.44, s * 0.90, s * 0.92);
     // Roof (isoceles triangle)
-    _triangle(mask, side,
-        s * 0.0,  s * 0.44,
-        s * 1.0,  s * 0.44,
-        s * 0.5,  s * 0.06);
+    _triangle(
+        mask, side, s * 0.0, s * 0.44, s * 1.0, s * 0.44, s * 0.5, s * 0.06);
     return _clean(mask, side);
   }
 
@@ -460,20 +489,14 @@ class MaskGenerator {
     // Base band
     _rect(mask, side, s * 0.08, s * 0.58, s * 0.92, s * 0.90);
     // Left spike
-    _triangle(mask, side,
-        s * 0.08, s * 0.58,
-        s * 0.28, s * 0.58,
-        s * 0.18, s * 0.10);
+    _triangle(
+        mask, side, s * 0.08, s * 0.58, s * 0.28, s * 0.58, s * 0.18, s * 0.10);
     // Center spike (tallest)
-    _triangle(mask, side,
-        s * 0.36, s * 0.58,
-        s * 0.64, s * 0.58,
-        s * 0.50, s * 0.04);
+    _triangle(
+        mask, side, s * 0.36, s * 0.58, s * 0.64, s * 0.58, s * 0.50, s * 0.04);
     // Right spike
-    _triangle(mask, side,
-        s * 0.72, s * 0.58,
-        s * 0.92, s * 0.58,
-        s * 0.82, s * 0.10);
+    _triangle(
+        mask, side, s * 0.72, s * 0.58, s * 0.92, s * 0.58, s * 0.82, s * 0.10);
     return _clean(mask, side);
   }
 
@@ -498,12 +521,9 @@ class MaskGenerator {
         'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z',
     'star':
         'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
-    'shield':
-        'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
-    'zap':
-        'M13 2 3 14h9l-1 8 10-12h-9l1-8z',
-    'cloud':
-        'M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z',
+    'shield': 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+    'zap': 'M13 2 3 14h9l-1 8 10-12h-9l1-8z',
+    'cloud': 'M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z',
     'droplet':
         'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z',
   };
@@ -518,8 +538,8 @@ class MaskGenerator {
     final flutterPath = _parseSvgPath(svgPathData);
     final tx = margin, ty = margin;
     final matrix = Float64List(16)
-      ..[0]  = scale
-      ..[5]  = scale
+      ..[0] = scale
+      ..[5] = scale
       ..[10] = 1.0
       ..[12] = tx
       ..[13] = ty
@@ -546,56 +566,78 @@ class MaskGenerator {
     while (i < tokens.length) {
       final cmd = tokens[i++];
       switch (cmd) {
-        case 'M': case 'm':
+        case 'M':
+        case 'm':
           while (i < tokens.length && _num(tokens[i])) {
             final x = double.parse(tokens[i++]), y = double.parse(tokens[i++]);
             cmd == 'm' ? (cx += x, cy += y) : (cx = x, cy = y);
-            path.moveTo(cx, cy); sx = cx; sy = cy;
+            path.moveTo(cx, cy);
+            sx = cx;
+            sy = cy;
           }
-        case 'L': case 'l':
+        case 'L':
+        case 'l':
           while (i < tokens.length && _num(tokens[i])) {
             final x = double.parse(tokens[i++]), y = double.parse(tokens[i++]);
             cmd == 'l' ? (cx += x, cy += y) : (cx = x, cy = y);
             path.lineTo(cx, cy);
           }
-        case 'H': case 'h':
+        case 'H':
+        case 'h':
           while (i < tokens.length && _num(tokens[i])) {
             final v = double.parse(tokens[i++]);
-            cx = cmd == 'h' ? cx + v : v; path.lineTo(cx, cy);
+            cx = cmd == 'h' ? cx + v : v;
+            path.lineTo(cx, cy);
           }
-        case 'V': case 'v':
+        case 'V':
+        case 'v':
           while (i < tokens.length && _num(tokens[i])) {
             final v = double.parse(tokens[i++]);
-            cy = cmd == 'v' ? cy + v : v; path.lineTo(cx, cy);
+            cy = cmd == 'v' ? cy + v : v;
+            path.lineTo(cx, cy);
           }
-        case 'C': case 'c':
+        case 'C':
+        case 'c':
           while (i < tokens.length && _num(tokens[i])) {
-            final x1 = double.parse(tokens[i++]), y1 = double.parse(tokens[i++]);
-            final x2 = double.parse(tokens[i++]), y2 = double.parse(tokens[i++]);
-            final x  = double.parse(tokens[i++]), y  = double.parse(tokens[i++]);
+            final x1 = double.parse(tokens[i++]),
+                y1 = double.parse(tokens[i++]);
+            final x2 = double.parse(tokens[i++]),
+                y2 = double.parse(tokens[i++]);
+            final x = double.parse(tokens[i++]), y = double.parse(tokens[i++]);
             cmd == 'c'
-                ? path.cubicTo(cx+x1, cy+y1, cx+x2, cy+y2, cx+x, cy+y)
+                ? path.cubicTo(
+                    cx + x1, cy + y1, cx + x2, cy + y2, cx + x, cy + y)
                 : path.cubicTo(x1, y1, x2, y2, x, y);
             cmd == 'c' ? (cx += x, cy += y) : (cx = x, cy = y);
           }
-        case 'Q': case 'q':
+        case 'Q':
+        case 'q':
           while (i < tokens.length && _num(tokens[i])) {
-            final x1 = double.parse(tokens[i++]), y1 = double.parse(tokens[i++]);
-            final x  = double.parse(tokens[i++]), y  = double.parse(tokens[i++]);
+            final x1 = double.parse(tokens[i++]),
+                y1 = double.parse(tokens[i++]);
+            final x = double.parse(tokens[i++]), y = double.parse(tokens[i++]);
             cmd == 'q'
-                ? path.quadraticBezierTo(cx+x1, cy+y1, cx+x, cy+y)
+                ? path.quadraticBezierTo(cx + x1, cy + y1, cx + x, cy + y)
                 : path.quadraticBezierTo(x1, y1, x, y);
             cmd == 'q' ? (cx += x, cy += y) : (cx = x, cy = y);
           }
-        case 'A': case 'a':
+        case 'A':
+        case 'a':
           while (i < tokens.length && _num(tokens[i])) {
-            i++; i++; i++; i++; i++; // skip rx,ry,rot,large-arc,sweep
+            i++;
+            i++;
+            i++;
+            i++;
+            i++; // skip rx,ry,rot,large-arc,sweep
             final x = double.parse(tokens[i++]), y = double.parse(tokens[i++]);
             cmd == 'a' ? (cx += x, cy += y) : (cx = x, cy = y);
             path.lineTo(cx, cy);
           }
-        case 'Z': case 'z':
-          path.close(); cx = sx; cy = sy;
+        case 'Z':
+        case 'z':
+          path.close();
+          cx = sx;
+          cy = sy;
       }
     }
     path.fillType = PathFillType.nonZero;
@@ -614,12 +656,20 @@ class MaskGenerator {
     for (int i = 0; i < d.length; i++) {
       final ch = d[i];
       if (RegExp(r'[MmLlHhVvCcQqAaZz]').hasMatch(ch)) {
-        if (sb.isNotEmpty) { out.add(sb.toString()); sb.clear(); }
+        if (sb.isNotEmpty) {
+          out.add(sb.toString());
+          sb.clear();
+        }
         out.add(ch);
       } else if (ch == ',' || ch == ' ' || ch == '\t' || ch == '\n') {
-        if (sb.isNotEmpty) { out.add(sb.toString()); sb.clear(); }
+        if (sb.isNotEmpty) {
+          out.add(sb.toString());
+          sb.clear();
+        }
       } else if (ch == '-' && sb.isNotEmpty) {
-        out.add(sb.toString()); sb.clear(); sb.write(ch);
+        out.add(sb.toString());
+        sb.clear();
+        sb.write(ch);
       } else {
         sb.write(ch);
       }
@@ -649,8 +699,13 @@ class MaskGenerator {
         region.add(cur);
         final parts = cur.split(',');
         final r = int.parse(parts[0]), c = int.parse(parts[1]);
-        for (final d in [[-1,0],[1,0],[0,-1],[0,1]]) {
-          final nk = '${r+d[0]},${c+d[1]}';
+        for (final d in [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1]
+        ]) {
+          final nk = '${r + d[0]},${c + d[1]}';
           if (mask.contains(nk) && !visited.contains(nk)) stack.add(nk);
         }
       }

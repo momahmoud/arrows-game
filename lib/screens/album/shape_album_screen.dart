@@ -102,26 +102,25 @@ class _ShapeTile extends StatelessWidget {
       child: Opacity(
         opacity: owned ? 1 : 0.45,
         child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          GameIcon(
-            kind: owned ? GameIconKind.album : GameIconKind.levelLocked,
-            size: GameIconSizes.feature,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            owned ? name : '???',
-            maxLines: 2,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: GameTypography.caption(
-              owned ? GameColors.text : GameColors.textMuted,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            GameIcon(
+              kind: owned ? GameIconKind.album : GameIconKind.levelLocked,
+              size: GameIconSizes.feature,
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              owned ? name : '???',
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: GameTypography.caption(
+                owned ? GameColors.text : GameColors.textMuted,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
-

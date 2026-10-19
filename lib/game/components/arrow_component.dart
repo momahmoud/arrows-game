@@ -12,8 +12,10 @@ import '../../data/models/arrow.dart';
 import '../../data/models/level.dart';
 import '../arrow_puzzle_game.dart';
 import '../game_state.dart';
+import 'arrow_hit_resolver.dart';
 import 'arrow_visual_config.dart';
 import 'grid_component.dart';
+import 'orphan_dot_painter.dart';
 
 /// Renders a multi-cell arrow that winds through the grid.
 ///
@@ -63,7 +65,9 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
   double _eraseProgress = 0.0;
 
   // ── Juice ───────────────────────────────────────────────────────────────────────
-  double _pressScale = 1.0;
+  double _press = 0.0;
+  double? _feedbackReach;
+  int _modelIndexHint = 0;
   bool _exitBurstDone = false;
   int _exitCombo = 0;
   double _blockerFlash = 0;
@@ -103,8 +107,16 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round
     ..strokeJoin = StrokeJoin.round;
+  final Paint _trailPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0);
+  final Paint _exitHaloPaint = Paint()
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
 
   void _invalidateCache() {
+    _feedbackReach = null;
     _cachedPathPx = null;
     _cachedTrack = null;
     _cachedDist = null;
@@ -134,6 +146,16 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     cellSize = newSize;
     size = Vector2.all(newSize * gameState.level.gridSize);
     _invalidateCache();
+    // Animation tracks are in pixels; rebuild them at the new cell size.
+    if (_deflectedExtension != null) {
+      _deflectedExtension = _buildDeflectedExtension();
+    }
+    if (_isPreviewMode) _previewPath = _buildPreviewPath();
+    if (_isBlockedAnimating) {
+      _slideOffset = 0;
+      _isBlockedAnimating = false;
+      _isAnimating = false;
+    }
   }
 
   // ── Hit test: tap anywhere along the arrow body ───────────────────────────
@@ -141,23 +163,16 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
   @override
   bool containsLocalPoint(Vector2 point) {
     if (_isExiting || _isErasing) return false;
-    // Cells are packed tighter than the arrow is thick, so the tap target
-    // stays the size it had before the spacing change.
-    final margin = cellSize *
-        ((1.5 / AppConstants.boardCellSpacing - 1) / 2);
-    for (final pt in arrowModel.path) {
-      final cellLeft = pt[1] * cellSize - margin;
-      final cellRight = (pt[1] + 1) * cellSize + margin;
-      final cellTop = pt[0] * cellSize - margin;
-      final cellBottom = (pt[0] + 1) * cellSize + margin;
-      if (point.x >= cellLeft &&
-          point.x <= cellRight &&
-          point.y >= cellTop &&
-          point.y <= cellBottom) {
-        return true;
-      }
-    }
-    return false;
+    final grid = _grid;
+    final local = Offset(point.x + position.x, point.y + position.y);
+    if (grid != null) return grid.arrowIdAt(local) == arrowModel.id;
+    return ArrowHitResolver(
+          gridSize: gameState.level.gridSize,
+          cellSize: cellSize,
+          slop: ArrowVisualConfig.hitSlop(cellSize),
+          arrows: [arrowModel],
+        ).arrowAt(local) ==
+        arrowModel.id;
   }
 
   @override
@@ -409,11 +424,14 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
 
   void _playLockedAnimation() {
     final ox = position.x, oy = position.y;
+    final a = ArrowVisualConfig.lockRattle(cellSize);
     add(SequenceEffect([
-      MoveEffect.to(Vector2(ox + 4, oy), EffectController(duration: 0.06)),
-      MoveEffect.to(Vector2(ox - 4, oy), EffectController(duration: 0.06)),
-      MoveEffect.to(Vector2(ox + 3, oy), EffectController(duration: 0.05)),
-      MoveEffect.to(Vector2(ox - 3, oy), EffectController(duration: 0.05)),
+      MoveEffect.to(Vector2(ox + a, oy), EffectController(duration: 0.06)),
+      MoveEffect.to(Vector2(ox - a, oy), EffectController(duration: 0.06)),
+      MoveEffect.to(
+          Vector2(ox + a * 0.75, oy), EffectController(duration: 0.05)),
+      MoveEffect.to(
+          Vector2(ox - a * 0.75, oy), EffectController(duration: 0.05)),
       MoveEffect.to(Vector2(ox, oy), EffectController(duration: 0.04)),
     ], onComplete: () => _isAnimating = false));
   }
@@ -448,10 +466,8 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     }
 
     final pressTarget =
-        (_isTouchDown && !_isAnimating && !_isExiting)
-            ? ArrowVisualConfig.pressedScale
-            : 1.0;
-    _pressScale += (pressTarget - _pressScale) *
+        (_isTouchDown && !_isAnimating && !_isExiting) ? 1.0 : 0.0;
+    _press += (pressTarget - _press) *
         (dt * ArrowVisualConfig.pressResponse).clamp(0.0, 1.0);
 
     if (_isErasing) {
@@ -504,10 +520,16 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     // Sync model from game state (picks up mechanic/state changes)
     ArrowModel? updated;
     final list = gameState.arrows;
-    for (int i = 0; i < list.length; i++) {
-      if (list[i].id == arrowModel.id) {
-        updated = list[i];
-        break;
+    final hint = _modelIndexHint;
+    if (hint < list.length && list[hint].id == arrowModel.id) {
+      updated = list[hint];
+    } else {
+      for (int i = 0; i < list.length; i++) {
+        if (list[i].id == arrowModel.id) {
+          updated = list[i];
+          _modelIndexHint = i;
+          break;
+        }
       }
     }
 
@@ -674,7 +696,7 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
             }
           }
           if (dotDist != null && animHead > dotDist) {
-            _drawOrphanDot(canvas, dotPx, dot.type, cellSize);
+            OrphanDotPainter.paint(canvas, dotPx, dot.type, cellSize);
           }
         }
       }
@@ -687,25 +709,34 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
 
     // ── 5. Resolve color and stroke width ─────────────────────────────────────────────
     final baseColor = _color();
-    final mainColor = _isExiting
+    var mainColor = _isExiting
         ? Color.lerp(
             baseColor,
             Colors.white,
             ArrowVisualConfig.exitLighten +
                 ArrowVisualConfig.exitFlashLighten * _activateFlash)!
         : baseColor;
+    final pressed = _press > 0.001;
+    if (pressed) {
+      mainColor = Color.lerp(mainColor, AppColors.background,
+          ArrowVisualConfig.pressedFade * _press)!;
+    }
     final sw = ArrowVisualConfig.shaftWidth(cellSize);
     final heading = _headingVector(pts, smooth: isAnimatingNow);
 
     canvas.save();
-    if (_pressScale < 0.999 || _isBlockedAnimating) {
+    if (pressed || _isBlockedAnimating) {
       final c = _pathCenter(pathPx);
+      final reach = _feedbackReach ??= _reachFrom(c, pathPx);
       canvas.translate(c.dx, c.dy);
-      if (_pressScale < 0.999) canvas.scale(_pressScale);
+      if (pressed) {
+        final full = ArrowVisualConfig.pressedScaleFor(reach, cellSize);
+        canvas.scale(1 - (1 - full) * _press);
+      }
       if (_isBlockedAnimating && _blockDuration > 0) {
         final damp = 1 - (_blockTime / _blockDuration).clamp(0.0, 1.0);
         canvas.rotate(sin(_blockTime * ArrowVisualConfig.blockShakeFrequency) *
-            ArrowVisualConfig.blockShakeAngle *
+            ArrowVisualConfig.blockShakeAngleFor(reach, cellSize) *
             damp);
       }
       canvas.translate(-c.dx, -c.dy);
@@ -728,9 +759,8 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
         _glowPaint
           ..color =
               const Color(0xFFFF1744).withValues(alpha: 0.25 + 0.35 * pulse)
-          ..strokeWidth =
-              ArrowVisualConfig.unit(cellSize) *
-                  ArrowVisualConfig.blockerGlowWidthRatio
+          ..strokeWidth = ArrowVisualConfig.unit(cellSize) *
+              ArrowVisualConfig.blockerGlowWidthRatio
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0),
       );
     } else if (!isAnimatingNow && gameState.hintArrowId == arrowModel.id) {
@@ -740,9 +770,8 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
         _glowPaint
           ..color =
               const Color(0xFFFFC107).withValues(alpha: 0.18 + 0.22 * pulse)
-          ..strokeWidth =
-              ArrowVisualConfig.unit(cellSize) *
-                  ArrowVisualConfig.hintGlowWidthRatio
+          ..strokeWidth = ArrowVisualConfig.unit(cellSize) *
+              ArrowVisualConfig.hintGlowWidthRatio
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0),
       );
     }
@@ -751,9 +780,7 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
       canvas.drawCircle(
         pts.first,
         cellSize * 0.34,
-        Paint()
-          ..color = baseColor.withValues(alpha: 0.22)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
+        _exitHaloPaint..color = baseColor.withValues(alpha: 0.22),
       );
     }
 
@@ -794,6 +821,15 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
     return Offset((minX + maxX) / 2, (minY + maxY) / 2);
   }
 
+  /// Farthest drawn point from [c]: path points plus the head's own length.
+  double _reachFrom(Offset c, List<Offset> pathPx) {
+    var reach = 0.0;
+    for (final p in pathPx) {
+      reach = max(reach, (p - c).distance);
+    }
+    return reach + ArrowVisualConfig.headLength(cellSize);
+  }
+
   /// Glowing streak over the cells the tail just vacated, brightest nearest
   /// the tail so it reads as motion toward the exit.
   void _drawExitTrail(Canvas canvas, List<Offset> track, List<double> dist,
@@ -814,13 +850,9 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
       }
       canvas.drawPath(
         path,
-        Paint()
+        _trailPaint
           ..color = color.withValues(alpha: 0.38 * (1 - i / segments))
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = cellSize * (0.34 - i * 0.07)
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0),
+          ..strokeWidth = cellSize * (0.34 - i * 0.07),
       );
     }
   }
@@ -1092,94 +1124,5 @@ class ArrowComponent extends PositionComponent with TapCallbacks, HasPaint {
       }
     }
     return track.last;
-  }
-
-  static void _drawOrphanDot(
-      Canvas canvas, Offset center, OrphanDotType type, double cs) {
-    if (type == OrphanDotType.neutral)
-      return; // Neutral empty dots can be left empty
-
-    const Color baseColor = Color(0xFFFFAA00); // Gold/orange redirect plate
-
-    // Solid dot body (plate) - enlarged to be highly visible
-    canvas.drawCircle(
-      center,
-      cs * 0.36, // Much larger plate (72% of cell size!)
-      Paint()
-        ..color = baseColor
-        ..style = PaintingStyle.fill,
-    );
-
-    // Darker outline for contrast
-    canvas.drawCircle(
-      center,
-      cs * 0.36,
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.18)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = cs * 0.045,
-    );
-
-    // Drawing the arrow in the middle of the gold plate
-    if (type != OrphanDotType.neutral) {
-      final ArrowDirection dir;
-      switch (type) {
-        case OrphanDotType.up:
-          dir = ArrowDirection.up;
-          break;
-        case OrphanDotType.down:
-          dir = ArrowDirection.down;
-          break;
-        case OrphanDotType.left:
-          dir = ArrowDirection.left;
-          break;
-        case OrphanDotType.right:
-          dir = ArrowDirection.right;
-          break;
-        default:
-          return;
-      }
-
-      final double angle = dir.rotationRadians; // Right is 0 rad
-
-      canvas.save();
-      canvas.translate(center.dx, center.dy);
-      canvas.rotate(angle);
-
-      final linePaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = cs * 0.075 // Thick lines
-        ..strokeCap = StrokeCap.round;
-
-      // Draw the arrow shaft in the middle
-      canvas.drawLine(Offset(-cs * 0.22, 0), Offset(cs * 0.06, 0), linePaint);
-
-      // Draw a large centered arrowhead pointing right
-      final arrowheadPath = Path()
-        ..moveTo(cs * 0.28, 0) // Tip of the arrow
-        ..lineTo(cs * 0.04, -cs * 0.18) // Back corner top
-        ..lineTo(cs * 0.10, 0) // Recess center point
-        ..lineTo(cs * 0.04, cs * 0.18) // Back corner bottom
-        ..close();
-
-      canvas.drawPath(
-        arrowheadPath,
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.fill,
-      );
-
-      canvas.restore();
-    } else {
-      // Draw a small solid white dot in the center of neutral dots for a clean focal point
-      canvas.drawCircle(
-        center,
-        cs * 0.075,
-        Paint()
-          ..color = Colors.white.withValues(alpha: 0.85)
-          ..style = PaintingStyle.fill,
-      );
-    }
   }
 }

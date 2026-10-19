@@ -757,4 +757,44 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get loadingMessagesGod =>
       'Consulting the ancient scrolls…|Aligning the stars…|Channelling cosmic energy…|Weaving reality into knots…|Asking the oracle for a riddle…|Distilling the essence of madness…|Folding space and time…|Summoning the elder puzzle gods…|Rewriting the laws of physics…|Manifesting pure enlightenment…';
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String get pausedTitle => 'Paused';
+
+  @override
+  String get keepPlaying => 'Keep playing';
+
+  @override
+  String get restartConfirmTitle => 'Restart this level?';
+
+  @override
+  String get restartConfirmBody =>
+      'The board, hearts, and boosters for this level start over.';
+
+  @override
+  String get leaveConfirmTitle => 'Leave this level?';
+
+  @override
+  String get leaveConfirmBody => 'Your progress on this board won\'t be saved.';
+
+  @override
+  String get leaveLevel => 'Leave';
+
+  @override
+  String heartsLeft(int lives, int max) {
+    return '$lives of $max hearts left';
+  }
+
+  @override
+  String boosterLeft(String name, int count) {
+    return '$name, $count left';
+  }
+
+  @override
+  String boosterEmpty(String name) {
+    return '$name, none left';
+  }
 }

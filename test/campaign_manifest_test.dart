@@ -1,4 +1,8 @@
 // ignore_for_file: avoid_print
+
+@Tags(['generator'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -16,8 +20,7 @@ void main() {
     final bin = File('assets/levels.bin');
     expect(bin.existsSync(), isTrue, reason: 'Run build_levels_bin_test first');
 
-    final decoder =
-        LevelBinaryDecoder.fromBytes(bin.readAsBytesSync());
+    final decoder = LevelBinaryDecoder.fromBytes(bin.readAsBytesSync());
     expect(decoder.levelCount, 1000);
 
     final fps = <String>{};
@@ -59,8 +62,10 @@ void main() {
         shapeType: level.maskShape.name,
       );
       totalArrows += level.arrows.length;
-      minArrows = minArrows > level.arrows.length ? level.arrows.length : minArrows;
-      maxArrows = maxArrows < level.arrows.length ? level.arrows.length : maxArrows;
+      minArrows =
+          minArrows > level.arrows.length ? level.arrows.length : minArrows;
+      maxArrows =
+          maxArrows < level.arrows.length ? level.arrows.length : maxArrows;
       totalDen += profile.densityScore;
       if (profile.densityScore < minDen) minDen = profile.densityScore;
       if (profile.densityScore > maxDen) maxDen = profile.densityScore;

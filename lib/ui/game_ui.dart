@@ -9,6 +9,7 @@ export 'widgets/coin_fly.dart';
 export 'widgets/economy_cards.dart';
 export 'widgets/game_badges.dart';
 export 'widgets/game_button.dart';
+export 'widgets/game_dialog.dart';
 export 'widgets/heart_display.dart';
 export 'widgets/icon_kit.dart';
 export 'widgets/level_card.dart';

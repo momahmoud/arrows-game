@@ -1,4 +1,8 @@
 // ignore_for_file: avoid_print
+
+@Tags(['generator'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -111,7 +115,8 @@ void _merge() {
   final bytes = encodeLevels(levels);
   source.writeAsBytesSync(bytes);
   final normals = levels
-      .where((l) => AppConstants.levelTypeFor(l.levelNumber) == LevelType.normal)
+      .where(
+          (l) => AppConstants.levelTypeFor(l.levelNumber) == LevelType.normal)
       .length;
   print('levels.bin: ${levels.length} levels, '
       '${normals - kept.length} of $normals normal levels reshaped, '

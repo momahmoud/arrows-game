@@ -112,8 +112,7 @@ class LevelGeneratorV2 {
     LevelModel? level;
 
     final bool isLargeGrid = gridSize > 20 ||
-        (type == LevelType.normal &&
-            CampaignComposition.hasBrief(levelNumber));
+        (type == LevelType.normal && CampaignComposition.hasBrief(levelNumber));
     final int maxAttempts =
         isLargeGrid ? (type == LevelType.normal ? 140 : 160) : 140;
 
@@ -462,9 +461,8 @@ class LevelGeneratorV2 {
         ? CampaignComposition.briefFor(levelNumber)
         : null;
 
-    bool fillEntireGrid = type != LevelType.tutorial &&
-        attempt < 12 &&
-        brief == null;
+    bool fillEntireGrid =
+        type != LevelType.tutorial && attempt < 12 && brief == null;
     if (levelNumber == 213 || levelNumber == 395 || levelNumber == 437) {
       fillEntireGrid = false;
     }
@@ -486,8 +484,7 @@ class LevelGeneratorV2 {
         maskCells: mask.length,
       );
       final maxA = CampaignLevelSpec.maxArrowCount(levelNumber, type);
-      targetCount =
-          (targetOccupied / params.avgLen).round().clamp(minA, maxA);
+      targetCount = (targetOccupied / params.avgLen).round().clamp(minA, maxA);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -720,9 +717,8 @@ class LevelGeneratorV2 {
       final double phase2MaxFill = _phase2MaxFill(levelNumber, type);
       final int phase2TargetCells = (maskPacked.length * phase2MaxFill).round();
       final int maxAllowedBlocks = 0;
-      final int arrowCap = brief == null
-          ? 500
-          : brief.targetArrows + (attempt > 16 ? 2 : 0);
+      final int arrowCap =
+          brief == null ? 500 : brief.targetArrows + (attempt > 16 ? 2 : 0);
 
       if (arrows.length >= minArrowsForLevel) {
         _extendTails(
@@ -1030,8 +1026,7 @@ class LevelGeneratorV2 {
       return null;
     }
 
-    if (type != LevelType.tutorial &&
-        arrows.length < minArrowsForLevel) {
+    if (type != LevelType.tutorial && arrows.length < minArrowsForLevel) {
       _log('Level $levelNumber Attempt $attempt: too few arrows '
           '(${arrows.length})\n');
       return null;
@@ -1168,7 +1163,8 @@ class LevelGeneratorV2 {
       attempt: attempt,
     );
     if (campaignIssues.isNotEmpty && attempt < 30) {
-      _log('Level $levelNumber Attempt $attempt: ${campaignIssues.first.message}\n');
+      _log(
+          'Level $levelNumber Attempt $attempt: ${campaignIssues.first.message}\n');
       return null;
     }
     if (_rejectsLayout(
@@ -1482,10 +1478,6 @@ class LevelGeneratorV2 {
         for (final a in arrows) {
           for (final pt in a.path) allCells.add('${pt[0]},${pt[1]}');
         }
-        final otherThanKey = Set<String>.from(allCells)
-          ..removeAll(arrows[ki].path.map((p) => '${p[0]},${p[1]}'));
-        final otherThanLock = Set<String>.from(allCells)
-          ..removeAll(arrows[li].path.map((p) => '${p[0]},${p[1]}'));
 
         final oldKi = arrows[ki], oldLi = arrows[li];
         arrows[ki] = arrows[ki].copyWith(
@@ -1564,9 +1556,10 @@ class LevelGeneratorV2 {
               orphanDots: orphanDots,
             );
 
-            final solvable = gridSize > 20 || CampaignComposition.hasBrief(level)
-                ? _greedySolve(tempLevel) != null
-                : LevelSolver.solve(tempLevel, 2000) != null;
+            final solvable =
+                gridSize > 20 || CampaignComposition.hasBrief(level)
+                    ? _greedySolve(tempLevel) != null
+                    : LevelSolver.solve(tempLevel, 2000) != null;
 
             if (solvable) {
               actualPairs++;
@@ -1623,9 +1616,10 @@ class LevelGeneratorV2 {
               orphanDots: orphanDots,
             );
 
-            final solvable = gridSize > 20 || CampaignComposition.hasBrief(level)
-                ? _greedySolve(tempLevel) != null
-                : LevelSolver.solve(tempLevel, 2000) != null;
+            final solvable =
+                gridSize > 20 || CampaignComposition.hasBrief(level)
+                    ? _greedySolve(tempLevel) != null
+                    : LevelSolver.solve(tempLevel, 2000) != null;
 
             if (solvable) {
               actualPairs++;
@@ -1851,8 +1845,7 @@ class LevelGeneratorV2 {
     final spinRight = rng.nextBool();
     ArrowDirection? lastTurn;
 
-    final double turnBias =
-        pathBias?.turnBias ?? (0.06 + tangleFactor * 0.78);
+    final double turnBias = pathBias?.turnBias ?? (0.06 + tangleFactor * 0.78);
     final int maxStraight = pathBias?.maxStraight ??
         (tangleFactor < 0.2
             ? 8
@@ -2215,8 +2208,7 @@ class LevelGeneratorV2 {
     final maxA = CampaignLevelSpec.maxArrowCount(level, type);
     final target = CampaignLevelSpec.targetArrowCount(level, type, mask.length);
     final fromMask = (mask.length / avgLen).round();
-    final arrowCount =
-        max(max(target, fromMask), minA).clamp(minA, maxA);
+    final arrowCount = max(max(target, fromMask), minA).clamp(minA, maxA);
     return _Params(arrowCount, avgLen);
   }
 

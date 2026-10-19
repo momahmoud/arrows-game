@@ -15,9 +15,9 @@ bool _isCachedLevelValid(int levelNumber, Map<String, dynamic> json) {
     final patternName = json['patternName'] as String?;
     if (patternName == 'fallback') return false; // Evict fallback levels
 
-    final gridSize  = (json['gridSize'] as num?)?.toInt() ?? 10;
+    final gridSize = (json['gridSize'] as num?)?.toInt() ?? 10;
     final arrowCount = (json['arrows'] as List?)?.length ?? 0;
-    final minArrows  = (gridSize ~/ 2).clamp(8, 999);
+    final minArrows = (gridSize ~/ 2).clamp(8, 999);
     return arrowCount >= minArrows;
   } catch (_) {
     return false; // Corrupt JSON → regenerate
@@ -42,7 +42,7 @@ void runChunk({
   required String logFile,
 }) {
   final cacheF = File(cacheFile);
-  final logF   = File(logFile);
+  final logF = File(logFile);
 
   // ── Load & validate existing cache ──────────────────────────────────────
   final Map<int, Map<String, dynamic>> cache = {};
@@ -70,7 +70,7 @@ void runChunk({
   }
 
   void log(String msg) {
-    final ts   = DateTime.now().toIso8601String().substring(11, 19);
+    final ts = DateTime.now().toIso8601String().substring(11, 19);
     final line = '[$ts] $msg';
     print(line);
     logF.writeAsStringSync('$line\n', mode: FileMode.append);
@@ -97,9 +97,7 @@ void runChunk({
       final level = LevelGenerator.generateLevel(lvl);
       lsw.stop();
       final ms = lsw.elapsedMilliseconds;
-      final t  = ms > 1000
-          ? '${(ms / 1000).toStringAsFixed(1)}s'
-          : '${ms}ms';
+      final t = ms > 1000 ? '${(ms / 1000).toStringAsFixed(1)}s' : '${ms}ms';
       log('Level $lvl - OK  ${level.arrows.length} arrows'
           '  ${level.gridSize}x${level.gridSize}  $t');
       cache[lvl] = level.toJson();

@@ -2,6 +2,25 @@ import 'dart:typed_data';
 import '../models/arrow.dart';
 import '../models/level.dart';
 
+/// Outcome of a DFS solve attempt. Distinguishes search-limit exhaustion
+/// from a fully explored unsolvable state.
+enum SolveStatus { solved, unsolvable, limitReached }
+
+class SolveOutcome {
+  const SolveOutcome.solved(this.solution) : status = SolveStatus.solved;
+  const SolveOutcome.unsolvable()
+      : status = SolveStatus.unsolvable,
+        solution = null;
+  const SolveOutcome.limitReached()
+      : status = SolveStatus.limitReached,
+        solution = null;
+
+  final SolveStatus status;
+  final List<String>? solution;
+
+  bool get isSolved => status == SolveStatus.solved;
+}
+
 /// Backtracking solver that verifies a level is solvable.
 /// Uses DFS with backtracking over grid states to find at least one solution.
 /// Returns the solution sequence (list of arrow IDs) or null if unsolvable.
@@ -11,8 +30,18 @@ import '../models/level.dart';
 class LevelSolver {
   static const int maxStates = 5000; // Safety cap for DFS recursion
 
-  /// Returns a valid solution order of arrow IDs, or null if unsolvable.
-  static List<String>? solve(LevelModel level, [int maxStatesLimit = maxStates]) {
+  /// Returns a valid solution order of arrow IDs, or null if not proven solvable.
+  /// Prefer [attempt] when search-limit exhaustion must be distinguished from
+  /// a fully explored unsolvable board.
+  static List<String>? solve(LevelModel level,
+      [int maxStatesLimit = maxStates]) {
+    final outcome = attempt(level, maxStatesLimit);
+    return outcome.isSolved ? outcome.solution : null;
+  }
+
+  /// DFS solve with an explicit [SolveStatus] for limit vs unsolvable.
+  static SolveOutcome attempt(LevelModel level,
+      [int maxStatesLimit = maxStates]) {
     final gridSize = level.gridSize;
     final arrows = level.arrows;
     final orphanDots = level.orphanDots;
@@ -53,7 +82,7 @@ class LevelSolver {
 
     // 4. Initialize tracker states
     final activeArrows = List<bool>.filled(arrows.length, true);
-    
+
     // Hash state incrementally
     int arrowHash = 0;
     for (int i = 0; i < arrows.length; i++) {
@@ -68,6 +97,7 @@ class LevelSolver {
     final visited = <String>{};
     final path = <String>[];
     int statesVisited = 0;
+    var hitLimit = false;
 
     // Preallocated visited cache for exit path simulation to prevent GC churn in hot path
     final exitVisited = Uint32List(gridSize * gridSize);
@@ -75,7 +105,10 @@ class LevelSolver {
 
     bool dfs(int remainingCount) {
       if (remainingCount == 0) return true;
-      if (statesVisited > maxStatesLimit) return false;
+      if (statesVisited > maxStatesLimit) {
+        hitLimit = true;
+        return false;
+      }
 
       final hash = '$arrowHash|$groupHash|$dotHash';
       if (visited.contains(hash)) return false;
@@ -99,7 +132,8 @@ class LevelSolver {
             exitVisited.fillRange(0, exitVisited.length, 0);
             exitToken = 1;
           }
-          final consumed1 = _simulateExit(i, partner, gridSize, board, activeOrphans, orphanTypes, arrows, exitVisited, exitToken);
+          final consumed1 = _simulateExit(i, partner, gridSize, board,
+              activeOrphans, orphanTypes, arrows, exitVisited, exitToken);
           if (consumed1 == null) continue;
 
           exitToken++;
@@ -107,7 +141,8 @@ class LevelSolver {
             exitVisited.fillRange(0, exitVisited.length, 0);
             exitToken = 1;
           }
-          final consumed2 = _simulateExit(partner, i, gridSize, board, activeOrphans, orphanTypes, arrows, exitVisited, exitToken);
+          final consumed2 = _simulateExit(partner, i, gridSize, board,
+              activeOrphans, orphanTypes, arrows, exitVisited, exitToken);
           if (consumed2 == null) continue;
 
           // Apply move
@@ -119,7 +154,8 @@ class LevelSolver {
 
           // Clear cells on board
           for (final pt in arrows[i].path) board[pt[0] * gridSize + pt[1]] = 0;
-          for (final pt in arrows[partner].path) board[pt[0] * gridSize + pt[1]] = 0;
+          for (final pt in arrows[partner].path)
+            board[pt[0] * gridSize + pt[1]] = 0;
 
           // Deactivate consumed orphans
           final deactivated = <int>[];
@@ -155,8 +191,10 @@ class LevelSolver {
             final odKey = '${idx ~/ gridSize},${idx % gridSize}';
             dotHash ^= odKey.hashCode;
           }
-          for (final pt in arrows[partner].path) board[pt[0] * gridSize + pt[1]] = partner + 1;
-          for (final pt in arrows[i].path) board[pt[0] * gridSize + pt[1]] = i + 1;
+          for (final pt in arrows[partner].path)
+            board[pt[0] * gridSize + pt[1]] = partner + 1;
+          for (final pt in arrows[i].path)
+            board[pt[0] * gridSize + pt[1]] = i + 1;
           arrowHash ^= id1.hashCode ^ id2.hashCode;
           activeArrows[partner] = true;
           activeArrows[i] = true;
@@ -167,7 +205,8 @@ class LevelSolver {
             exitVisited.fillRange(0, exitVisited.length, 0);
             exitToken = 1;
           }
-          final consumed = _simulateExit(i, -1, gridSize, board, activeOrphans, orphanTypes, arrows, exitVisited, exitToken);
+          final consumed = _simulateExit(i, -1, gridSize, board, activeOrphans,
+              orphanTypes, arrows, exitVisited, exitToken);
           if (consumed == null) continue;
 
           // Apply move
@@ -200,7 +239,8 @@ class LevelSolver {
             final odKey = '${idx ~/ gridSize},${idx % gridSize}';
             dotHash ^= odKey.hashCode;
           }
-          for (final pt in arrows[i].path) board[pt[0] * gridSize + pt[1]] = i + 1;
+          for (final pt in arrows[i].path)
+            board[pt[0] * gridSize + pt[1]] = i + 1;
           arrowHash ^= id.hashCode;
           activeArrows[i] = true;
         }
@@ -208,8 +248,11 @@ class LevelSolver {
       return false;
     }
 
-    if (dfs(arrows.length)) return path;
-    return null;
+    if (dfs(arrows.length)) {
+      return SolveOutcome.solved(List<String>.from(path));
+    }
+    if (hitLimit) return const SolveOutcome.limitReached();
+    return const SolveOutcome.unsolvable();
   }
 
   static List<int>? _simulateExit(
@@ -238,13 +281,18 @@ class LevelSolver {
       if (activeOrphans[idx]) {
         consumed.add(idx);
         final typeVal = orphanTypes[idx];
-        if (typeVal == 0) currentDir = ArrowDirection.up;
-        else if (typeVal == 1) currentDir = ArrowDirection.down;
-        else if (typeVal == 2) currentDir = ArrowDirection.left;
+        if (typeVal == 0)
+          currentDir = ArrowDirection.up;
+        else if (typeVal == 1)
+          currentDir = ArrowDirection.down;
+        else if (typeVal == 2)
+          currentDir = ArrowDirection.left;
         else if (typeVal == 3) currentDir = ArrowDirection.right;
       } else {
         final val = board[idx];
-        if (val != 0 && val != arrowIdx + 1 && (partnerIdx == -1 || val != partnerIdx + 1)) {
+        if (val != 0 &&
+            val != arrowIdx + 1 &&
+            (partnerIdx == -1 || val != partnerIdx + 1)) {
           return null;
         }
       }

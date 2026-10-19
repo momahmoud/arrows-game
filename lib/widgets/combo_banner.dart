@@ -34,12 +34,14 @@ class ComboBanner extends StatelessWidget {
         letterSpacing: 1.2,
         shadows: [
           Shadow(color: color.withValues(alpha: 0.45), blurRadius: 14),
-          const Shadow(color: Color(0x55000000), blurRadius: 3, offset: Offset(0, 2)),
+          const Shadow(
+              color: Color(0x55000000), blurRadius: 3, offset: Offset(0, 2)),
         ],
       ),
     )
         .animate(key: ValueKey(combo))
-        .scaleXY(begin: 0.5, end: 1.0, duration: 320.ms, curve: Curves.elasticOut)
+        .scaleXY(
+            begin: 0.5, end: 1.0, duration: 320.ms, curve: Curves.elasticOut)
         .fadeIn(duration: 120.ms)
         .then(delay: 650.ms)
         .fadeOut(duration: 300.ms)

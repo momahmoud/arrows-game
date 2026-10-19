@@ -118,8 +118,7 @@ class MetaRules {
   }
 
   /// Shown before the run. A perfect clear pays [dailyChallengePerfect] instead.
-  static int dailyCoinReward(int streakDays) =>
-      EconomyConfig.dailyChallenge;
+  static int dailyCoinReward(int streakDays) => EconomyConfig.dailyChallenge;
 
   static const wheel = <WheelSlice>[
     WheelSlice(label: '50', coins: 50),

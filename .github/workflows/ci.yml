@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [development, main, 'dev/**', 'feature/**']
+  workflow_call:
+    inputs:
+      strict-campaign:
+        description: Fail the campaign audit on unverified levels too.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  FLUTTER_VERSION: '3.47.1'
+
+jobs:
+  checks:
+    name: Format, analyze, tests, campaign audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Repository checks (secrets, levels.bin pin)
+        run: scripts/ci/check_repo.sh
+
+      # lib/core/ad_secrets.dart is git-ignored; tests only need it to compile.
+      # The example IDs never reach a release build (see release.yml).
+      - name: Placeholder ad config for compilation
+        run: cp lib/core/ad_secrets_example.dart lib/core/ad_secrets.dart
+
+      - name: Resolve dependencies from pubspec.lock
+        run: flutter pub get --enforce-lockfile
+
+      - name: Generated localizations are up to date
+        run: |
+          flutter gen-l10n
+          git diff --exit-code -- lib/l10n/generated
+          test -z "$(git status --porcelain -- lib/l10n/generated)"
+
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Unit, widget, codec, progression and localization tests
+        run: flutter test --exclude-tags generator,campaign,slow,release,candidates
+
+      - name: Full campaign audit and quality profile (assets/levels.bin)
+        env:
+          CAMPAIGN_AUDIT_JSON: build/campaign_audit.json
+          CAMPAIGN_AUDIT_STRICT: ${{ inputs.strict-campaign && '1' || '0' }}
+          LEVEL_QUALITY_JSON: build/level_quality.json
+        run: flutter test --tags campaign
+
+      - name: Upload campaign audit reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: campaign-audit
+          path: |
+            build/campaign_audit.json
+            build/level_quality.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Tests left the working tree clean
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            echo "::error::Tests modified tracked files or created untracked files."
+            exit 1
+          fi
+
+  slow:
+    name: Slow regression tests
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Placeholder ad config for compilation
+        run: cp lib/core/ad_secrets_example.dart lib/core/ad_secrets.dart
+
+      - name: Resolve dependencies from pubspec.lock
+        run: flutter pub get --enforce-lockfile
+
+      - name: Slow tests
+        run: flutter test --tags slow

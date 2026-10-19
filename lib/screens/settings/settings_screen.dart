@@ -179,6 +179,15 @@ class SettingsScreen extends StatelessWidget {
                                 onTap: () => Navigator.pushNamed(
                                     context, '/shape_preview'),
                               ),
+                            if (AppConstants.enableFirst500Playtest)
+                              _SettingsTile(
+                                icon: GameIconKind.info,
+                                label: 'First-500 playtest (dev)',
+                                trailing: const GameIcon(
+                                    kind: GameIconKind.chevron, size: 18),
+                                onTap: () => Navigator.pushNamed(
+                                    context, '/first500_playtest'),
+                              ),
                             _SettingsTile(
                               icon: GameIconKind.shield,
                               label: context.l10n.privacyPolicy,

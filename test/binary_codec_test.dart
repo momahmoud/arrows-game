@@ -9,7 +9,8 @@ import 'package:arrow_escape/data/level_binary_codec.dart';
 /// Run from project root:
 ///   flutter test test/binary_codec_test.dart -r expanded
 void main() {
-  test('Binary codec round-trip: encode then decode produces identical levels', () {
+  test('Binary codec round-trip: encode then decode produces identical levels',
+      () {
     print('Binary codec round-trip test');
     print('────────────────────────────');
 
@@ -22,7 +23,8 @@ void main() {
 
       // Encode this single level into binary
       final encoded = encodeLevels([original]);
-      expect(encoded.length, greaterThan(8), reason: 'Encoded must have header');
+      expect(encoded.length, greaterThan(8),
+          reason: 'Encoded must have header');
 
       // Decode it back
       final decoder = LevelBinaryDecoder.fromBytes(encoded);
@@ -46,10 +48,12 @@ void main() {
         issues.add('difficulty: ${d.difficulty} != ${original.difficulty}');
       }
       if (d.patternName != original.patternName) {
-        issues.add('patternName: "${d.patternName}" != "${original.patternName}"');
+        issues.add(
+            'patternName: "${d.patternName}" != "${original.patternName}"');
       }
       if (d.arrows.length != original.arrows.length) {
-        issues.add('arrowCount: ${d.arrows.length} != ${original.arrows.length}');
+        issues
+            .add('arrowCount: ${d.arrows.length} != ${original.arrows.length}');
       }
       if (d.mask.length != original.mask.length) {
         issues.add('maskSize: ${d.mask.length} != ${original.mask.length}');
@@ -60,10 +64,12 @@ void main() {
         }
       }
       if (d.orphanDots.length != original.orphanDots.length) {
-        issues.add('orphanDots: ${d.orphanDots.length} != ${original.orphanDots.length}');
+        issues.add(
+            'orphanDots: ${d.orphanDots.length} != ${original.orphanDots.length}');
       }
       if (d.solutionOrder.length != original.solutionOrder.length) {
-        issues.add('solutionOrder len: ${d.solutionOrder.length} != ${original.solutionOrder.length}');
+        issues.add(
+            'solutionOrder len: ${d.solutionOrder.length} != ${original.solutionOrder.length}');
       }
 
       // Verify arrow paths
@@ -77,13 +83,16 @@ void main() {
           issues.add('arrow[$i] mechanic: ${da.mechanic} != ${oa.mechanic}');
         }
         if (oa.isPartOfPattern != da.isPartOfPattern) {
-          issues.add('arrow[$i] isPartOfPattern: ${da.isPartOfPattern} != ${oa.isPartOfPattern}');
+          issues.add(
+              'arrow[$i] isPartOfPattern: ${da.isPartOfPattern} != ${oa.isPartOfPattern}');
         }
         if (oa.path.length != da.path.length) {
-          issues.add('arrow[$i] pathLen: ${da.path.length} != ${oa.path.length}');
+          issues
+              .add('arrow[$i] pathLen: ${da.path.length} != ${oa.path.length}');
         } else {
           for (int j = 0; j < oa.path.length; j++) {
-            if (oa.path[j][0] != da.path[j][0] || oa.path[j][1] != da.path[j][1]) {
+            if (oa.path[j][0] != da.path[j][0] ||
+                oa.path[j][1] != da.path[j][1]) {
               issues.add('arrow[$i] path[$j]: ${da.path[j]} != ${oa.path[j]}');
               break;
             }
@@ -108,7 +117,8 @@ void main() {
     print('Results: $passed passed, $failed failed');
 
     // Size check if both files exist
-    if (File('assets/levels.bin').existsSync() && File('assets/levels.json').existsSync()) {
+    if (File('assets/levels.bin').existsSync() &&
+        File('assets/levels.json').existsSync()) {
       final binKb = File('assets/levels.bin').lengthSync() / 1024;
       final jsonKb = File('assets/levels.json').lengthSync() / 1024;
       print('');

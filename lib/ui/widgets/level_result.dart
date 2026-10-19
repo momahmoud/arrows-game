@@ -70,8 +70,11 @@ class LevelResultPanel extends StatelessWidget {
     this.chest,
     this.onWatchAd,
     this.showCoinAd = false,
+    this.canAdvance = true,
   });
 
+  /// False when Next would leave the current mode, such as a daily run.
+  final bool canAdvance;
   final LevelModel level;
   final int stars;
   final int coins;
@@ -84,6 +87,7 @@ class LevelResultPanel extends StatelessWidget {
   final bool showCoinAd;
 
   bool get _last => level.levelNumber >= AppConstants.totalLevels;
+  bool get _advances => canAdvance && !_last;
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +129,7 @@ class LevelResultPanel extends StatelessWidget {
             Text(
               l10n.chestReward(chest!.coins, l10n.powerUp(chest!.powerUp)),
               textAlign: TextAlign.center,
-              style: GameTypography.caption(GameColors.coinInk),
+              style: GameTypography.caption(GameColors.rewardText),
             ),
           ],
           const SizedBox(height: 8),
@@ -137,11 +141,20 @@ class LevelResultPanel extends StatelessWidget {
               child: Text(
                 l10n.finishedGameTitle,
                 textAlign: TextAlign.center,
-                style: GameTypography.section(GameColors.coinInk),
+                style: GameTypography.section(GameColors.rewardText),
               ),
-            )
+            ),
+          if (_advances)
+            NextLevelButton(onPressed: onNext)
           else
-            NextLevelButton(onPressed: onNext),
+            GameButton(
+              label: l10n.navHome,
+              icon: GameIconKind.home,
+              onPressed: () {
+                AudioManager.instance.playClick();
+                onHome();
+              },
+            ),
           if (showCoinAd && onWatchAd != null) ...[
             const SizedBox(height: 8),
             GameButton(
@@ -160,7 +173,7 @@ class LevelResultPanel extends StatelessWidget {
           ResultActionRow(
             children: [
               ReplayButton(onPressed: onReplay),
-              HomeResultButton(onPressed: onHome),
+              if (_advances) HomeResultButton(onPressed: onHome),
             ],
           ),
         ],
@@ -222,7 +235,7 @@ class ResultHeader extends StatelessWidget {
           Text(
             l10n.newBest,
             textAlign: TextAlign.center,
-            style: GameTypography.caption(GameColors.coinInk),
+            style: GameTypography.caption(GameColors.rewardText),
           ),
         ],
       ],
@@ -300,7 +313,7 @@ class _CoinRewardState extends State<CoinReward> {
         const SizedBox(width: 6),
         Text(
           formatCoins(context, widget.coins, signed: true),
-          style: GameTypography.display(GameColors.coinInk),
+          style: GameTypography.display(GameColors.rewardText),
         ),
       ],
     );

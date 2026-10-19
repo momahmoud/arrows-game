@@ -16,7 +16,8 @@ class TutorialHand extends StatelessWidget {
         children: [
           const GameIcon(kind: GameIconKind.hint, size: 56)
               .animate(onPlay: (c) => c.repeat(reverse: true))
-              .moveY(begin: 0, end: 14, duration: 650.ms, curve: Curves.easeInOut)
+              .moveY(
+                  begin: 0, end: 14, duration: 650.ms, curve: Curves.easeInOut)
               .scaleXY(begin: 1, end: 0.92, duration: 650.ms),
           const SizedBox(height: 2),
           Text(

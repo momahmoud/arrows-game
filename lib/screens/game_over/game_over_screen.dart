@@ -126,7 +126,8 @@ class GameOverScreen extends StatelessWidget {
                   icon: GameIconKind.restart,
                   variant: GameButtonVariant.secondary,
                   label: context.l10n.restartLevel,
-                  subtitle: context.l10n.startOverWithLives(AppConstants.maxLives),
+                  subtitle:
+                      context.l10n.startOverWithLives(AppConstants.maxLives),
                   onTap: () {
                     Navigator.pushReplacementNamed(context, '/game',
                         arguments: {'level': levelNumber});

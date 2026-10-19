@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import '../models/level.dart';
 import '../../core/board_style.dart';
@@ -9,6 +10,9 @@ import '../../core/economy_config.dart';
 import '../../core/audio_manager.dart';
 import '../../game/game_state.dart';
 import '../meta_rules.dart';
+
+/// Result of [ProgressRepository.grantStorePurchase].
+enum StoreGrant { granted, alreadyGranted, rejected, notSaved }
 
 class ProgressRepository extends ChangeNotifier {
   final SharedPreferences? _prefs;
@@ -234,10 +238,13 @@ class ProgressRepository extends ChangeNotifier {
     }
   }
 
-  Future<void> _save() async {
-    if (_prefs == null) return;
+  /// Writes every key. False when any write fails or reports failure.
+  Future<bool> _save() async {
+    final prefs = _prefs;
+    if (prefs == null) return true;
+    var saved = true;
     try {
-      await Future.wait([
+      final written = await Future.wait([
         _prefs!.setInt('lives', _lives),
         _prefs!.setInt('currentLevel', _currentLevel),
         _prefs!.setInt('highestUnlockedLevel', _highestUnlockedLevel),
@@ -279,18 +286,25 @@ class ProgressRepository extends ChangeNotifier {
           _prefs!
               .setString('lastPlayedDate', _lastPlayedDate!.toIso8601String()),
       ]);
+      saved = !written.contains(false);
     } catch (e) {
+      saved = false;
       debugPrint('Error saving progress: $e');
     }
 
-    // Save level results
-    if (_prefs != null) {
+    try {
       final Map<String, dynamic> resultsMap = {};
       for (final entry in _levelResults.entries) {
         resultsMap[entry.key.toString()] = entry.value.toJson();
       }
-      await _prefs?.setString('levelResults', jsonEncode(resultsMap));
+      if (!await prefs.setString('levelResults', jsonEncode(resultsMap))) {
+        saved = false;
+      }
+    } catch (e) {
+      saved = false;
+      debugPrint('Error saving level results: $e');
     }
+    return saved;
   }
 
   // ── Lives — restored only via rewarded ad or level restart ─────────────────
@@ -637,30 +651,42 @@ class ProgressRepository extends ChangeNotifier {
     return reward;
   }
 
-  /// Grants a store purchase once per [transactionId]. Returns coins added.
-  /// An empty or unknown purchase adds nothing. Cancelled purchases never
-  /// reach this method.
-  int grantStorePurchase({
+  /// Grants a store purchase once per [transactionId] and waits for the save.
+  /// The store purchase may be finished only after [StoreGrant.granted] or
+  /// [StoreGrant.alreadyGranted]. [StoreGrant.notSaved] undoes the grant so
+  /// the store can deliver the same purchase again.
+  Future<StoreGrant> grantStorePurchase({
     required String productId,
     required String transactionId,
-  }) {
-    if (transactionId.isEmpty) return 0;
-    if (!_storeTransactions.add(transactionId)) return 0;
-    if (EconomyConfig.isRemoveAds(productId)) {
+  }) async {
+    final removeAds = EconomyConfig.isRemoveAds(productId);
+    final coins = EconomyConfig.storeCoins(productId) ?? 0;
+    if (transactionId.isEmpty || (!removeAds && coins <= 0)) {
+      return StoreGrant.rejected;
+    }
+    if (!_storeTransactions.add(transactionId)) {
+      return StoreGrant.alreadyGranted;
+    }
+    final hadAdsRemoved = _adsRemoved;
+    if (removeAds) {
       _adsRemoved = true;
-      _save();
+    } else {
+      _grantCoins(coins);
+    }
+    if (await _save()) {
       notifyListeners();
-      return 0;
+      return StoreGrant.granted;
     }
-    final coins = EconomyConfig.storeCoins(productId);
-    if (coins == null || coins <= 0) {
-      _storeTransactions.remove(transactionId);
-      return 0;
+    _storeTransactions.remove(transactionId);
+    if (removeAds) {
+      _adsRemoved = hadAdsRemoved;
+    } else {
+      _coins = math.max(0, _coins - coins);
+      _lifetimeCoins = math.max(0, _lifetimeCoins - coins);
     }
-    _grantCoins(coins);
-    _save();
+    await _save();
     notifyListeners();
-    return coins;
+    return StoreGrant.notSaved;
   }
 
   WheelSlice? spinWheel(int index) {

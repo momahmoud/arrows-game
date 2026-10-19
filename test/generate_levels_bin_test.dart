@@ -1,4 +1,8 @@
 // ignore_for_file: avoid_print
+
+@Tags(['generator'])
+library;
+
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:arrow_escape/data/level_generator/level_generator_v2.dart';
@@ -33,8 +37,7 @@ void main() {
         final ms = levelSw.elapsedMilliseconds;
         final timeStr =
             ms > 1000 ? '${(ms / 1000).toStringAsFixed(1)}s' : '${ms}ms';
-        print(
-            'Level ${'$i'.padLeft(3)} / $totalLevels  '
+        print('Level ${'$i'.padLeft(3)} / $totalLevels  '
             '[${level.patternName.padRight(12)}]  '
             '${level.arrows.length.toString().padLeft(3)} arrows  '
             '${level.gridSize}×${level.gridSize}  '
@@ -44,7 +47,8 @@ void main() {
 
     sw.stop();
     print('');
-    print('Generation complete: ${sw.elapsed.inSeconds}s for $totalLevels levels');
+    print(
+        'Generation complete: ${sw.elapsed.inSeconds}s for $totalLevels levels');
 
     // Encode to binary
     print('Encoding to binary...');

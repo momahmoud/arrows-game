@@ -102,7 +102,6 @@ extension GameIconKindDirection on GameIconKind {
       case GameIconKind.redo:
       case GameIconKind.skip:
       case GameIconKind.continuePlay:
-      case GameIconKind.play:
       case GameIconKind.back:
       case GameIconKind.chevron:
         return true;

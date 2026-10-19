@@ -37,7 +37,7 @@
 
 ## About
 
-Arrow Escape is a grid-based puzzle game where players slide arrows out of the grid. Each level is procedurally generated and deterministic — the same level number always produces the same puzzle on every device. The game ships with **500 pre-generated, 100% verified solvable levels** across 7 difficulty bands, powered by **LevelGeneratorV2** with tutorial, Boss, and God level variants.
+Arrow Escape is a grid-based puzzle game where players slide arrows out of the grid. Each level is procedurally generated and deterministic — the same level number always produces the same puzzle on every device. The game ships with **1000 pre-generated, 100% verified solvable levels** across 7 difficulty bands, powered by **LevelGeneratorV2** with tutorial, Boss, and God level variants.
 
 ---
 
@@ -46,7 +46,7 @@ Arrow Escape is a grid-based puzzle game where players slide arrows out of the g
 | Feature | Description |
 |---|---|
 | **Slide Mechanics** | Tap an arrow — if its exit path to the canvas edge is clear, it slides out smoothly |
-| **500 Pregenerated Levels** | Fully verified, zero-deadlock levels precompiled into `assets/levels.bin` |
+| **1000 Pregenerated Levels** | Fully verified, zero-deadlock levels precompiled into `assets/levels.bin` |
 | **LevelGeneratorV2** | Reverse-placement generator + DFS graph solver validation |
 | **Direction Deflector Dots** | Directional orphan dots (Up, Down, Left, Right, Neutral) that redirect exiting arrows |
 | **Color-Paired Arrows** | Matched color arrow pairs that must be cleared together |
@@ -85,7 +85,7 @@ The grid canvas size scales with level number and level type:
 |---|---|---|
 | Tutorial (1–3) | 10 × 10 | Square grid |
 | Normal (4–19) | 15 × 15 to 24 × 24 | Long rectangle / square grid |
-| Normal (20–500) | 25 × 25 to 35 × 35 | Long rectangle / square grid |
+| Normal (20–1000) | 25 × 25 to 35 × 35 | Long rectangle / square grid |
 | Boss & God | 27 × 27 to 40 × 40 | Large, dense filled silhouettes (animal, object, geometric) |
 
 After the 3 tutorial levels, every 7 levels follow a repeating cycle:
@@ -136,11 +136,11 @@ graph TD
 
 ### Level Binary Asset (`assets/levels.bin`)
 
-All 500 levels are pre-compiled and shipped in a single **741 KB** binary file:
+All 1000 levels are pre-compiled and shipped in a single **~1137 KB** binary file (`LVLB` version 3):
 
 ```
-[HEADER]      8 bytes      magic 'LVLB' + version + level count (500)
-[INDEX]       500 × 4B     O(1) byte offset per level lookup
+[HEADER]      8 bytes      magic 'LVLB' + version + level count (1000)
+[INDEX]       1000 × 4B    O(1) byte offset per level lookup
 [DATA]        gridSize, maskShape, arrows (delta-encoded paths),
               mask bitmask, deflector dots
 ```
@@ -223,6 +223,17 @@ flutter build windows --release
 | iOS | `flutter build ios --release` | `build/ios/iphoneos/Runner.app` |
 | Web | `flutter build web --release` | `build/web/` |
 | Windows | `flutter build windows --release` | `build/windows/x64/runner/Release/` |
+
+### Tests & Release Checks
+
+```bash
+flutter test --exclude-tags generator,campaign,slow,release,candidates   # fast suite
+flutter test --tags campaign      # audit all levels in assets/levels.bin
+flutter test --tags candidates    # build/validate dev level candidates under build/candidates/
+```
+
+Do not run a bare `flutter test`; `generator` tests rewrite `assets/levels.bin`.
+See [docs/dev/RELEASE_CHECKLIST.md](docs/dev/RELEASE_CHECKLIST.md) for CI, the full pre-release checklist and required secrets.
 
 ---
 

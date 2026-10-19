@@ -46,8 +46,27 @@ class ArrowVisualConfig {
   static const double pressedScale = 0.92;
   static const double pressResponse = 18;
 
+  /// Share of the board background mixed into a held arrow, so long arrows
+  /// whose shrink is capped still show they are pressed.
+  static const double pressedFade = 0.28;
+
+  /// Press shrink and bump rotation pivot on the arrow's centre, so their
+  /// motion grows with arrow length. Neither may move any point further
+  /// than this many cells, or a long arrow would sweep over its neighbours.
+  static const double maxFeedbackShiftRatio = 0.12;
+
   static const double blockShakeAngle = 0.08;
   static const double blockShakeFrequency = 42;
+
+  /// Side-to-side travel of the colour-lock rattle.
+  static const double lockRattleRatio = 0.15;
+  static const double minLockRattle = 1.5;
+  static const double maxLockRattle = 4;
+
+  /// Extra touch target around each arrow cell, used only where the touch
+  /// lands on a cell no arrow occupies.
+  static const double hitSlopRatio =
+      (1.5 / AppConstants.boardCellSpacing - 1) / 2;
   static const Color blockedColor = Color(0xFFCC2200);
 
   static const double blockerGlowWidthRatio = 0.38;
@@ -86,6 +105,24 @@ class ArrowVisualConfig {
 
   static double headInset(double cellSize) =>
       headLength(cellSize) * arrowHeadInsetFraction;
+
+  static double hitSlop(double cellSize) => cellSize * hitSlopRatio;
+
+  static double lockRattle(double cellSize) =>
+      (cellSize * lockRattleRatio).clamp(minLockRattle, maxLockRattle);
+
+  /// Press scale for an arrow whose farthest point is [reach] from the pivot.
+  static double pressedScaleFor(double reach, double cellSize) {
+    final full = 1 - pressedScale;
+    if (reach <= 0) return pressedScale;
+    return 1 - min(full, cellSize * maxFeedbackShiftRatio / reach);
+  }
+
+  /// Peak bump rotation for an arrow whose farthest point is [reach] away.
+  static double blockShakeAngleFor(double reach, double cellSize) {
+    if (reach <= 0) return blockShakeAngle;
+    return min(blockShakeAngle, cellSize * maxFeedbackShiftRatio / reach);
+  }
 
   // ── Geometry ──────────────────────────────────────────────────────────────
 

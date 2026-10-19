@@ -85,12 +85,15 @@ class _GameButtonState extends State<GameButton> {
     final text = _labelColor;
     final radius = widget.compact ? GameRadius.md : GameRadius.xl;
 
-    final label = Text(
-      widget.label,
-      maxLines: widget.subtitle == null ? 1 : 2,
-      overflow: TextOverflow.ellipsis,
-      textAlign: TextAlign.center,
-      style: GameTypography.button(text),
+    // Long translations shrink a little before they would be cut off.
+    final label = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        widget.label,
+        maxLines: 1,
+        textAlign: TextAlign.center,
+        style: GameTypography.button(text),
+      ),
     );
 
     final row = Row(
@@ -113,8 +116,9 @@ class _GameButtonState extends State<GameButton> {
                 if (widget.subtitle != null)
                   Text(
                     widget.subtitle!,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: GameTypography.caption(text.withValues(alpha: 0.85)),
                   ),
               ],
