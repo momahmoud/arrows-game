@@ -31,7 +31,8 @@ class LevelSelectScreen extends StatelessWidget {
                 child: LevelGrid(
                   currentLevel: progress.currentLevel,
                   total: AppConstants.totalLevels,
-                  unlocked: progress.isLevelUnlocked,
+                  unlocked: (_) => true,
+                  // unlocked: progress.isLevelUnlocked,
                   starsFor: progress.getStarsForLevel,
                   centerOnCurrent: !holdScroll,
                   onOpen: (level) {

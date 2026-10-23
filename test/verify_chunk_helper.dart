@@ -2,7 +2,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:arrow_escape/data/level_generator/campaign_roles.dart';
 import 'package:arrow_escape/data/level_generator/campaign_validators.dart';
+import 'package:arrow_escape/data/level_generator/level_quality.dart';
+import 'package:arrow_escape/data/level_generator/order_puzzle_tuner.dart';
 import 'package:arrow_escape/data/level_generator/level_fingerprint.dart';
 import 'package:arrow_escape/data/level_generator/level_generator_v2.dart';
 import 'package:arrow_escape/data/level_generator/solver.dart';
@@ -124,9 +127,17 @@ Map<String, dynamic> _verifyLevel(
 
   try {
     final type = AppConstants.levelTypeFor(levelNum);
-    for (var salt = 0; salt < 24; salt++) {
+    final maxSalts =
+        CampaignRoles.roleFor(levelNum) == LevelRole.breather ? 60 : 24;
+    for (var salt = 0; salt < maxSalts; salt++) {
       errors.clear();
       level = LevelGeneratorV2.generateLevel(levelNum, generationSalt: salt);
+      final role = CampaignRoles.roleFor(levelNum);
+      if (level.patternName != 'fallback' &&
+          (role == LevelRole.teaching || role == LevelRole.puzzle) &&
+          Platform.environment['SKIP_ROLE_GATE'] != '1') {
+        level = OrderPuzzleTuner.tune(level) ?? level;
+      }
       _appendStandardChecks(levelNum, type, level, errors);
 
       if (level.patternName != 'fallback') {
@@ -136,6 +147,9 @@ Map<String, dynamic> _verifyLevel(
           maskCells: level.mask.length,
           shapeType: level.maskShape.name,
         );
+        final roleGated = type == LevelType.normal &&
+            levelNum > AppConstants.tutorialLevels &&
+            Platform.environment['SKIP_ROLE_GATE'] != '1';
         for (final issue in CampaignValidators.validateLevel(
           levelNumber: levelNum,
           type: type,
@@ -144,7 +158,13 @@ Map<String, dynamic> _verifyLevel(
           maskCells: level.mask.length,
           attempt: 0,
         )) {
+          // The role gate measures opening share instead.
+          if (roleGated && issue.message.startsWith('opening moves')) continue;
           errors.add('${issue.code}: ${issue.message}');
+        }
+        if (roleGated) {
+          errors.addAll(
+              CampaignRoles.issues(levelNum, LevelQuality.profile(level)));
         }
         if (Platform.environment['SKIP_FP_DEDUP'] != '1') {
           final fp = LevelFingerprint.canonicalHash(level);
@@ -206,6 +226,23 @@ void _appendStandardChecks(
         errors.add('UNSOLVABLE (neither greedy sim nor DFS could solve)');
       }
     }
+  }
+
+  // Order puzzles must also pass the plain greedy simulation that the release
+  // tests use, not only the DFS.
+  final role = CampaignRoles.roleFor(levelNum);
+  if (level.patternName != 'fallback' &&
+      (role == LevelRole.teaching || role == LevelRole.puzzle) &&
+      !_greedyCanSolve(level)) {
+    errors.add('ROLE: order puzzle fails greedy simulation');
+  }
+
+  // The manifest test re-solves every level with this DFS limit.
+  if (type == LevelType.normal &&
+      level.patternName != 'fallback' &&
+      Platform.environment['SKIP_ROLE_GATE'] != '1' &&
+      LevelSolver.solve(level, 8000) == null) {
+    errors.add('DFS: not solved within 8000 states');
   }
 
   final orphanMap = {for (final od in level.orphanDots) od.key: od.type};
@@ -492,3 +529,6 @@ bool _greedyCanSolve(LevelModel level) {
   }
   return count == 0;
 }
+
+/// Plain greedy simulation, the same check the release tests apply.
+bool greedyCanSolve(LevelModel level) => _greedyCanSolve(level);

@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:arrow_escape/core/constants.dart';
 import 'package:arrow_escape/data/level_binary_codec.dart';
 import 'package:arrow_escape/data/models/level.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -29,7 +30,13 @@ import 'verify_chunk_helper.dart';
 // boss or god level gets depends on the split. Run with LEVELS_JOBS=1 to
 // reproduce the original sequential shape order.
 
-const _outDir = 'build/levels_rebuild';
+// LEVELS_OUT picks the scratch folder (default build/levels_rebuild) so a new
+// campaign never mixes with results from an older one. LEVELS_TYPES=normal
+// limits generation to normal levels and leaves tutorial, boss and god boards
+// exactly as they are in levels.bin.
+final _outDir =
+    Platform.environment['LEVELS_OUT'] ?? 'build/levels_rebuild';
+final _normalOnly = Platform.environment['LEVELS_TYPES'] == 'normal';
 
 void main() {
   final part = Platform.environment['LEVELS_PART'];
@@ -38,7 +45,13 @@ void main() {
 
   test('Generate levels', () async {
     final bounds = part!.split('-').map(int.parse).toList();
-    final levels = [for (var n = bounds[0]; n <= bounds[1]; n++) n];
+    final levels = [
+      for (var n = bounds[0]; n <= bounds[1]; n++)
+        if (!_normalOnly ||
+            (n > AppConstants.tutorialLevels &&
+                AppConstants.levelTypeFor(n) == LevelType.normal))
+          n,
+    ];
     Directory(_outDir).createSync(recursive: true);
     // Interleaved so every job gets a fair share of the large late boards.
     await Future.wait([

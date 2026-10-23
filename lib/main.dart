@@ -1,22 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'core/constants.dart';
 import 'firebase_options.dart';
 
 import 'app.dart';
 import 'data/repositories/progress_repository.dart';
 import 'data/repositories/level_repository.dart';
 import 'ads/ad_manager.dart';
+import 'monetization/prompts/prompt_coordinator.dart';
 import 'monetization/monetization_policy.dart';
 import 'monetization/play_billing.dart';
 import 'core/audio_manager.dart';
+import 'core/reminders/reminders.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +31,8 @@ void main() async {
     );
     await FirebaseCrashlytics.instance
         .setCrashlyticsCollectionEnabled(!kDebugMode);
+    // Debug builds keep their events local too.
+    await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(!kDebugMode);
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
       FirebaseCrashlytics.instance.recordFlutterFatalError(details);
@@ -70,16 +75,7 @@ void main() async {
     debugPrint('System UI init error: $e');
   }
 
-  // 4. Init MobileAds safely
-  if (AppConstants.enableAdMob) {
-    try {
-      await MobileAds.instance.initialize();
-    } catch (e) {
-      debugPrint('MobileAds init error: $e');
-    }
-  }
-
-  // 5. Init SharedPreferences & Repositories safely
+  // 4. Init SharedPreferences & Repositories safely
   SharedPreferences? prefs;
   try {
     prefs = await SharedPreferences.getInstance();
@@ -90,13 +86,26 @@ void main() async {
   final progressRepo = ProgressRepository(prefs);
   final levelRepo = LevelRepository(prefs);
 
+  // Retention reminders: planned when the player leaves, cleared when they
+  // come back. They are written in the game's language, and follow it.
+  String deviceLanguage() =>
+      PlatformDispatcher.instance.locale.languageCode;
+  reminderLanguageCode = progressRepo.languageCode ?? deviceLanguage();
+  progressRepo.addListener(
+    () => reminderLanguageCode = progressRepo.languageCode ?? deviceLanguage(),
+  );
+  unawaited(_startReminders());
+  reminders.watchLifecycle();
+
   try {
     await levelRepo.loadPregeneratedLevels();
   } catch (e) {
     debugPrint('LevelRepository init error: $e');
   }
 
-  // 6. Init AdManager safely
+  unawaited(PromptCoordinator.instance.recordSessionStart());
+
+  // 5. Start AdManager (LevelPlay init runs in the background)
   final adManager = AdManager();
   try {
     adManager.initialize();
@@ -121,4 +130,10 @@ void main() async {
       child: const ArrowPuzzleApp(),
     ),
   );
+}
+
+Future<void> _startReminders() async {
+  await reminders.initialize();
+  // A cold start is the player coming back too.
+  await reminders.onForeground();
 }

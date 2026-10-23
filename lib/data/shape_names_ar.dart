@@ -275,4 +275,10 @@ const Map<String, String> shapeNamesAr = {
   'cShape': 'حرف C',
   'frame': 'إطار',
   'cornerCluster': 'زوايا متجمعة',
+  'sawtooth': 'أسنان المنشار',
+  'zigzagBand': 'خط متعرج',
+  'snakeBand': 'ثعبان متعرج',
+  'waveBand': 'موجة',
+  'chevronStack': 'أسهم متراصة',
+  'zigzagFrame': 'إطار متعرج',
 };

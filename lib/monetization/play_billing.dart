@@ -21,8 +21,15 @@ class StorePurchaseOutcome {
 /// [ProgressRepository], and is consumed or acknowledged only after that
 /// grant is saved. Checks are client-side; there is no server verification.
 class PlayBilling extends ChangeNotifier {
-  PlayBilling(this._progress, {InAppPurchase? store})
-      : _store = store ?? InAppPurchase.instance;
+  PlayBilling(
+    this._progress, {
+    InAppPurchase? store,
+    this.purchaseTimeout = const Duration(minutes: 3),
+  }) : _store = store ?? InAppPurchase.instance;
+
+  /// How long [purchase] waits for the store before giving up. A purchase
+  /// that still completes later is delivered from the purchase stream.
+  final Duration purchaseTimeout;
 
   final ProgressRepository _progress;
   final InAppPurchase _store;
@@ -110,7 +117,15 @@ class PlayBilling extends ChangeNotifier {
       debugPrint('PlayBilling purchase error: $e');
       _finish(const StorePurchaseOutcome(StorePurchaseStatus.failed));
     }
-    return completer.future;
+    return completer.future.timeout(
+      purchaseTimeout,
+      onTimeout: () {
+        // The store never answered: free the next purchase and stay quiet.
+        const outcome = StorePurchaseOutcome(StorePurchaseStatus.pending);
+        _finish(outcome);
+        return outcome;
+      },
+    );
   }
 
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {

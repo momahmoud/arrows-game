@@ -318,6 +318,13 @@ enum MaskShape {
   cShape,
   frame,
   cornerCluster,
+  // Zigzag silhouettes appended so existing binary mask indices stay valid.
+  sawtooth,
+  zigzagBand,
+  snakeBand,
+  waveBand,
+  chevronStack,
+  zigzagFrame,
 }
 
 // ─── Difficulty Enum ──────────────────────────────────────────────────────────

@@ -55,6 +55,7 @@ class MonetizationModal extends StatelessWidget {
 class MonetizationPresenter {
   MonetizationPresenter._();
 
+  /// The Remove Ads popup, when the monetization policy allows one.
   static Future<void> removeAds(BuildContext context) async {
     final policy = context.read<MonetizationPolicy>();
     final progress = context.read<ProgressRepository>();
@@ -65,6 +66,13 @@ class MonetizationPresenter {
       return;
     }
     if (!context.mounted) return;
+    await showRemoveAdsOffer(context);
+  }
+
+  /// The Remove Ads popup itself. The caller decides when it may appear:
+  /// the prompt coordinator, which keeps it off ads and reviews.
+  static Future<void> showRemoveAdsOffer(BuildContext context) async {
+    final policy = context.read<MonetizationPolicy>();
     final l10n = context.l10n;
     final price =
         context.read<PlayBilling>().priceFor(EconomyConfig.removeAdsId);

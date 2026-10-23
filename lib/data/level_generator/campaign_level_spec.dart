@@ -1,5 +1,6 @@
 import '../../core/constants.dart';
 import 'campaign_composition.dart';
+import 'campaign_roles.dart';
 
 /// 1,000-level campaign targets for **normal** gameplay levels.
 /// Boss/God use relaxed floors (still dense via mask fill).
@@ -60,6 +61,9 @@ class CampaignLevelSpec {
   static double minOccupancy(int level, LevelType type) {
     if (type == LevelType.tutorial) return 0.20;
     if (type == LevelType.boss || type == LevelType.god) return 0.55;
+    final role = CampaignRoles.roleFor(level);
+    // Order puzzles need empty cells for direction dots to sit on.
+    if (role == LevelRole.puzzle || role == LevelRole.teaching) return 0.58;
     return occupancyBand(level).$1;
   }
 
@@ -80,6 +84,8 @@ class CampaignLevelSpec {
   }
 
   static int maxOpeningMoves(int level, LevelType type) {
+    // A breather is meant to start open.
+    final extra = CampaignRoles.roleFor(level) == LevelRole.breather ? 4 : 0;
     if (type == LevelType.god) {
       if (level <= 50) return 5;
       if (level <= 200) return 3;
@@ -89,9 +95,8 @@ class CampaignLevelSpec {
       if (level <= 50) return 5;
       return 3;
     }
-    if (level <= 40) return 3;
-    if (level <= 200) return 3;
-    return 2;
+    if (level <= 200) return 3 + extra;
+    return 2 + extra;
   }
 
   static int minDependencyDepth(int level, LevelType type) {

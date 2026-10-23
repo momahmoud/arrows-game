@@ -9,6 +9,7 @@ import 'solver.dart';
 import 'mask_generator_v2.dart';
 import 'campaign_composition.dart';
 import 'campaign_level_spec.dart';
+import 'campaign_roles.dart';
 import 'campaign_validators.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1348,6 +1349,8 @@ class LevelGeneratorV2 {
     // STRICT GATE: no direction dots before level 21 (any type)
     if (levelNumber <= 20) return 0.0;
     if (levelNumber == 395 || levelNumber == 437) return 0.0;
+    final role = CampaignRoles.roleFor(levelNumber);
+    if (role == LevelRole.teaching || role == LevelRole.puzzle) return 0.97;
 
     if (type == LevelType.god) {
       if (levelNumber < 35)

@@ -31,6 +31,7 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -81,8 +82,25 @@ flutter {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.20")
+    // flutter_local_notifications needs java.time on older Android.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.multidex:multidex:2.0.1")
+
+    // LevelPlay (unity_levelplay_mediation) requirements.
+    implementation("com.google.android.gms:play-services-ads-identifier:18.2.0")
+    implementation("com.google.android.gms:play-services-appset:16.1.0")
+
+    // AdMob as a LevelPlay network: the adapter does not bundle Google's
+    // ad SDK, so it is added next to it. Keep versions as a pair. The AdMob
+    // app ID still goes in the manifest (admobAppId above).
+    implementation("com.unity3d.ads-mediation:admob-adapter:5.11.0")
+    implementation("com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.2.1")
+
+    // Unity Ads as a LevelPlay network (its Game ID is set in the LevelPlay
+    // dashboard, not here). Adapter and SDK versions are a pair.
+    implementation("com.unity3d.ads-mediation:unityads-adapter:5.5.0")
+    implementation("com.unity3d.ads:unity-ads:4.16.6")
 }

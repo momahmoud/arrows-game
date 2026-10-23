@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../data/models/arrow.dart';
 import '../data/models/level.dart';
+import '../data/models/level_session.dart';
 import '../core/board_style.dart';
 import '../core/constants.dart';
 import '../core/audio_manager.dart';
@@ -450,6 +451,73 @@ class GameState extends ChangeNotifier {
       nc += d[1];
     }
     return _ExitInfo(false, consumed);
+  }
+
+  // ── Save / resume ─────────────────────────────────────────────────────────────
+
+  /// True when there is a board worth saving: something was done, and the
+  /// level is not over or stuck.
+  bool get hasSavableProgress =>
+      !_isComplete &&
+      !_isGameOver &&
+      !_isDeadlocked &&
+      (_movesUsed > 0 || _powerUpsUsed > 0 || _livesLost > 0);
+
+  /// What is left on the board right now. An arrow that is already sliding
+  /// out counts as gone, because its dots are already consumed.
+  LevelSession snapshot() => LevelSession(
+        levelNumber: _currentLevel.levelNumber,
+        signature: LevelSession.signatureOf(_currentLevel),
+        arrowIds: [
+          for (final a in _arrows)
+            if (a.state != ArrowState.sliding) a.id,
+        ],
+        dotKeys: _orphanDots.keys.toList(),
+        lives: _lives,
+        livesLost: _livesLost,
+        movesUsed: _movesUsed,
+        powerUpsUsed: _powerUpsUsed,
+        hintsUsed: _hintsUsed,
+        powerUps: {for (final e in _powerUps.entries) e.key.name: e.value},
+      );
+
+  /// Puts the board back as [session] left it. Returns false, and changes
+  /// nothing, when the session does not belong to this board.
+  bool restoreSession(LevelSession session) {
+    if (session.levelNumber != _currentLevel.levelNumber ||
+        session.signature != LevelSession.signatureOf(_currentLevel) ||
+        session.arrowIds.isEmpty ||
+        session.lives <= 0) {
+      return false;
+    }
+    final keep = session.arrowIds.toSet();
+    final known = _arrows.map((a) => a.id).toSet();
+    if (!keep.every(known.contains)) return false;
+    final dots = {for (final od in _currentLevel.orphanDots) od.key: od.type};
+    if (!session.dotKeys.every(dots.containsKey)) return false;
+
+    _arrows = [
+      for (final a in _currentLevel.arrows)
+        if (keep.contains(a.id)) a.copyWith(state: ArrowState.idle),
+    ];
+    _orphanDots = {for (final k in session.dotKeys) k: dots[k]!};
+    _consumedDotsByArrow.clear();
+    _lives = session.lives.clamp(1, AppConstants.maxLives);
+    _livesLost = session.livesLost;
+    _movesUsed = session.movesUsed;
+    _powerUpsUsed = session.powerUpsUsed;
+    _hintsUsed = session.hintsUsed;
+    for (final type in PowerUpType.values) {
+      final saved = session.powerUps[type.name];
+      if (saved != null) _powerUps[type] = saved < 0 ? 0 : saved;
+    }
+    _combo = 0;
+    _hintArrowId = null;
+    _rulerHighlightIds = {};
+    _blockerIds = {};
+    _eraserArmed = false;
+    notifyListeners();
+    return true;
   }
 
   // ── Reset ─────────────────────────────────────────────────────────────────────

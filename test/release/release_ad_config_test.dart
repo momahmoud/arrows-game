@@ -1,8 +1,9 @@
 @Tags(['release'])
 library;
 
-import 'package:arrow_escape/core/ad_secrets.dart' as release;
 import 'package:arrow_escape/core/ad_secrets_example.dart' as example;
+import 'package:arrow_escape/core/ad_secrets_example.dart' as release;
+import 'package:arrow_escape/core/constants.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Google's public AdMob sample publisher. Never valid in a release build.
@@ -50,5 +51,13 @@ void main() {
 
   test('Unity game ID is numeric', () {
     expect(release.AdSecrets.unityGameIdAndroid, matches(RegExp(r'^\d+$')));
+  });
+
+  test('LevelPlay app key and ad units are set', () {
+    // An empty key means ads are off, which must not ship by accident.
+    expect(AppConstants.levelPlayAppKey, isNotEmpty);
+    expect(AppConstants.levelPlayBannerAdUnitId, isNotEmpty);
+    expect(AppConstants.levelPlayInterstitialAdUnitId, isNotEmpty);
+    expect(AppConstants.levelPlayRewardedAdUnitId, isNotEmpty);
   });
 }

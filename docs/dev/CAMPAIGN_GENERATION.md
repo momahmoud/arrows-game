@@ -39,3 +39,32 @@ against the acceptance checklist in [LEVEL_QUALITY_AUDIT.md](LEVEL_QUALITY_AUDIT
 - `assets/verify_progress_chunk_*.json` — cached verified JSON
 - `assets/campaign_fingerprints.json` — dedup registry
 - `docs/dev/level_manifest.json` — dev manifest (after manifest test)
+
+## Zigzag silhouettes and level roles (campaign v8 plan)
+
+- Six zigzag silhouettes (`sawtooth`, `zigzagBand`, `snakeBand`, `waveBand`,
+  `chevronStack`, `zigzagFrame`) are appended to `MaskShape` and make up about
+  a third of the normal levels. `tightZigzags` / `longZigzags` path families
+  give arrows more bends; about half of all normal levels use a zigzag family.
+- `CampaignRoles` assigns each normal level a role: level 33 teaches order
+  (`teaching`), every 8th normal level from 45 is an order `puzzle`, every
+  12th from 57 is an easy `breather`, the rest are `standard` and must have no
+  dead ends and a minimum chain depth that grows with the level number.
+  `OrderPuzzleTuner` re-aims direction dots on puzzle boards.
+- Regenerate normal levels only (tutorial, boss and god boards stay as they
+  are), into a fresh folder so old results never mix in:
+
+```bash
+SKIP_FP_DEDUP=1 LEVELS_OUT=build/levels_new LEVELS_TYPES=normal \
+  LEVELS_PART=4-1000 LEVELS_JOBS=7 \
+  flutter test test/rebuild_levels_bin_test.dart --run-skipped -t generator \
+  --plain-name "Generate levels"
+LEVELS_OUT=build/levels_new LEVELS_MERGE=1 \
+  flutter test test/rebuild_levels_bin_test.dart --run-skipped -t generator \
+  --plain-name "Merge levels"
+```
+
+Always pass `--plain-name`: `--run-skipped` otherwise also runs the merge test
+and rewrites `assets/levels.bin`. A level that fails the gates keeps its
+current board in the merge. The old absolute "opening moves" validator is
+bypassed for normal levels in favour of the role gate (opening share <= 0.40).

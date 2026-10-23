@@ -53,6 +53,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get vibration => 'الاهتزاز';
 
   @override
+  String get dailyReminders => 'تذكيرات يومية';
+
+  @override
   String get themeMode => 'المظهر';
 
   @override
@@ -779,6 +782,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get leaveConfirmBody => 'لن يُحفظ تقدّمك في هذه اللوحة.';
+
+  @override
+  String get progressRestored => 'أهلاً بعودتك — تم استرجاع تقدّمك.';
 
   @override
   String get leaveLevel => 'مغادرة';

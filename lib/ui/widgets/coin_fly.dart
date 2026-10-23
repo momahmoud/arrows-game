@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../icons/game_icon.dart';
 import '../icons/game_icon_kind.dart';
@@ -15,6 +16,7 @@ class CoinFly {
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
     final target = CoinAnchor.target;
+    if (target != null) HapticFeedback.lightImpact();
     late OverlayEntry entry;
     entry = OverlayEntry(
       builder: (context) => _CoinFlyLayer(
@@ -60,10 +62,25 @@ class _CoinFlyLayerState extends State<_CoinFlyLayer>
     duration: const Duration(milliseconds: 720),
   );
 
+  late final List<bool> _landed = List<bool>.filled(widget.count, false);
+
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_checkLandings);
     _controller.forward().whenComplete(widget.onDone);
+  }
+
+  /// Each coin pops the balance as it arrives (its own staggered end).
+  void _checkLandings() {
+    for (var i = 0; i < widget.count; i++) {
+      if (_landed[i]) continue;
+      final start = (i * 0.08).clamp(0.0, 0.4);
+      if ((_controller.value - start) / (1 - start) >= 0.95) {
+        _landed[i] = true;
+        CoinAnchor.landed();
+      }
+    }
   }
 
   @override

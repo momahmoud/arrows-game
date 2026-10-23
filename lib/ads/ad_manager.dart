@@ -1,273 +1,296 @@
-import 'package:flutter/material.dart';
-import '../core/app_fonts.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'dart:async';
-import '../core/constants.dart';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:unity_levelplay_mediation/unity_levelplay_mediation.dart';
+
+import '../core/analytics.dart';
 import '../core/app_colors.dart';
+import '../core/app_fonts.dart';
+import '../core/constants.dart';
 import '../l10n/l10n.dart';
+import '../monetization/prompts/ad_consent.dart';
+import '../monetization/prompts/prompt_coordinator.dart';
 
-/// Central ad orchestrator — manages banner, interstitial, and rewarded ads.
-/// Uses a waterfall fallback strategy: AdMob (Priority 1) -> Unity Ads (Priority 2).
-/// Each ad network can be toggled on/off dynamically in AppConstants.
-class AdManager {
-  // ── AdMob state ──────────────────────────────────────────────────────────────
-  InterstitialAd? _admobInterstitial;
-  bool _isAdmobInterstitialLoaded = false;
+/// Central ad orchestrator: interstitial and rewarded ads on LevelPlay
+/// mediation. AdMob and Unity Ads compete inside LevelPlay as networks, so
+/// there is no waterfall to manage here. One ad object per format is reused:
+/// load, show, load again. With no app key in [AppConstants] ads are off.
+class AdManager
+    implements LevelPlayInitListener, LevelPlayImpressionDataListener {
+  /// LevelPlay may send the reward after the close callback; a close without
+  /// a reward waits this long for it (and ends as soon as it arrives).
+  static const _rewardGrace = Duration(seconds: 3);
 
-  RewardedAd? _admobRewarded;
-  bool _isAdmobRewardedLoaded = false;
+  /// Gap before trying LevelPlay init again after it failed.
+  static const _initRetryDelay = Duration(seconds: 30);
+
+  /// Longest a rewarded tap waits for an ad that is still loading.
+  static const _rewardedLoadWait = Duration(seconds: 8);
+
+  static const _showTimeout = Duration(minutes: 2);
+
+  LevelPlayRewardedAd? _rewarded;
+  LevelPlayInterstitialAd? _interstitial;
+
+  bool _initialized = false;
+  bool _starting = false;
+  bool _rewardedLoaded = false;
+  bool _rewardedLoading = false;
+  bool _interstitialLoaded = false;
+  bool _interstitialLoading = false;
+  Completer<bool>? _rewardedLoad;
+  _RewardedShow? _rewardedShow;
+  Completer<void>? _interstitialShow;
   DateTime? _lastLeaveAdAt;
 
-  // ── Unity Ads state ───────────────────────────────────────────────────────────
-  bool _isUnityInitialized = false;
-  bool _isUnityInterstitialLoaded = false;
-  bool _isUnityRewardedLoaded = false;
+  /// True once LevelPlay initialised; banners wait on it before loading.
+  final ValueNotifier<bool> sdkReady = ValueNotifier<bool>(false);
 
   // ── Initialization ────────────────────────────────────────────────────────────
+
+  /// Starts LevelPlay init and returns without waiting for it; ads preload
+  /// from [onInitSuccess]. Calling again retries a failed init.
   void initialize() {
-    // 1. Initialize and load AdMob if enabled
-    if (AppConstants.enableAdMob) {
-      _loadAdmobInterstitial();
-      _loadAdmobRewarded();
-    }
+    if (_initialized || _starting || !AppConstants.adsConfigured) return;
+    _starting = true;
+    unawaited(_init());
+  }
 
-    // 2. Initialize and load Unity Ads if enabled
-    if (AppConstants.enableUnityAds) {
-      UnityAds.init(
-        gameId: AppConstants.unityGameId,
-        testMode: AppConstants.unityTestMode,
-        onComplete: () {
-          _isUnityInitialized = true;
-          _loadUnityInterstitial();
-          _loadUnityRewarded();
-        },
-        onFailed: (error, message) {
-          _isUnityInitialized = false;
-          debugPrint('Unity Ads Initialization failed: $error - $message');
-        },
+  Future<void> _init() async {
+    try {
+      // Where the law needs the player's choice (Europe), ads wait for it;
+      // everywhere else this returns at once.
+      final personalized = await AdConsent.instance.decision;
+      if (personalized != null) await AdConsent.applyToLevelPlay(personalized);
+      LevelPlay.addImpressionDataListener(this);
+      if (kDebugMode) {
+        await LevelPlay.setAdaptersDebug(true);
+        await LevelPlay.setMetaData({
+          'is_test_suite': ['enable'],
+        });
+      }
+      await LevelPlay.init(
+        initRequest: LevelPlayInitRequest.builder(
+          AppConstants.levelPlayAppKey,
+        ).build(),
+        initListener: this,
       );
+      // Debug only: logs the adapters and manifest entries LevelPlay found.
+      if (kDebugMode) unawaited(LevelPlay.validateIntegration());
+    } catch (e) {
+      debugPrint('LevelPlay init threw: $e');
+      _starting = false;
     }
   }
 
-  // ── AdMob Loading ─────────────────────────────────────────────────────────────
-  void _loadAdmobInterstitial() {
-    if (!AppConstants.enableAdMob) return;
-    InterstitialAd.load(
-      adUnitId: AppConstants.admobInterstitialUnitId,
-      request: const AdRequest(),
-      adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) {
-          _admobInterstitial = ad;
-          _isAdmobInterstitialLoaded = true;
-          ad.setImmersiveMode(true);
-        },
-        onAdFailedToLoad: (error) {
-          _isAdmobInterstitialLoaded = false;
-          _admobInterstitial = null;
-          // Retry after delay
-          Future.delayed(
-              const Duration(seconds: 15), () => _loadAdmobInterstitial());
-        },
-      ),
+  @override
+  void onInitSuccess(LevelPlayConfiguration configuration) {
+    _starting = false;
+    _initialized = true;
+    sdkReady.value = true;
+    unawaited(_loadRewarded());
+    unawaited(_loadInterstitial());
+  }
+
+  @override
+  void onInitFailed(LevelPlayInitError error) {
+    debugPrint(
+      'LevelPlay init failed: ${error.errorCode} ${error.errorMessage}',
+    );
+    _starting = false;
+    // LevelPlay recommends retrying a failed init later.
+    Timer(_initRetryDelay, initialize);
+  }
+
+  /// Impression-level revenue from every format, banners included.
+  @override
+  void onImpressionSuccess(LevelPlayImpressionData impressionData) {
+    Analytics.logAdImpression(
+      network: impressionData.adNetwork,
+      format: impressionData.adFormat,
+      adUnitName: impressionData.mediationAdUnitName,
+      revenueUsd: impressionData.revenue,
+      placement: impressionData.placement,
     );
   }
 
-  void _loadAdmobRewarded() {
-    if (!AppConstants.enableAdMob) return;
-    RewardedAd.load(
-      adUnitId: AppConstants.admobRewardedUnitId,
-      request: const AdRequest(),
-      rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) {
-          _admobRewarded = ad;
-          _isAdmobRewardedLoaded = true;
-        },
-        onAdFailedToLoad: (error) {
-          _isAdmobRewardedLoaded = false;
-          _admobRewarded = null;
-          // Retry after delay
-          Future.delayed(
-              const Duration(seconds: 15), () => _loadAdmobRewarded());
-        },
-      ),
-    );
+  // ── Interstitial ──────────────────────────────────────────────────────────────
+
+  Future<void> _loadInterstitial() async {
+    if (!_initialized || _interstitialLoading || _interstitialLoaded) return;
+    if (AppConstants.levelPlayInterstitialAdUnitId.isEmpty) return;
+    _interstitialLoading = true;
+    try {
+      final ad = _interstitial ??= LevelPlayInterstitialAd(
+        adUnitId: AppConstants.levelPlayInterstitialAdUnitId,
+      )..setListener(_InterstitialListener(this));
+      await ad.loadAd();
+    } catch (e) {
+      debugPrint('Interstitial load threw: $e');
+      _onInterstitialLoadFailed();
+    }
   }
 
-  // ── Unity Ads Loading ──────────────────────────────────────────────────────────
-  void _loadUnityInterstitial() {
-    if (!AppConstants.enableUnityAds || !_isUnityInitialized) return;
-    UnityAds.load(
-      placementId: AppConstants.unityInterstitialAdId,
-      onComplete: (placementId) {
-        _isUnityInterstitialLoaded = true;
-      },
-      onFailed: (placementId, error, message) {
-        _isUnityInterstitialLoaded = false;
-        Future.delayed(
-            const Duration(seconds: 25), () => _loadUnityInterstitial());
-      },
-    );
+  void _onInterstitialLoaded() {
+    _interstitialLoading = false;
+    _interstitialLoaded = true;
   }
 
-  void _loadUnityRewarded() {
-    if (!AppConstants.enableUnityAds || !_isUnityInitialized) return;
-    UnityAds.load(
-      placementId: AppConstants.unityRewardedAdId,
-      onComplete: (placementId) {
-        _isUnityRewardedLoaded = true;
-      },
-      onFailed: (placementId, error, message) {
-        _isUnityRewardedLoaded = false;
-        Future.delayed(const Duration(seconds: 25), () => _loadUnityRewarded());
-      },
-    );
+  void _onInterstitialLoadFailed() {
+    _interstitialLoading = false;
+    _interstitialLoaded = false;
+    Future.delayed(const Duration(seconds: 15), _loadInterstitial);
   }
 
-  // ── Compatibility Getters ─────────────────────────────────────────────────────
-  BannerAd? get gameBannerAd => null;
-  BannerAd? get homeBannerAd => null;
-  BannerAd? get bannerAd => null;
+  void _finishInterstitial() {
+    _interstitialLoaded = false;
+    final done = _interstitialShow;
+    _interstitialShow = null;
+    if (done != null && !done.isCompleted) done.complete();
+    unawaited(_loadInterstitial());
+  }
 
-  // ── Interstitial Logic (Waterfall) ───────────────────────────────────────────
   /// Levels 5, 7, 9, and so on. Earlier levels never show a break ad.
-  Future<void> onLevelComplete(int levelNumber) async {
-    if (levelNumber < AppConstants.interstitialStartLevel) return;
+  /// Returns whether an ad was shown (and has closed).
+  Future<bool> onLevelComplete(int levelNumber) async {
+    if (levelNumber < AppConstants.interstitialStartLevel) return false;
     final step = levelNumber - AppConstants.interstitialStartLevel;
-    if (step % AppConstants.interstitialLevelInterval != 0) return;
-    await showInterstitial();
+    if (step % AppConstants.interstitialLevelInterval != 0) return false;
+    return showInterstitial();
   }
 
   /// Shown when the player leaves a level, at most once per cooldown.
-  Future<void> showLeaveInterstitial() async {
+  /// Returns whether an ad was shown (and has closed).
+  Future<bool> showLeaveInterstitial() async {
     final last = _lastLeaveAdAt;
     if (last != null &&
         DateTime.now().difference(last) <
             AppConstants.interstitialLeaveCooldown) {
-      return;
+      return false;
     }
-    final ready = (AppConstants.enableAdMob &&
-            _isAdmobInterstitialLoaded &&
-            _admobInterstitial != null) ||
-        (AppConstants.enableUnityAds &&
-            _isUnityInitialized &&
-            _isUnityInterstitialLoaded);
-    if (!ready) return;
+    if (!_interstitialLoaded) return false;
     _lastLeaveAdAt = DateTime.now();
-    await showInterstitial();
+    return showInterstitial();
   }
 
-  Future<void> showInterstitial() async {
-    final completer = Completer<void>();
-
-    // 1. Try AdMob (Priority 1) if enabled
-    if (AppConstants.enableAdMob &&
-        _isAdmobInterstitialLoaded &&
-        _admobInterstitial != null) {
-      _admobInterstitial!.fullScreenContentCallback = FullScreenContentCallback(
-        onAdDismissedFullScreenContent: (ad) {
-          ad.dispose();
-          _isAdmobInterstitialLoaded = false;
-          _loadAdmobInterstitial(); // Pre-load next
-          if (!completer.isCompleted) completer.complete();
-        },
-        onAdFailedToShowFullScreenContent: (ad, error) {
-          ad.dispose();
-          _isAdmobInterstitialLoaded = false;
-          _loadAdmobInterstitial();
-          // Fallback to Unity Ads (Priority 2)
-          _showUnityInterstitial(completer);
-        },
-      );
-      await _admobInterstitial!.show();
-    } else {
-      // Fallback to Unity Ads (Priority 2)
-      _showUnityInterstitial(completer);
+  /// Returns true once an ad has shown and closed; false at once if none is
+  /// ready, or if a review request or Remove Ads popup is on screen.
+  Future<bool> showInterstitial() async {
+    if (_interstitialShow != null || _rewardedShow != null) return false;
+    if (PromptCoordinator.instance.isBusy) return false;
+    final ad = _interstitial;
+    // Loaded ads can expire or be capped; check just before showing.
+    if (ad == null || !_interstitialLoaded || !await ad.isAdReady()) {
+      _interstitialLoaded = false;
+      unawaited(_loadInterstitial());
+      return false;
     }
-
-    return completer.future;
+    final done = Completer<void>();
+    _interstitialShow = done;
+    var shown = true;
+    try {
+      await ad.showAd();
+    } catch (e) {
+      debugPrint('Interstitial show threw: $e');
+      shown = false;
+      _finishInterstitial();
+    }
+    await done.future.timeout(
+      _showTimeout,
+      onTimeout: () => _interstitialShow = null,
+    );
+    if (shown) await PromptCoordinator.instance.recordInterstitialShown();
+    return shown;
   }
 
-  void _showUnityInterstitial(Completer<void> completer) {
-    if (AppConstants.enableUnityAds &&
-        _isUnityInitialized &&
-        _isUnityInterstitialLoaded) {
-      UnityAds.showVideoAd(
-        placementId: AppConstants.unityInterstitialAdId,
-        onComplete: (placementId) {
-          _isUnityInterstitialLoaded = false;
-          _loadUnityInterstitial();
-          if (!completer.isCompleted) completer.complete();
-        },
-        onFailed: (placementId, error, message) {
-          _isUnityInterstitialLoaded = false;
-          _loadUnityInterstitial();
-          if (!completer.isCompleted) completer.complete();
-        },
-        onSkipped: (placementId) {
-          _isUnityInterstitialLoaded = false;
-          _loadUnityInterstitial();
-          if (!completer.isCompleted) completer.complete();
-        },
-      );
-    } else {
-      if (!completer.isCompleted) completer.complete();
+  // ── Rewarded ──────────────────────────────────────────────────────────────────
+
+  bool get isRewardedAvailable =>
+      AppConstants.adsConfigured &&
+      AppConstants.levelPlayRewardedAdUnitId.isNotEmpty;
+
+  Future<void> _loadRewarded() async {
+    if (!_initialized || _rewardedLoading || _rewardedLoaded) return;
+    if (AppConstants.levelPlayRewardedAdUnitId.isEmpty) return;
+    _rewardedLoading = true;
+    _rewardedLoad ??= Completer<bool>();
+    try {
+      final ad = _rewarded ??= LevelPlayRewardedAd(
+        adUnitId: AppConstants.levelPlayRewardedAdUnitId,
+      )..setListener(_RewardedListener(this));
+      await ad.loadAd();
+    } catch (e) {
+      debugPrint('Rewarded load threw: $e');
+      _onRewardedLoadFailed();
     }
   }
 
-  // ── On-Demand Loading Helpers for Fallback ────────────────────────────────────
-  Future<RewardedAd?> _loadAdmobRewardedOnDemand(Duration timeout) {
-    final completer = Completer<RewardedAd?>();
-    RewardedAd.load(
-      adUnitId: AppConstants.admobRewardedUnitId,
-      request: const AdRequest(),
-      rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) {
-          if (!completer.isCompleted) completer.complete(ad);
-        },
-        onAdFailedToLoad: (error) {
-          if (!completer.isCompleted) completer.complete(null);
-        },
-      ),
-    );
-
-    return completer.future.timeout(
-      timeout,
-      onTimeout: () {
-        if (!completer.isCompleted) completer.complete(null);
-        return null;
-      },
-    );
+  void _onRewardedLoaded() {
+    _rewardedLoading = false;
+    _rewardedLoaded = true;
+    final waiter = _rewardedLoad;
+    _rewardedLoad = null;
+    if (waiter != null && !waiter.isCompleted) waiter.complete(true);
   }
 
-  Future<InterstitialAd?> _loadAdmobInterstitialOnDemand(Duration timeout) {
-    final completer = Completer<InterstitialAd?>();
-    InterstitialAd.load(
-      adUnitId: AppConstants.admobInterstitialUnitId,
-      request: const AdRequest(),
-      adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) {
-          ad.setImmersiveMode(true);
-          if (!completer.isCompleted) completer.complete(ad);
-        },
-        onAdFailedToLoad: (error) {
-          if (!completer.isCompleted) completer.complete(null);
-        },
-      ),
-    );
-
-    return completer.future.timeout(
-      timeout,
-      onTimeout: () {
-        if (!completer.isCompleted) completer.complete(null);
-        return null;
-      },
-    );
+  void _onRewardedLoadFailed() {
+    _rewardedLoading = false;
+    _rewardedLoaded = false;
+    final waiter = _rewardedLoad;
+    _rewardedLoad = null;
+    if (waiter != null && !waiter.isCompleted) waiter.complete(false);
+    Future.delayed(const Duration(seconds: 15), _loadRewarded);
   }
 
-  // ── Rewarded Logic (Waterfall) ────────────────────────────────────────────────
-  bool get isRewardedAvailable {
-    return AppConstants.enableAdMob || AppConstants.enableUnityAds;
+  Future<bool> _rewardedAdIsLive() async {
+    final ad = _rewarded;
+    return ad != null && await ad.isAdReady();
+  }
+
+  /// Waits for a rewarded ad that is still loading instead of failing the tap.
+  Future<bool> _rewardedReady() async {
+    if (!_initialized) return false;
+    if (_rewardedLoaded && await _rewardedAdIsLive()) return true;
+    _rewardedLoaded = false;
+    if (!_rewardedLoading) unawaited(_loadRewarded());
+    final waiter = _rewardedLoad;
+    if (waiter == null) return false;
+    final loaded = await waiter.future.timeout(
+      _rewardedLoadWait,
+      onTimeout: () => false,
+    );
+    return loaded && await _rewardedAdIsLive();
+  }
+
+  void _finishRewarded() {
+    final show = _rewardedShow;
+    _rewardedShow = null;
+    show?.graceTimer?.cancel();
+    if (show != null && !show.done.isCompleted) show.done.complete();
+    _rewardedLoaded = false;
+    unawaited(_loadRewarded());
+  }
+
+  void _onRewardedDisplayed() => _rewardedShow?.onOpened?.call();
+
+  void _onRewardEarned() {
+    final show = _rewardedShow;
+    if (show == null) return;
+    show.earned = true;
+    show.grant();
+    // Reward after close: end now instead of waiting out the grace.
+    if (show.graceTimer?.isActive ?? false) _finishRewarded();
+  }
+
+  void _onRewardedClosed() {
+    final show = _rewardedShow;
+    if (show == null) return;
+    if (show.earned) {
+      _finishRewarded();
+    } else {
+      show.graceTimer = Timer(_rewardGrace, _finishRewarded);
+    }
   }
 
   /// Displays a non-intrusive loading spinner dialog while fetching and preparing the rewarded ad.
@@ -351,226 +374,143 @@ class AdManager {
     );
   }
 
-  /// Shows a rewarded ad. The reward callback runs once, and only after the
-  /// provider reports the video completed. A missing or skipped ad grants nothing.
+  /// Shows a rewarded ad. The reward callback runs once, and only after
+  /// LevelPlay reports the video completed. A missing or skipped ad grants
+  /// nothing. [onDismissed] runs once the ad is over, rewarded or not.
   Future<void> showRewarded({
     required void Function() onRewarded,
     void Function()? onDismissed,
     void Function()? onAdOpened,
   }) async {
     var granted = false;
-    void handleSuccess() {
+    void grant() {
       if (granted) return;
       granted = true;
       onRewarded();
     }
 
-    void handleFinish() {
+    if (_rewardedShow != null || _interstitialShow != null) {
       onDismissed?.call();
-    }
-
-    // Tier 1: Pre-loaded AdMob Rewarded Ad
-    if (AppConstants.enableAdMob &&
-        _isAdmobRewardedLoaded &&
-        _admobRewarded != null) {
-      final ad = _admobRewarded!;
-      _admobRewarded = null;
-      _isAdmobRewardedLoaded = false;
-
-      ad.fullScreenContentCallback = FullScreenContentCallback(
-        onAdShowedFullScreenContent: (ad) {
-          onAdOpened?.call();
-        },
-        onAdDismissedFullScreenContent: (ad) {
-          ad.dispose();
-          _loadAdmobRewarded();
-          handleFinish();
-        },
-        onAdFailedToShowFullScreenContent: (ad, error) async {
-          ad.dispose();
-          _loadAdmobRewarded();
-          await _showRewardedFallback(
-              handleSuccess: handleSuccess,
-              handleFinish: handleFinish,
-              onAdOpened: onAdOpened);
-        },
-      );
-
-      await ad.show(
-        onUserEarnedReward: (_, reward) {
-          handleSuccess();
-        },
-      );
       return;
     }
-
-    // Tier 2: Try fast on-demand load of AdMob Rewarded Ad (up to 3 seconds)
-    if (AppConstants.enableAdMob) {
-      final onDemandAd =
-          await _loadAdmobRewardedOnDemand(const Duration(seconds: 3));
-      if (onDemandAd != null) {
-        onDemandAd.fullScreenContentCallback = FullScreenContentCallback(
-          onAdShowedFullScreenContent: (ad) {
-            onAdOpened?.call();
-          },
-          onAdDismissedFullScreenContent: (ad) {
-            ad.dispose();
-            _loadAdmobRewarded();
-            handleFinish();
-          },
-          onAdFailedToShowFullScreenContent: (ad, error) async {
-            ad.dispose();
-            _loadAdmobRewarded();
-            await _showRewardedFallback(
-                handleSuccess: handleSuccess,
-                handleFinish: handleFinish,
-                onAdOpened: onAdOpened);
-          },
-        );
-
-        await onDemandAd.show(
-          onUserEarnedReward: (_, reward) {
-            handleSuccess();
-          },
-        );
-        return;
-      }
-    }
-
-    // Tier 3 & beyond: Fallback cascade
-    await _showRewardedFallback(
-        handleSuccess: handleSuccess,
-        handleFinish: handleFinish,
-        onAdOpened: onAdOpened);
-  }
-
-  Future<void> _showRewardedFallback({
-    required VoidCallback handleSuccess,
-    required VoidCallback handleFinish,
-    VoidCallback? onAdOpened,
-  }) async {
-    // Fallback 1: Pre-loaded AdMob Interstitial
-    if (AppConstants.enableAdMob &&
-        _isAdmobInterstitialLoaded &&
-        _admobInterstitial != null) {
-      final ad = _admobInterstitial!;
-      _admobInterstitial = null;
-      _isAdmobInterstitialLoaded = false;
-
-      ad.fullScreenContentCallback = FullScreenContentCallback(
-        onAdShowedFullScreenContent: (ad) {
-          onAdOpened?.call();
-        },
-        onAdDismissedFullScreenContent: (ad) {
-          ad.dispose();
-          _loadAdmobInterstitial();
-          handleFinish();
-        },
-        onAdFailedToShowFullScreenContent: (ad, error) async {
-          ad.dispose();
-          _loadAdmobInterstitial();
-          await _showUnityOrDirectFallback(
-              handleSuccess: handleSuccess,
-              handleFinish: handleFinish,
-              onAdOpened: onAdOpened);
-        },
-      );
-
-      await ad.show();
-      return;
-    }
-
-    // Fallback 2: Fast On-demand AdMob Interstitial
-    if (AppConstants.enableAdMob) {
-      final onDemandInter =
-          await _loadAdmobInterstitialOnDemand(const Duration(seconds: 3));
-      if (onDemandInter != null) {
-        onDemandInter.fullScreenContentCallback = FullScreenContentCallback(
-          onAdShowedFullScreenContent: (ad) {
-            onAdOpened?.call();
-          },
-          onAdDismissedFullScreenContent: (ad) {
-            ad.dispose();
-            _loadAdmobInterstitial();
-            handleFinish();
-          },
-          onAdFailedToShowFullScreenContent: (ad, error) async {
-            ad.dispose();
-            _loadAdmobInterstitial();
-            await _showUnityOrDirectFallback(
-                handleSuccess: handleSuccess,
-                handleFinish: handleFinish,
-                onAdOpened: onAdOpened);
-          },
-        );
-
-        await onDemandInter.show();
-        return;
-      }
-    }
-
-    // Fallback 3: Unity Ads / Direct Reward
-    await _showUnityOrDirectFallback(
-        handleSuccess: handleSuccess,
-        handleFinish: handleFinish,
-        onAdOpened: onAdOpened);
-  }
-
-  Future<void> _showUnityOrDirectFallback({
-    required VoidCallback handleSuccess,
-    required VoidCallback handleFinish,
-    VoidCallback? onAdOpened,
-  }) async {
-    if (AppConstants.enableUnityAds &&
-        _isUnityInitialized &&
-        _isUnityRewardedLoaded) {
-      onAdOpened?.call();
-      _showUnityRewarded(
-        onRewarded: () {
-          handleSuccess();
-          handleFinish();
-        },
-        onDismissed: handleFinish,
-      );
-      return;
-    }
-
-    debugPrint('Rewarded ad unavailable. No reward granted.');
-    handleFinish();
-  }
-
-  void _showUnityRewarded({
-    required void Function() onRewarded,
-    void Function()? onDismissed,
-  }) {
-    if (AppConstants.enableUnityAds &&
-        _isUnityInitialized &&
-        _isUnityRewardedLoaded) {
-      UnityAds.showVideoAd(
-        placementId: AppConstants.unityRewardedAdId,
-        onComplete: (placementId) {
-          _isUnityRewardedLoaded = false;
-          _loadUnityRewarded();
-          onRewarded();
-        },
-        onFailed: (placementId, error, message) {
-          _isUnityRewardedLoaded = false;
-          _loadUnityRewarded();
-          onDismissed?.call();
-        },
-        onSkipped: (placementId) {
-          _isUnityRewardedLoaded = false;
-          _loadUnityRewarded();
-          onDismissed?.call();
-        },
-      );
-    } else {
+    if (!await _rewardedReady()) {
+      debugPrint('Rewarded ad unavailable. No reward granted.');
       onDismissed?.call();
+      return;
     }
+
+    final show = _RewardedShow(grant: grant, onOpened: onAdOpened);
+    _rewardedShow = show;
+    try {
+      await _rewarded!.showAd();
+      await show.done.future.timeout(
+        _showTimeout,
+        onTimeout: () {
+          show.graceTimer?.cancel();
+          if (identical(_rewardedShow, show)) _rewardedShow = null;
+        },
+      );
+    } catch (e) {
+      debugPrint('Rewarded show threw: $e');
+      _finishRewarded();
+    }
+    unawaited(PromptCoordinator.instance.recordRewardedShown());
+    onDismissed?.call();
   }
 
   void dispose() {
-    _admobInterstitial?.dispose();
-    _admobRewarded?.dispose();
+    unawaited(_rewarded?.dispose());
+    unawaited(_interstitial?.dispose());
+    _rewarded = null;
+    _interstitial = null;
+    sdkReady.dispose();
   }
+}
+
+/// One rewarded ad on screen: whether it paid out and who to tell.
+class _RewardedShow {
+  _RewardedShow({required this.grant, this.onOpened});
+
+  final void Function() grant;
+  final void Function()? onOpened;
+  final Completer<void> done = Completer<void>();
+  bool earned = false;
+  Timer? graceTimer;
+}
+
+/// Routes rewarded callbacks to [AdManager] (both listener interfaces share
+/// method names, so one class can't implement both).
+class _RewardedListener implements LevelPlayRewardedAdListener {
+  _RewardedListener(this._m);
+
+  final AdManager _m;
+
+  @override
+  void onAdLoaded(LevelPlayAdInfo adInfo) => _m._onRewardedLoaded();
+
+  @override
+  void onAdLoadFailed(LevelPlayAdError error) {
+    debugPrint(
+        'Rewarded load failed: ${error.errorCode} ${error.errorMessage}');
+    Analytics.logAdLoadFailed('rewarded', error.errorCode, error.errorMessage);
+    _m._onRewardedLoadFailed();
+  }
+
+  @override
+  void onAdDisplayed(LevelPlayAdInfo adInfo) => _m._onRewardedDisplayed();
+
+  @override
+  void onAdDisplayFailed(LevelPlayAdError error, LevelPlayAdInfo adInfo) =>
+      _m._finishRewarded();
+
+  @override
+  void onAdRewarded(LevelPlayReward reward, LevelPlayAdInfo adInfo) =>
+      _m._onRewardEarned();
+
+  @override
+  void onAdClosed(LevelPlayAdInfo adInfo) => _m._onRewardedClosed();
+
+  @override
+  void onAdClicked(LevelPlayAdInfo adInfo) {}
+
+  @override
+  void onAdInfoChanged(LevelPlayAdInfo adInfo) {}
+}
+
+class _InterstitialListener implements LevelPlayInterstitialAdListener {
+  _InterstitialListener(this._m);
+
+  final AdManager _m;
+
+  @override
+  void onAdLoaded(LevelPlayAdInfo adInfo) => _m._onInterstitialLoaded();
+
+  @override
+  void onAdLoadFailed(LevelPlayAdError error) {
+    debugPrint(
+      'Interstitial load failed: ${error.errorCode} ${error.errorMessage}',
+    );
+    Analytics.logAdLoadFailed(
+      'interstitial',
+      error.errorCode,
+      error.errorMessage,
+    );
+    _m._onInterstitialLoadFailed();
+  }
+
+  @override
+  void onAdDisplayFailed(LevelPlayAdError error, LevelPlayAdInfo adInfo) =>
+      _m._finishInterstitial();
+
+  @override
+  void onAdClosed(LevelPlayAdInfo adInfo) => _m._finishInterstitial();
+
+  @override
+  void onAdDisplayed(LevelPlayAdInfo adInfo) {}
+
+  @override
+  void onAdClicked(LevelPlayAdInfo adInfo) {}
+
+  @override
+  void onAdInfoChanged(LevelPlayAdInfo adInfo) {}
 }

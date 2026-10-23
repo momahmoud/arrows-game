@@ -49,6 +49,12 @@ class MaskGeneratorV2 {
     'pentagon',
     'heart',
     'circle',
+    'sawtooth',
+    'zigzagBand',
+    'snakeBand',
+    'waveBand',
+    'chevronStack',
+    'zigzagFrame',
   ];
 
   static const List<String> bossShapeNames = [
@@ -413,6 +419,18 @@ class MaskGeneratorV2 {
         return frameMask(side);
       case 'cornerCluster':
         return cornerClusterMask(side);
+      case 'sawtooth':
+        return sawtoothMask(side);
+      case 'zigzagBand':
+        return zigzagBandMask(side);
+      case 'snakeBand':
+        return snakeBandMask(side);
+      case 'waveBand':
+        return waveBandMask(side);
+      case 'chevronStack':
+        return chevronStackMask(side);
+      case 'zigzagFrame':
+        return zigzagFrameMask(side);
       // ── Original V1 shapes ────────────────────────────────────────────────
       case 'cat':
         return catMask(side);
@@ -1637,6 +1655,139 @@ class MaskGeneratorV2 {
       [s * 0.50, s * 0.45], // inner notch
     ]);
     return _clean(mask, side);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  ZIGZAG SILHOUETTES — thick bent bands and toothed edges
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Cells whose centre is within [half] of the open polyline [pts]
+  /// (coordinates in cell units).
+  static void _polyline(
+      Set<String> mask, int side, List<List<double>> pts, double half) {
+    for (int r = 0; r < side; r++) {
+      for (int c = 0; c < side; c++) {
+        final px = c + 0.5, py = r + 0.5;
+        for (int i = 0; i + 1 < pts.length; i++) {
+          if (_segmentDistance(px, py, pts[i], pts[i + 1]) <= half) {
+            mask.add('$r,$c');
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  static double _segmentDistance(
+      double px, double py, List<double> a, List<double> b) {
+    final dx = b[0] - a[0], dy = b[1] - a[1];
+    final len2 = dx * dx + dy * dy;
+    var t = len2 == 0 ? 0.0 : ((px - a[0]) * dx + (py - a[1]) * dy) / len2;
+    t = t.clamp(0.0, 1.0);
+    final qx = a[0] + t * dx, qy = a[1] + t * dy;
+    return sqrt((px - qx) * (px - qx) + (py - qy) * (py - qy));
+  }
+
+  /// Solid base bar with triangular teeth on the top edge and, offset by half
+  /// a tooth, on the bottom edge.
+  static Set<String> sawtoothMask(int side) {
+    final mask = <String>{};
+    final s = side.toDouble();
+    final teeth = side >= 20 ? 4 : 3;
+    final w = s * 0.92 / teeth;
+    _rect(mask, side, s * 0.04, s * 0.30, s * 0.96, s * 0.70);
+    for (int i = 0; i < teeth; i++) {
+      final x = s * 0.04 + i * w;
+      _triangle(mask, side, x, s * 0.32, x + w, s * 0.32, x, s * 0.04);
+      _triangle(mask, side, x + w * 0.5, s * 0.68, x + w * 1.5, s * 0.68,
+          x + w * 1.5, s * 0.96);
+    }
+    return _clean(mask, side);
+  }
+
+  /// One thick bolt that folds back and forth across the window (N / W form).
+  static Set<String> zigzagBandMask(int side) {
+    final mask = <String>{};
+    final s = side.toDouble();
+    _polyline(mask, side, [
+      [s * 0.14, s * 0.90],
+      [s * 0.14, s * 0.12],
+      [s * 0.50, s * 0.88],
+      [s * 0.86, s * 0.12],
+      [s * 0.86, s * 0.90],
+    ], s * 0.088);
+    return _clean(mask, side);
+  }
+
+  /// Serpentine band: full-width runs joined alternately at either end.
+  static Set<String> snakeBandMask(int side) {
+    final mask = <String>{};
+    final s = side.toDouble();
+    final half = s * 0.085;
+    final rows = [0.14, 0.38, 0.62, 0.86];
+    for (int i = 0; i < rows.length; i++) {
+      _polyline(mask, side, [
+        [s * 0.10, s * rows[i]],
+        [s * 0.90, s * rows[i]],
+      ], half);
+      if (i + 1 < rows.length) {
+        final x = i.isEven ? 0.90 : 0.10;
+        _polyline(mask, side, [
+          [s * x, s * rows[i]],
+          [s * x, s * rows[i + 1]],
+        ], half);
+      }
+    }
+    return _clean(mask, side);
+  }
+
+  /// Horizontal triangle wave drawn as a thick band: five straight runs
+  /// that alternate between a high and a low edge.
+  static Set<String> waveBandMask(int side) {
+    final mask = <String>{};
+    final s = side.toDouble();
+    final pts = <List<double>>[];
+    for (int i = 0; i <= 5; i++) {
+      pts.add([s * (0.07 + 0.172 * i), s * (i.isEven ? 0.20 : 0.80)]);
+    }
+    _polyline(mask, side, pts, s * 0.085);
+    return _clean(mask, side);
+  }
+
+  /// Four stacked V bands that touch, giving corrugated left and right edges.
+  static Set<String> chevronStackMask(int side) {
+    final mask = <String>{};
+    final s = side.toDouble();
+    for (final y in [0.04, 0.26, 0.48, 0.70]) {
+      _polyline(mask, side, [
+        [s * 0.06, s * y],
+        [s * 0.50, s * (y + 0.22)],
+        [s * 0.94, s * y],
+      ], s * 0.105);
+    }
+    return _clean(mask, side);
+  }
+
+  /// Square frame whose inner opening is a zigzag, so the border thickens
+  /// and thins as it goes round.
+  static Set<String> zigzagFrameMask(int side) {
+    final mask = <String>{};
+    final s = side.toDouble();
+    _rect(mask, side, s * 0.04, s * 0.04, s * 0.96, s * 0.96);
+    final hole = <String>{};
+    _polygon(hole, side, [
+      [s * 0.24, s * 0.22],
+      [s * 0.36, s * 0.40],
+      [s * 0.50, s * 0.22],
+      [s * 0.64, s * 0.40],
+      [s * 0.76, s * 0.22],
+      [s * 0.76, s * 0.78],
+      [s * 0.64, s * 0.60],
+      [s * 0.50, s * 0.78],
+      [s * 0.36, s * 0.60],
+      [s * 0.24, s * 0.78],
+    ]);
+    return _clean(_subtract(mask, hole), side);
   }
 
   /// Wide horizontal ribbon with tapered ends

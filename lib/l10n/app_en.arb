@@ -21,6 +21,7 @@
   "backgroundMusic": "Background Music",
   "hapticFeedback": "Haptic Feedback",
   "vibration": "Vibration",
+  "dailyReminders": "Daily reminders",
   "themeMode": "Theme Mode",
   "themeSystem": "System",
   "themeLight": "Light",
@@ -443,6 +444,7 @@
   "restartConfirmBody": "The board, hearts, and boosters for this level start over.",
   "leaveConfirmTitle": "Leave this level?",
   "leaveConfirmBody": "Your progress on this board won't be saved.",
+  "progressRestored": "Welcome back — your progress was restored.",
   "leaveLevel": "Leave",
   "heartsLeft": "{lives} of {max} hearts left",
   "@heartsLeft": {

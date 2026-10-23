@@ -136,7 +136,7 @@ graph TD
 
 ### Level Binary Asset (`assets/levels.bin`)
 
-All 1000 levels are pre-compiled and shipped in a single **~1137 KB** binary file (`LVLB` version 3):
+All 1000 levels are pre-compiled and shipped in a single **~1145 KB** binary file (`LVLB` version 3):
 
 ```
 [HEADER]      8 bytes      magic 'LVLB' + version + level count (1000)

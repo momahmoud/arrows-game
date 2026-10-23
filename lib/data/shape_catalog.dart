@@ -50,6 +50,12 @@ class ShapeCatalog {
     'gem',
     'crescentMoon',
     'snowflake',
+    'sawtooth',
+    'zigzagBand',
+    'snakeBand',
+    'waveBand',
+    'chevronStack',
+    'zigzagFrame',
   };
 
   static const _nature = {

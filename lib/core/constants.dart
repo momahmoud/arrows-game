@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import 'ad_secrets.dart';
 
 // Core game constants
 class AppConstants {
@@ -47,28 +46,17 @@ class AppConstants {
   static const int powerUpsPerLevel = 1;
   static const int powerUpsPerRewardedAd = 1;
 
-  // Ads
-  static const String admobAppIdAndroid = AdSecrets.admobAppIdAndroid;
-  static const String admobBannerUnitId = AdSecrets.admobBannerUnitId;
-  static const String admobInterstitialUnitId =
-      AdSecrets.admobInterstitialUnitId;
-  static const String admobRewardedUnitId = AdSecrets.admobRewardedUnitId;
+  // Ads: LevelPlay mediation. AdMob and Unity Ads are networks inside it,
+  // set up in the LevelPlay dashboard (Setup > SDK Networks), not here.
+  // App key and ad unit IDs come from that dashboard (Android app).
+  // An empty app key means ads are off; the game still works.
+  static const String levelPlayAppKey = '286ca4efd';
+  static const String levelPlayBannerAdUnitId = 'sibs2o1d0gngzb37';
+  static const String levelPlayInterstitialAdUnitId = '5q0xyhjkd52uiqkb';
+  static const String levelPlayRewardedAdUnitId = 'cvmcsr21tsam329j';
 
-  static const String unityGameId = AdSecrets.unityGameIdAndroid;
-  static const String unityBannerAdId = 'BP_Banner_Android';
-  static const String unityInterstitialAdId = 'BP_Interstitial_Android';
-  static const String unityRewardedAdId = 'BP_Rewarded_Android';
-  static const bool unityTestMode = !kReleaseMode;
-
-  // static const String applovinSdkKey = 'YOUR_APPLOVIN_SDK_KEY';
-  // static const String applovinBannerAdId = 'YOUR_APPLOVIN_BANNER_AD_UNIT_ID';
-  // static const String applovinInterstitialAdId = 'YOUR_APPLOVIN_INTERSTITIAL_AD_UNIT_ID';
-  // static const String applovinRewardedAdId = 'YOUR_APPLOVIN_REWARDED_AD_UNIT_ID';
-
-  // Ad Network Feature Toggles
-  static const bool enableAdMob = true;
-  static const bool enableUnityAds = true;
-  // static const bool enableAppLovin = false;
+  /// True when LevelPlay can be initialised.
+  static const bool adsConfigured = levelPlayAppKey != '';
 
   static const int interstitialEveryNLevels = 4;
 

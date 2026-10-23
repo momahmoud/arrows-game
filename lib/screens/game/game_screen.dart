@@ -23,7 +23,10 @@ import '../../widgets/power_up_bar.dart';
 import '../../ui/widgets/gameplay_hud.dart';
 import '../../widgets/arrow_line.dart';
 import '../../widgets/boss_intro_banner.dart';
+import '../../core/reminders/reminders.dart';
 import '../../monetization/monetization_policy.dart';
+import '../../monetization/prompts/prompt_coordinator.dart';
+import '../../monetization/remove_ads_offer.dart';
 import '../../ui/widgets/level_result.dart';
 import '../../ui/widgets/monetization_modal.dart';
 import '../../widgets/tutorial_hand.dart';
@@ -68,6 +71,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   Timer? _introTimer;
 
   late final TransformationController _transformationController;
+
+  /// Kept so the board can be saved from dispose, where `context` is unsafe.
+  ProgressRepository? _progressRepo;
+  bool _resumedFromSave = false;
 
   @override
   void initState() {
@@ -171,6 +178,25 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     _gameState!.addListener(_onGameStateChanged);
     AudioManager.instance.setBoardFill(0);
 
+    _progressRepo = progress;
+    _resumedFromSave = false;
+    if (_canPersistSession) {
+      final session = progress.loadLevelSession(_level.levelNumber);
+      if (session != null) {
+        if (_gameState!.restoreSession(session)) {
+          _lives = _gameState!.lives;
+          _resumedFromSave = true;
+          final total = _level.totalArrows;
+          AudioManager.instance.setBoardFill(total == 0
+              ? 0
+              : (1 - _gameState!.arrowsRemaining / total).clamp(0.0, 1.0));
+        } else {
+          // Saved on a board that has since changed.
+          progress.clearLevelSession();
+        }
+      }
+    }
+
     _introTimer?.cancel();
     final introType = AppConstants.levelTypeFor(_level.levelNumber);
     _showBossIntro = introType.isSpecial && !_shapePreviewMode;
@@ -190,6 +216,28 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     );
 
     _resetTimerForLevel();
+
+    if (_resumedFromSave) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showPowerUpSnack(context.l10n.progressRestored);
+      });
+    }
+  }
+
+  /// A campaign board with no timer can be saved part-way and resumed.
+  bool get _canPersistSession {
+    final repo = _progressRepo;
+    if (repo == null || _shapePreviewMode || _dailyChallenge) return false;
+    if (repo.isDemoMode) return false;
+    return _calculateLevelTimerDuration(
+            _level.levelNumber, _level.totalArrows) ==
+        0;
+  }
+
+  void _persistSession() {
+    final gs = _gameState;
+    if (gs == null || !_canPersistSession || !gs.hasSavableProgress) return;
+    _progressRepo!.saveLevelSession(gs.snapshot());
   }
 
   void _onGameStateChanged() {
@@ -213,6 +261,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     setState(() {
       _lives = gs.lives;
     });
+    _persistSession();
   }
 
   void _boosterHaptic() {
@@ -232,8 +281,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     );
   }
 
-  bool get _adsEnabled =>
-      AppConstants.enableAdMob || AppConstants.enableUnityAds;
+  bool get _adsEnabled => AppConstants.adsConfigured;
 
   Future<void> _offerPowerUpRefill(
       PowerUpType type, String emptyMessage) async {
@@ -345,6 +393,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   Future<void> _onLevelComplete() async {
     if (!mounted || _showingComplete) return;
     _levelTimer?.cancel();
+    _progressRepo?.clearLevelSession();
     setState(() => _showingComplete = true);
     if (context.read<ProgressRepository>().vibrationEnabled) {
       HapticFeedback.lightImpact();
@@ -398,9 +447,13 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
 
     AudioManager.instance.playLevelComplete();
+    final reviewClaim = _claimReviewSlot();
     // Leaves room for the board's settle before the result panel.
-    Future.delayed(const Duration(milliseconds: 650), () {
-      if (!mounted) return;
+    Future.delayed(const Duration(milliseconds: 650), () async {
+      if (!mounted) {
+        PromptCoordinator.instance.dropPendingReview();
+        return;
+      }
       if (!GameMotion.reduce(context)) _confettiController.play();
       _showLevelCompleteDialog(
         stars,
@@ -408,11 +461,37 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
         chest,
         improved: alreadyCleared && stars > previousStars && !_shapePreviewMode,
       );
+      // With the result up: reminders are offered on the very first win (a
+      // good moment, and before any review or ad offer); after that, the
+      // store review, when it is due.
+      await reviewClaim;
+      if (_firstWin) {
+        unawaited(reminders.requestPermissionOnce());
+      } else if (_reviewSlot) {
+        unawaited(PromptCoordinator.instance.requestPendingReview());
+      }
     });
+  }
+
+  /// True when the native review took this win's ad slot: it is asked on the
+  /// result, and the break ad after this level is skipped so the two never
+  /// meet.
+  bool _reviewSlot = false;
+
+  /// True on the player's very first win.
+  bool _firstWin = false;
+
+  Future<void> _claimReviewSlot() async {
+    if (_shapePreviewMode) return;
+    final prompts = PromptCoordinator.instance;
+    await prompts.recordWin();
+    _firstWin = prompts.state.wins == 1;
+    _reviewSlot = await prompts.takeReviewSlot();
   }
 
   void _onGameOver() {
     if (!mounted || _showingGameOver) return;
+    _progressRepo?.clearLevelSession();
     context.read<MonetizationPolicy>().noteFailure();
     setState(() => _showingGameOver = true);
     if (context.read<ProgressRepository>().vibrationEnabled) {
@@ -427,6 +506,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (!mounted || _showingDeadlock || _showingGameOver || _showingComplete)
       return;
     _levelTimer?.cancel();
+    _progressRepo?.clearLevelSession();
     setState(() {
       _showingDeadlock = true;
       _inspectingDeadlock = false;
@@ -481,6 +561,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _handleRestart() async {
+    _progressRepo?.clearLevelSession();
     if (mounted) {
       setState(() {
         _showingGameOver = false;
@@ -552,9 +633,15 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   void _handleNextLevel() => _leaveLevel(afterRewarded: false);
 
   /// [closeResult] is false when the result dialog is already closed.
-  void _leaveLevel({required bool afterRewarded, bool closeResult = true}) {
+  Future<void> _leaveLevel({
+    required bool afterRewarded,
+    bool closeResult = true,
+  }) async {
+    if (_leavingLevel) return;
     if (closeResult) Navigator.pop(context);
-    if (!afterRewarded) _showBreakInterstitial();
+    _leavingLevel = true;
+    if (!afterRewarded) await _breakAd();
+    if (!mounted) return;
     if (_shapePreviewMode) {
       Navigator.pop(context);
       return;
@@ -574,9 +661,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   bool get _canAdvance =>
       !_dailyChallenge && _level.levelNumber < AppConstants.totalLevels;
 
-  void _handleMenu() {
+  Future<void> _handleMenu() async {
+    if (_leavingLevel) return;
     Navigator.pop(context);
-    _showBreakInterstitial();
+    _leavingLevel = true;
+    await _breakAd();
+    if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/menu');
   }
 
@@ -588,9 +678,19 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     return AppConstants.levelTypeFor(_level.levelNumber) != LevelType.tutorial;
   }
 
-  void _showBreakInterstitial() {
+  /// The ad break when leaving a won level: skipped when a review took the
+  /// slot, otherwise an interstitial and, after it, when the rules allow, a
+  /// Remove Ads offer on the screen the player is still looking at.
+  Future<void> _breakAd() async {
     if (!_canShowBreakAd()) return;
-    context.read<AdManager>().onLevelComplete(_level.levelNumber);
+    if (_reviewSlot) {
+      _reviewSlot = false;
+      return;
+    }
+    final shown = await context.read<AdManager>().onLevelComplete(
+          _level.levelNumber,
+        );
+    if (shown && mounted) await offerRemoveAdsAfterInterstitial(context);
   }
 
   void _handleDoubleCoins() {
@@ -630,7 +730,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     ChestReward? chest, {
     required bool improved,
   }) async {
-    final adsOn = AppConstants.enableAdMob || AppConstants.enableUnityAds;
+    const adsOn = AppConstants.adsConfigured;
     final god = AppConstants.levelTypeFor(_level.levelNumber) == LevelType.god;
     await showDialog(
       context: context,
@@ -709,7 +809,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       context: context,
       barrierDismissible: false,
       builder: (_) {
-        final adsOn = AppConstants.enableAdMob || AppConstants.enableUnityAds;
+        const adsOn = AppConstants.adsConfigured;
         final progress = context.read<ProgressRepository>();
         final canRefill = progress.coins >= EconomyConfig.heartRefillCost;
         return _bindDeviceBack(
@@ -830,6 +930,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _persistSession();
     _transformationController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _levelTimer?.cancel();
@@ -844,6 +945,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _isAppBackgrounded = true;
+      _persistSession();
     } else if (state == AppLifecycleState.resumed) {
       _isAppBackgrounded = false;
       // Auto-pause and show settings dialog if returned to an active timed level
@@ -955,7 +1057,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   Future<void> _leaveGameplay() async {
     if (!mounted || _leavingLevel || _confirmingLeave) return;
-    if (_hasBoardProgress) {
+    // A saved board is not lost by leaving, so only ask when it would be.
+    if (_hasBoardProgress && !_canPersistSession) {
       _confirmingLeave = true;
       setState(() => _isGamePaused = true);
       final leave = await _confirmLeave();
@@ -1196,12 +1299,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                       height: 50,
                       child: Row(
                         children: [
-                          const Expanded(
-                            child: UnifiedBannerAd(
-                              admobUnitId: AppConstants.admobBannerUnitId,
-                              unityPlacementId: AppConstants.unityBannerAdId,
-                            ),
-                          ),
+                          const Expanded(child: UnifiedBannerAd()),
                           if (!context.watch<ProgressRepository>().adsRemoved)
                             RemoveAdsEntry(
                               onTap: () => MonetizationPresenter.buy(

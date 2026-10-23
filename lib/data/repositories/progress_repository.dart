@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import '../models/level.dart';
+import '../models/level_session.dart';
 import '../../core/board_style.dart';
 import '../../core/constants.dart';
 import '../../core/economy_config.dart';
@@ -305,6 +306,33 @@ class ProgressRepository extends ChangeNotifier {
       debugPrint('Error saving level results: $e');
     }
     return saved;
+  }
+
+  // ── Level in progress ───────────────────────────────────────────────────────
+
+  static const _levelSessionKey = 'levelSession';
+
+  /// The unfinished board for [level], or null when there is none or it was
+  /// saved for a different level.
+  LevelSession? loadLevelSession(int level) {
+    final raw = _prefs?.getString(_levelSessionKey);
+    if (raw == null) return null;
+    try {
+      final session = LevelSession.tryFromJson(jsonDecode(raw));
+      return session != null && session.levelNumber == level ? session : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void saveLevelSession(LevelSession session) {
+    _prefs?.setString(_levelSessionKey, jsonEncode(session.toJson()));
+  }
+
+  void clearLevelSession() {
+    if (_prefs?.containsKey(_levelSessionKey) ?? false) {
+      _prefs!.remove(_levelSessionKey);
+    }
   }
 
   // ── Lives — restored only via rewarded ad or level restart ─────────────────

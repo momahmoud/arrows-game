@@ -1,3 +1,6 @@
+import '../../monetization/ad_consent_dialog.dart';
+import '../../monetization/prompts/ad_consent.dart';
+import '../../widgets/try_our_games_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/app_fonts.dart';
@@ -96,6 +99,11 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             : null,
         child: Column(
           children: [
+            // Asks the ad question here when the player's region needs it.
+            const AdConsentTrigger(
+              show: showAdConsentDialog,
+              child: SizedBox.shrink(),
+            ),
             Expanded(child: _HomeTab(progress: progress)),
             SafeArea(
               top: false,
@@ -103,12 +111,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 height: 50,
                 child: Row(
                   children: [
-                    const Expanded(
-                      child: UnifiedBannerAd(
-                        admobUnitId: AppConstants.admobBannerUnitId,
-                        unityPlacementId: AppConstants.unityBannerAdId,
-                      ),
-                    ),
+                    const Expanded(child: UnifiedBannerAd()),
                     if (!progress.adsRemoved)
                       RemoveAdsEntry(
                         onTap: () => MonetizationPresenter.buy(
@@ -224,6 +227,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                       ),
                       const Spacer(flex: 2),
                       const SizedBox(height: GameSpacing.md),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: GameSpacing.md,
+                        ),
+                        child: TryOurGamesIntroButton(),
+                      ),
+                      const SizedBox(height: GameSpacing.sm),
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: GameSpacing.md,
@@ -287,7 +297,6 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     );
     if (!mounted) return;
     setState(() => _isNavigating = false);
-    await MonetizationPresenter.removeAds(context);
   }
 
   void _toggleDemo(ProgressRepository progress) {

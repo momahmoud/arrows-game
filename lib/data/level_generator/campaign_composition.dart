@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../../core/constants.dart';
+import 'campaign_roles.dart';
 
 /// How a normal level's arrows are drawn inside its silhouette.
 ///
@@ -14,6 +15,8 @@ enum CompositionFamily {
   uShapes,
   cShapes,
   zigzags,
+  tightZigzags,
+  longZigzags,
   staircases,
   nested,
   doubleNested,
@@ -61,6 +64,7 @@ class CampaignBrief {
   final int minDepth;
   final double tangle;
   final PathBias pathBias;
+  final LevelRole role;
 
   const CampaignBrief({
     required this.level,
@@ -76,6 +80,7 @@ class CampaignBrief {
     required this.minDepth,
     required this.tangle,
     required this.pathBias,
+    this.role = LevelRole.standard,
   });
 }
 
@@ -88,26 +93,57 @@ class CampaignComposition {
   CampaignComposition._();
 
   static const Map<String, int> shapeQuotas = {
-    'longRectangle': 50,
-    'pentagon': 45,
-    'circle': 45,
-    'hexagon': 45,
-    'octagon': 45,
-    'heart': 41,
-    'diamond': 41,
-    'plus': 41,
-    'hShape': 35,
-    'parallelogram': 35,
-    'ribbon': 29,
-    'trapezoid': 29,
-    'blob': 29,
-    'wideRectangle': 29,
-    'cornerCluster': 29,
-    'uShape': 29,
-    'cShape': 29,
-    'staircase': 29,
-    'zShape': 29,
-    'frame': 29,
+    'longRectangle': 30,
+    'pentagon': 24,
+    'circle': 24,
+    'hexagon': 24,
+    'octagon': 24,
+    'heart': 24,
+    'diamond': 24,
+    'plus': 24,
+    'hShape': 22,
+    'parallelogram': 22,
+    'ribbon': 18,
+    'trapezoid': 18,
+    'blob': 18,
+    'wideRectangle': 18,
+    'cornerCluster': 18,
+    'uShape': 22,
+    'cShape': 22,
+    'staircase': 24,
+    'zShape': 28,
+    'frame': 18,
+    // Zigzag silhouettes: about a third of the normal levels.
+    'sawtooth': 48,
+    'zigzagBand': 48,
+    'snakeBand': 48,
+    'waveBand': 40,
+    'chevronStack': 41,
+    'zigzagFrame': 42,
+  };
+
+  /// Silhouettes whose outline is itself a zigzag. Their arrows follow
+  /// zigzag compositions too.
+  static const Set<String> zigzagShapes = {
+    'sawtooth',
+    'zigzagBand',
+    'snakeBand',
+    'waveBand',
+    'chevronStack',
+    'zigzagFrame',
+    'zShape',
+    'staircase',
+  };
+
+  /// First level where each zigzag silhouette may appear. The first ten
+  /// levels keep to plain shapes.
+  static const Map<String, int> _zigzagUnlock = {
+    'sawtooth': 11,
+    'zigzagBand': 11,
+    'snakeBand': 15,
+    'waveBand': 31,
+    'chevronStack': 31,
+    'zigzagFrame': 61,
   };
 
   static const List<String> _world1 = [
@@ -173,6 +209,7 @@ class CampaignComposition {
       for (final name in _world1) name: 0,
       for (final name in _world2) name: _normalOrdinal(101),
       for (final name in _world3) name: _normalOrdinal(201),
+      for (final e in _zigzagUnlock.entries) e.key: _normalOrdinal(e.value),
     };
     String? lastComposition;
 
@@ -190,18 +227,52 @@ class CampaignComposition {
       recent.add(shape);
       if (recent.length > 3) recent.removeAt(0);
 
-      final allowed = _compositionsFor(level);
+      final role = CampaignRoles.roleFor(level);
       final visit = visits[shape] ?? 0;
       visits[shape] = visit + 1;
+      final allowed = _compositionsFor(level);
       var composition =
           allowed[(visit + unlocked.indexOf(shape)) % allowed.length];
-      if (composition.name == lastComposition && allowed.length > 1) {
+      if (role == LevelRole.teaching || role == LevelRole.puzzle) {
+        const orderFamilies = [
+          CompositionFamily.opposing,
+          CompositionFamily.interlock,
+          CompositionFamily.asymmetric,
+          CompositionFamily.multiDependency,
+        ];
+        composition = orderFamilies[(ordinal + visit) % orderFamilies.length];
+        if (level < 201 && composition == CompositionFamily.interlock) {
+          composition = CompositionFamily.opposing;
+        }
+      } else if (role == LevelRole.breather) {
+        const restFamilies = [
+          CompositionFamily.straightLanes,
+          CompositionFamily.parallelLanes,
+          CompositionFamily.lShapes,
+          CompositionFamily.zigzags,
+        ];
+        composition = restFamilies[(ordinal + visit) % restFamilies.length];
+      } else if (level >= 11) {
+        final zigzagFamilies = _zigzagFamiliesFor(level);
+        if (zigzagShapes.contains(shape)) {
+          composition = zigzagFamilies[(visit + ordinal) % zigzagFamilies.length];
+        } else if (ordinal % 4 == 1) {
+          composition = zigzagFamilies[(visit + ordinal ~/ 4) % zigzagFamilies.length];
+        }
+      }
+      if (composition.name == lastComposition && allowed.length > 1 &&
+          role == LevelRole.standard) {
         final i = allowed.indexOf(composition);
-        composition = allowed[(i + 1 + visit) % allowed.length];
+        if (i >= 0) composition = allowed[(i + 1 + visit) % allowed.length];
       }
       lastComposition = composition.name;
 
-      final arrows = _arrowBand(level);
+      var arrows = _arrowBand(level);
+      if (role == LevelRole.teaching) {
+        arrows = (22, 30);
+      } else if (role == LevelRole.breather) {
+        arrows = ((arrows.$1 * 0.62).round(), (arrows.$2 * 0.74).round());
+      }
       final target =
           arrows.$1 + ((level * 5 + visit) % (arrows.$2 - arrows.$1 + 1));
       final style = _style(composition);
@@ -216,9 +287,11 @@ class CampaignComposition {
         maxArrows: arrows.$2,
         targetArrows: target.clamp(arrows.$1, arrows.$2),
         avgPath: _avgPath(level),
-        minDepth: _minDepth(level, composition),
+        minDepth: _minDepth(level, composition) -
+            (role == LevelRole.breather || role == LevelRole.teaching ? 1 : 0),
         tangle: style.$1,
         pathBias: style.$2,
+        role: role,
       );
     }
 
@@ -227,6 +300,9 @@ class CampaignComposition {
 
   static List<String> _unlocked(int level) {
     final names = <String>[..._world1];
+    _zigzagUnlock.forEach((name, from) {
+      if (level >= from) names.add(name);
+    });
     if (level >= 101) names.addAll(_world2);
     if (level >= 201) names.addAll(_world3);
     return names;
@@ -287,6 +363,24 @@ class CampaignComposition {
       return a.compareTo(b);
     });
     return choices.first;
+  }
+
+  static List<CompositionFamily> _zigzagFamiliesFor(int level) {
+    if (level < 21) return const [CompositionFamily.zigzags];
+    if (level < 51) {
+      return const [
+        CompositionFamily.zigzags,
+        CompositionFamily.longZigzags,
+        CompositionFamily.staircases,
+      ];
+    }
+    return const [
+      CompositionFamily.tightZigzags,
+      CompositionFamily.zigzags,
+      CompositionFamily.longZigzags,
+      CompositionFamily.staircases,
+      CompositionFamily.tightZigzags,
+    ];
   }
 
   static List<CompositionFamily> _compositionsFor(int level) {
@@ -459,6 +553,16 @@ class CampaignComposition {
         return (
           0.62,
           const PathBias(maxStraight: 2, turnBias: 0.55, alternateTurns: true),
+        );
+      case CompositionFamily.tightZigzags:
+        return (
+          0.70,
+          const PathBias(maxStraight: 1, turnBias: 0.85, alternateTurns: true),
+        );
+      case CompositionFamily.longZigzags:
+        return (
+          0.56,
+          const PathBias(maxStraight: 3, turnBias: 0.62, alternateTurns: true),
         );
       case CompositionFamily.staircases:
         return (

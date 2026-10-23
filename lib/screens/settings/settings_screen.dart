@@ -6,6 +6,9 @@ import '../../core/app_colors.dart';
 import '../../core/constants.dart';
 import '../../data/repositories/progress_repository.dart';
 import '../../core/audio_manager.dart';
+import '../../core/reminders/reminders.dart';
+import '../../monetization/ad_consent_dialog.dart';
+import '../../monetization/prompts/ad_consent.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../l10n/l10n.dart';
 import '../../ui/game_ui.dart';
@@ -88,6 +91,8 @@ class SettingsScreen extends StatelessWidget {
                                 activeThumbColor: AppColors.primary,
                               ),
                             ),
+                            const _RemindersTile(),
+                            const _AdChoicesTile(),
                             _SettingsTile(
                               icon: GameIconKind.theme,
                               label: context.l10n.themeMode,
@@ -280,6 +285,84 @@ class _SettingsTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The daily reminders switch. The setting lives in the reminder service, so
+/// it is read from there; turning it on asks the OS for permission.
+class _RemindersTile extends StatefulWidget {
+  const _RemindersTile();
+
+  @override
+  State<_RemindersTile> createState() => _RemindersTileState();
+}
+
+class _RemindersTileState extends State<_RemindersTile> {
+  bool _on = true;
+
+  @override
+  void initState() {
+    super.initState();
+    reminders.isEnabled().then((on) {
+      if (mounted) setState(() => _on = on);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _SettingsTile(
+      icon: GameIconKind.dailyReward,
+      label: context.l10n.dailyReminders,
+      trailing: Switch(
+        value: _on,
+        onChanged: (value) {
+          AudioManager.instance.playClick();
+          setState(() => _on = value);
+          reminders.setEnabled(value);
+        },
+        activeThumbColor: AppColors.primary,
+      ),
+    );
+  }
+}
+
+/// Changes the ad choice. Only players whose region asks the question see it.
+class _AdChoicesTile extends StatefulWidget {
+  const _AdChoicesTile();
+
+  @override
+  State<_AdChoicesTile> createState() => _AdChoicesTileState();
+}
+
+class _AdChoicesTileState extends State<_AdChoicesTile> {
+  @override
+  void initState() {
+    super.initState();
+    AdConsent.instance.load().then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final consent = AdConsent.instance;
+    if (!consent.isRequired) return const SizedBox.shrink();
+    final lang = Localizations.localeOf(context).languageCode;
+    return _SettingsTile(
+      icon: GameIconKind.noAds,
+      label:
+          '${AdConsentCopy.settingsTitle(lang)} · '
+          '${AdConsentCopy.settingsSubtitle(lang, personalized: consent.choice)}',
+      trailing: const GameIcon(
+        kind: GameIconKind.chevronDown,
+        size: 18,
+        mirror: false,
+      ),
+      onTap: () async {
+        await consent.change(() => showAdConsentDialog(context));
+        if (mounted) setState(() {});
+      },
     );
   }
 }

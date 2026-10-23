@@ -182,6 +182,12 @@ abstract class AppLocalizations {
   /// **'Vibration'**
   String get vibration;
 
+  /// No description provided for @dailyReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily reminders'**
+  String get dailyReminders;
+
   /// No description provided for @themeMode.
   ///
   /// In en, this message translates to:
@@ -1495,6 +1501,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your progress on this board won\'t be saved.'**
   String get leaveConfirmBody;
+
+  /// No description provided for @progressRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back — your progress was restored.'**
+  String get progressRestored;
 
   /// No description provided for @leaveLevel.
   ///

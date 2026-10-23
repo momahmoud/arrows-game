@@ -141,44 +141,80 @@ void main() {
           }));
 
   testWidgets(
-      'leaving after progress asks first; keep playing stays',
+      'leaving after progress needs no confirmation: the board is saved',
       (tester) => UiHarness.withoutPlugins(() async {
             final l10n = await openGame(tester);
             await useHint(tester, l10n);
 
             await tester.tap(find.byTooltip(l10n.mainMenu));
-            await _frames(tester, 20);
-            expect(find.text(l10n.leaveConfirmTitle), findsOneWidget);
-            expect(find.text(l10n.leaveConfirmBody), findsOneWidget);
-
-            await tester.tap(find.text(l10n.keepPlaying));
-            await _frames(tester, 20);
-            expect(find.text(l10n.leaveConfirmTitle), findsNothing);
-            expect(find.text('MENU'), findsNothing);
-
-            await tester.tap(find.byTooltip(l10n.mainMenu));
-            await _frames(tester, 20);
-            await tester.tap(find.text(l10n.leaveLevel));
             await _frames(tester, 30);
+            expect(find.text(l10n.leaveConfirmTitle), findsNothing);
             expect(find.text('MENU'), findsOneWidget);
             await close(tester);
           }));
 
   testWidgets(
-      'device back uses the same leave confirmation',
+      'a board left part-way comes back as it was, not rebuilt',
+      (tester) => UiHarness.withoutPlugins(() async {
+            tester.view.physicalSize = const Size(720, 1380);
+            tester.view.devicePixelRatio = 2;
+            addTearDown(tester.view.resetPhysicalSize);
+            addTearDown(tester.view.resetDevicePixelRatio);
+            final h = await UiHarness.create(prefs: prefs);
+            await tester.pumpWidget(h.app(
+              locale: const Locale('en'),
+              dark: false,
+              initial:
+                  const RouteSettings(name: '/game', arguments: {'level': 23}),
+              routes: {
+                '/game': (_) => const GameScreen(),
+                '/menu': (context) => Scaffold(
+                      body: TextButton(
+                        onPressed: () => Navigator.pushReplacementNamed(
+                          context,
+                          '/game',
+                          arguments: {'level': 23},
+                        ),
+                        child: const Text('MENU'),
+                      ),
+                    ),
+              },
+            ));
+            await _frames(tester, 120);
+            final l10n = lookupAppLocalizations(const Locale('en'));
+
+            await useHint(tester, l10n);
+            expect(
+              find.bySemanticsLabel(l10n.boosterEmpty(l10n.powerUpHint)),
+              findsOneWidget,
+            );
+
+            await tester.tap(find.byTooltip(l10n.mainMenu));
+            await _frames(tester, 30);
+            expect(find.text('MENU'), findsOneWidget);
+
+            // Back into the same level: the spent hint is still spent.
+            await tester.tap(find.text('MENU'));
+            await _frames(tester, 120);
+            expect(
+              find.bySemanticsLabel(l10n.boosterEmpty(l10n.powerUpHint)),
+              findsOneWidget,
+              reason: 'the saved board is restored, not a fresh one',
+            );
+            expect(find.text(l10n.progressRestored), findsOneWidget);
+            await close(tester);
+          }));
+
+  testWidgets(
+      'device back leaves a saved board straight away',
       (tester) => UiHarness.withoutPlugins(() async {
             final l10n = await openGame(tester);
             await useHint(tester, l10n);
 
             await tester.binding.handlePopRoute();
-            await _frames(tester, 20);
-            expect(find.text(l10n.leaveConfirmTitle), findsOneWidget);
-
-            // Back again dismisses the confirmation, which keeps the level.
-            await tester.binding.handlePopRoute();
-            await _frames(tester, 20);
+            await _frames(tester, 30);
             expect(find.text(l10n.leaveConfirmTitle), findsNothing);
-            expect(find.text('MENU'), findsNothing);
+            expect(find.text('MENU'), findsOneWidget);
             await close(tester);
           }));
 

@@ -53,6 +53,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibration => 'Vibration';
 
   @override
+  String get dailyReminders => 'Daily reminders';
+
+  @override
   String get themeMode => 'Theme Mode';
 
   @override
@@ -779,6 +782,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get leaveConfirmBody => 'Your progress on this board won\'t be saved.';
+
+  @override
+  String get progressRestored => 'Welcome back — your progress was restored.';
 
   @override
   String get leaveLevel => 'Leave';

@@ -111,6 +111,31 @@ void main() {
       expect(_savedTokens(prefs), isEmpty);
     });
 
+    test('a store that never answers frees the next purchase', () async {
+      prefs = _Prefs(const {});
+      progress = ProgressRepository(prefs);
+      store = _Store();
+      billing = PlayBilling(
+        progress,
+        store: store,
+        purchaseTimeout: const Duration(milliseconds: 50),
+      );
+      await billing.start();
+      await _settle();
+      store.onBuy = (id) => const [];
+
+      final first = await billing.purchase(EconomyConfig.coins1000Id);
+      expect(first.status, StorePurchaseStatus.pending);
+
+      // The purchase finishing later is still delivered, and a new one works.
+      store.emit([_play(EconomyConfig.coins1000Id, 'tok-late')]);
+      await _settle();
+      expect(progress.coins, 1000);
+      store.onBuy = (id) => [_play(id, 'tok-next')];
+      final next = await billing.purchase(EconomyConfig.coins1000Id);
+      expect(next.status, StorePurchaseStatus.purchased);
+    });
+
     test('cancel grants nothing', () async {
       await boot();
       store.onBuy =

@@ -404,6 +404,13 @@ class CoinAnchor extends StatefulWidget {
   final Widget child;
 
   static final List<GlobalKey> _keys = [];
+  static final List<_CoinAnchorState> _states = [];
+
+  /// A flying coin reached the balance: it pops. Does nothing when no
+  /// balance is on screen.
+  static void landed() {
+    if (_states.isNotEmpty) _states.last._pop();
+  }
 
   static Offset? get target {
     for (final key in _keys.reversed) {
@@ -419,24 +426,43 @@ class CoinAnchor extends StatefulWidget {
   State<CoinAnchor> createState() => _CoinAnchorState();
 }
 
-class _CoinAnchorState extends State<CoinAnchor> {
+class _CoinAnchorState extends State<CoinAnchor>
+    with SingleTickerProviderStateMixin {
   final GlobalKey _key = GlobalKey();
+  late final AnimationController _popCtl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  );
 
   @override
   void initState() {
     super.initState();
     CoinAnchor._keys.add(_key);
+    CoinAnchor._states.add(this);
   }
 
   @override
   void dispose() {
     CoinAnchor._keys.remove(_key);
+    CoinAnchor._states.remove(this);
+    _popCtl.dispose();
     super.dispose();
+  }
+
+  void _pop() {
+    if (mounted) _popCtl.forward(from: 0);
   }
 
   @override
   Widget build(BuildContext context) {
-    return KeyedSubtree(key: _key, child: widget.child);
+    return AnimatedBuilder(
+      animation: _popCtl,
+      builder: (context, child) => Transform.scale(
+        scale: 1 + 0.1 * (1 - (_popCtl.value * 2 - 1).abs()),
+        child: child,
+      ),
+      child: KeyedSubtree(key: _key, child: widget.child),
+    );
   }
 }
 
