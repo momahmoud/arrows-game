@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../../core/constants.dart';
 import 'campaign_roles.dart';
+import 'icon_templates.dart';
 
 /// How a normal level's arrows are drawn inside its silhouette.
 ///
@@ -175,7 +176,11 @@ class CampaignComposition {
     'frame',
   ];
 
-  static final Map<int, CampaignBrief> _byLevel = _build();
+  /// Normal levels up to here are drawn as small recognisable icons instead of
+  /// the plan's abstract silhouettes. Later levels are left exactly as planned.
+  static const int iconLastLevel = 100;
+
+  static final Map<int, CampaignBrief> _byLevel = _withIcons(_build());
 
   static CampaignBrief briefFor(int level) {
     final brief = _byLevel[level];
@@ -255,12 +260,15 @@ class CampaignComposition {
       } else if (level >= 11) {
         final zigzagFamilies = _zigzagFamiliesFor(level);
         if (zigzagShapes.contains(shape)) {
-          composition = zigzagFamilies[(visit + ordinal) % zigzagFamilies.length];
+          composition =
+              zigzagFamilies[(visit + ordinal) % zigzagFamilies.length];
         } else if (ordinal % 4 == 1) {
-          composition = zigzagFamilies[(visit + ordinal ~/ 4) % zigzagFamilies.length];
+          composition =
+              zigzagFamilies[(visit + ordinal ~/ 4) % zigzagFamilies.length];
         }
       }
-      if (composition.name == lastComposition && allowed.length > 1 &&
+      if (composition.name == lastComposition &&
+          allowed.length > 1 &&
           role == LevelRole.standard) {
         final i = allowed.indexOf(composition);
         if (i >= 0) composition = allowed[(i + 1 + visit) % allowed.length];
@@ -296,6 +304,49 @@ class CampaignComposition {
     }
 
     return out;
+  }
+
+  /// Gives the first normal levels an icon silhouette, simplest first. Only
+  /// the shape (and the window it needs) changes; composition, arrow band and
+  /// role stay as planned.
+  static Map<int, CampaignBrief> _withIcons(Map<int, CampaignBrief> plan) {
+    final names = IconTemplates.names;
+    final recent = <String>[];
+    var k = 0;
+    for (final level in (plan.keys.toList()..sort())) {
+      if (level > iconLastLevel) break;
+      final old = plan[level]!;
+      String icon;
+      if (k < 12) {
+        icon = names[k];
+      } else {
+        var i = (k * 5 + 3) % names.length;
+        while (recent.contains(names[i])) {
+          i = (i + 1) % names.length;
+        }
+        icon = names[i];
+      }
+      recent.add(icon);
+      if (recent.length > 8) recent.removeAt(0);
+      k++;
+      plan[level] = CampaignBrief(
+        level: old.level,
+        shape: icon,
+        composition: old.composition,
+        dependency: old.dependency,
+        difficultyTarget: old.difficultyTarget,
+        window: _window(level, icon),
+        minArrows: old.minArrows,
+        maxArrows: old.maxArrows,
+        targetArrows: old.targetArrows,
+        avgPath: old.avgPath,
+        minDepth: old.minDepth,
+        tangle: old.tangle,
+        pathBias: old.pathBias,
+        role: old.role,
+      );
+    }
+    return plan;
   }
 
   static List<String> _unlocked(int level) {

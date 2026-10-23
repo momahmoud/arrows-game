@@ -19,6 +19,10 @@ class ShapeCatalog {
   ShapeCatalog._();
 
   static const _geometric = {
+    'iconStar',
+    'iconHeart',
+    'iconGem',
+    'iconArrow',
     'square',
     'longRectangle',
     'circle',
@@ -59,6 +63,11 @@ class ShapeCatalog {
   };
 
   static const _nature = {
+    'iconTree',
+    'iconMushroom',
+    'iconCloud',
+    'iconCactus',
+    'iconButterfly',
     'tree',
     'palmTree',
     'flower',
@@ -80,6 +89,8 @@ class ShapeCatalog {
   };
 
   static const _food = {
+    'iconApple',
+    'iconIceCream',
     'apple',
     'pear',
     'strawberry',
@@ -136,6 +147,8 @@ class ShapeCatalog {
   };
 
   static const _animals = {
+    'iconFish',
+    'iconCat',
     'cat',
     'dog',
     'frog',
@@ -242,7 +255,10 @@ class ShapeCatalog {
       final ar = shapeNamesAr[shape.name];
       if (ar != null) return ar;
     }
-    final raw = shape.name.replaceAllMapped(
+    final base = shape.name.startsWith('icon') && shape.name.length > 4
+        ? shape.name.substring(4)
+        : shape.name;
+    final raw = base.replaceAllMapped(
       RegExp(r'([a-z])([A-Z])'),
       (m) => '${m[1]} ${m[2]}',
     );

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../../core/constants.dart';
 import 'bitmap_animal_templates.dart';
+import 'icon_templates.dart';
 
 /// V2 Parametric mask generator for puzzle canvas shapes.
 ///
@@ -406,6 +407,8 @@ class MaskGeneratorV2 {
   // ── Shape by name ──────────────────────────────────────────────────────────
 
   static Set<String> shapeByName(String name, int side, Random rng) {
+    final icon = IconTemplates.byName(name);
+    if (icon != null) return _bitmapMask(side, icon);
     switch (name) {
       case 'square':
         return squareMask(side);
